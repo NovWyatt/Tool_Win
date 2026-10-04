@@ -11,7 +11,7 @@
 
 Tất cả đều tự nâng quyền Admin và chỉ đọc. Riêng script 1 có dừng/bật lại dịch vụ SQL (có hỏi trước), script 4 có tuỳ chọn tạo Custom View trong Event Viewer (có hỏi trước), script 5 có tuỳ chọn bật minidump + tắt AutoReboot để lần sau thấy mã lỗi (có hỏi trước).
 
-**Ca thực tế đã xử lý:** [CHAN-DOAN-DESKTOP-2VQE588.md](CHAN-DOAN-DESKTOP-2VQE588.md) — biên bản trình bày: https://claude.ai/artifact/VCqBxCGexui2ZpVXerB9up
+**Ca thực tế đã xử lý:** [du-lieu/ca-DESKTOP-2VQE588/CHAN-DOAN-DESKTOP-2VQE588.md](du-lieu/ca-DESKTOP-2VQE588/CHAN-DOAN-DESKTOP-2VQE588.md) (dữ liệu khách, chỉ lưu trên máy, không đưa lên git) — biên bản trình bày: https://claude.ai/artifact/VCqBxCGexui2ZpVXerB9up
 
 ---
 

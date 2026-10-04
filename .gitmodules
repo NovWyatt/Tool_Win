@@ -1,0 +1,3 @@
+[submodule "tools/mdf2sql"]
+	path = tools/mdf2sql
+	url = https://github.com/NovWyatt/mdf2sql.git
