@@ -1,0 +1,5 @@
+# Thư viện CUDA cho card NVIDIA (khoảng 1 GB). CAI_DAT.ps1 chỉ cài khi máy có card NVIDIA.
+# ctranslate2 4.8 cần CUDA 12 + cuDNN 9; chuyen_doi.py tự nạp DLL từ .venv\Lib\site-packages\nvidia\*\bin.
+nvidia-cublas-cu12==12.9.2.10
+nvidia-cudnn-cu12==9.10.2.21
+nvidia-cuda-nvrtc-cu12==12.9.86

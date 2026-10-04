@@ -9,6 +9,7 @@ CÁCH DÙNG
 2. Bấm đúp CHUYEN_DOI_GHI_AM.bat.
    - Công cụ tự xử lý mọi file ghi âm chưa có kết quả.
    - Hoặc kéo thả một file ghi âm vào CHUYEN_DOI_GHI_AM.bat để xử lý đúng file đó.
+   - Trong Trạm Tool: bấm "Chuyển một file ghi âm" rồi chọn file.
 3. Kết quả nằm trong thư mục ket_qua:
    - <tên file> - ban tho.docx : văn bản Word, có mốc thời gian đầu mỗi đoạn.
    - <tên file> - ban tho.txt  : từng câu kèm thời điểm bắt đầu → kết thúc.
@@ -16,6 +17,14 @@ CÁCH DÙNG
 
 Tốc độ: khoảng 5 lần nhanh hơn thời gian thực (1 giờ ghi âm mất chừng 12–15 phút).
 Nếu card đồ họa lỗi, công cụ tự chạy lại bằng CPU (chậm hơn nhiều).
+
+CÀI ĐẶT (MÁY MỚI HOẶC KHI BÁO THIẾU MÔI TRƯỜNG)
+-----------------------------------------------
+CHUYEN_DOI_GHI_AM.bat tự hỏi cài khi thiếu. Hoặc chạy trực tiếp:
+  powershell -ExecutionPolicy Bypass -File CAI_DAT.ps1          (thêm -LamLai để dựng lại .venv)
+Script tự tìm/cài Python 3.12 cho riêng tài khoản (không cần Admin), dựng .venv đúng phiên bản
+trong requirements-lock.txt, cài thư viện CUDA nếu máy có card NVIDIA, tải mô hình
+faster-whisper-large-v3 (khoảng 3 GB) nếu chưa có. Cần driver NVIDIA bản 525 trở lên.
 
 TÙY CHỌN (chạy trong cửa sổ lệnh tại thư mục này)
 -------------------------------------------------
@@ -26,10 +35,35 @@ TÙY CHỌN (chạy trong cửa sổ lệnh tại thư mục này)
       --mo-hinh phowhisper-large-ct2 : dùng mô hình PhoWhisper của VinAI (nghe từ tiếng Việt tốt
                   hơn nhưng ra chữ thường, không có dấu câu)
 
+BẢN BIÊN TẬP → WORD HOÀN CHỈNH
+------------------------------
+Bản thô là máy tự nghe: sai tên riêng, con số và thuật ngữ là chuyện thường gặp, nhất là ghi âm
+qua loa hội trường hoặc nhiều người nói chen nhau. Muốn có bản hoàn chỉnh (sửa lỗi, chia người nói,
+đặt tiêu đề, mục lục): nhờ Claude biên tập từ dữ liệu trong ket_qua\_du_lieu thành một file .txt
+theo ký hiệu dưới đây, rồi kéo thả file .txt đó vào DUNG_WORD_TU_BAN_BIEN_TAP.bat.
+File Word ra nằm cạnh file .txt, cùng tên.
+
+Ký hiệu (mỗi dòng một đoạn):
+  % Dòng tiêu đề                 in đậm, căn giữa (có thể nhiều dòng)
+  %% Dòng phụ đề                 in nghiêng, căn giữa
+  : Nhãn: giá trị                dòng thông tin, nhãn in đậm
+  > Ghi chú                      chữ nghiêng nhỏ màu xám; sau ghi chú cuối có đường kẻ ngang
+  [[MUC_LUC]]                    mục lục (Word cập nhật khi mở)
+  ## Tiêu đề mục / ### Tiêu đề mục con
+  [00:12:34] **Người nói:** lời nói...   (mốc thời gian và nhãn người nói đều không bắt buộc)
+Trong đoạn văn: ==chỗ cần đối chiếu== tô vàng, *ghi chú của người biên tập* in nghiêng,
+**chữ đậm**, [không nghe rõ] in nghiêng màu xám.
+
+MÔ HÌNH PHOWHISPER (KHÔNG BẮT BUỘC)
+-----------------------------------
+models\phowhisper-large-ct2 được đổi từ vinai/PhoWhisper-large (Hugging Face) sang định dạng
+CTranslate2. Muốn tạo lại trên máy khác: dựng một .venv tạm có torch (bản CPU), transformers và
+ctranslate2==4.8.2, chạy
+  ct2-transformers-converter --model vinai/PhoWhisper-large --output_dir models\phowhisper-large-ct2 --quantization float16
+rồi lưu tokenizer.json và preprocessor_config.json của vinai/PhoWhisper-large vào cùng thư mục.
+
 LƯU Ý
 -----
-- Bản thô là máy tự nghe: sai tên riêng, con số và thuật ngữ là chuyện thường gặp, nhất là ghi âm
-  qua loa hội trường hoặc nhiều người nói chen nhau. Muốn có bản biên tập hoàn chỉnh (sửa lỗi, chia
-  người nói, đặt tiêu đề, mục lục), nhờ Claude biên tập từ kết quả trong ket_qua\_du_lieu.
 - Thư mục models chứa mô hình nhận dạng (khoảng 6 GB); .venv chứa Python và thư viện. Đừng xóa hai
-  thư mục này.
+  thư mục này (xóa nhầm thì chạy lại CAI_DAT.ps1).
+- File ghi âm và thư mục ket_qua là dữ liệu cuộc họp: không đưa lên git, không gửi ra ngoài.

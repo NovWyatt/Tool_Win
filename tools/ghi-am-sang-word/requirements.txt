@@ -1,0 +1,5 @@
+# Thư viện dùng trực tiếp. Phiên bản các thư viện kéo theo khoá trong requirements-lock.txt
+# (CAI_DAT.ps1 cài bằng: pip install -r requirements.txt -c requirements-lock.txt).
+faster-whisper==1.2.1
+ctranslate2==4.8.2
+python-docx==1.2.0
