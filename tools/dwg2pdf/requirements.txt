@@ -1,0 +1,6 @@
+# convert.py vá trực tiếp vào bên trong ezdxf 1.4.4 và PyMuPDF 1.28.2: giữ đúng phiên bản.
+# Muốn nâng cấp thì chạy lại một bộ bản vẽ mẫu và so sánh PDF trước khi đổi.
+ezdxf==1.4.4
+PyMuPDF==1.28.2
+olefile==0.47
+Pillow==12.3.0

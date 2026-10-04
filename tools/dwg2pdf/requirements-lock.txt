@@ -1,0 +1,10 @@
+# Ảnh chụp đủ bộ thư viện của .venv đang chạy tốt (Python 3.12.10, 04/10/2026).
+# Dùng làm ràng buộc (-c) khi cài, để máy khác ra đúng phiên bản như máy này.
+ezdxf==1.4.4
+fonttools==4.66.1
+numpy==2.5.3
+olefile==0.47
+pillow==12.3.0
+pymupdf==1.28.2
+pyparsing==3.3.3
+typing_extensions==4.16.0
