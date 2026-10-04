@@ -40,7 +40,8 @@ Mức ưu tiên:
 | `428d6fd` | Chuyển dữ liệu khi cài lại Windows | Khôi phục không còn chép đè hội thoại Claude và file Cowork mới hơn bằng bản sao lưu cũ (mất dữ liệu khi chạy lại bước nhập). |
 | `a56f838` | Báo cáo sức khoẻ | `wmic` đã bị gỡ khỏi Windows 11 mới; đọc ổ đĩa bằng `Get-CimInstance`. |
 | `dcd7d61` | Tắt/bật dịch vụ, Tối ưu đồng hồ | Dấu `&` trong tiêu đề, menu làm cmd chạy phần sau như một lệnh; *bật lại* Optimize Drives trả về Manual (mặc định) thay vì Automatic. |
-| (đợt này) | MyExcelFix, mdf2sql | Thêm `HOAN_TAC.bat` (hoàn tác từ trạm) và `CHAY_DONG_LENH.bat` (xem thông tin, chuyển đổi không cần trình duyệt). |
+| `0c73dc2`, `840a0ef` | MyExcelFix, mdf2sql | Thêm `HOAN_TAC.bat` (hoàn tác từ trạm) và `CHAY_DONG_LENH.bat` (xem thông tin, chuyển đổi không cần trình duyệt). |
+| `cabde6b` | DWG sang PDF | Giải mã chữ font TCVN3 (`.VnTime`, `.VnArial`...); chuyển lại KT-02, trang KT01-02 hết lỗi chữ (`®-êng ®Êt` → "đường đất"). Đã quét 13 bản vẽ còn lại của bộ SAMSORA: không bản nào dùng TCVN3. |
 
 ## Bảng tổng quan
 
@@ -53,7 +54,7 @@ Mức ưu tiên:
 | Tắt/bật dịch vụ nền | Kỹ thuật | Báo *thành công* cả khi `sc config` bị từ chối; coi *đã dừng* là *đã tắt*. Tắt Optimize Drives làm mất TRIM cho SSD. | P0: tự nâng quyền, xét kiểu khởi động, lưu trạng thái gốc để khôi phục đúng. |
 | Tối ưu đồng hồ hệ thống | Kỹ thuật | Không có tác dụng (ghi sai chỗ). | P0: bỏ khỏi trạm, hoặc viết lại bằng `bcdedit` và đo trước/sau. |
 | MyExcelFix | Mọi người | Chẩn đoán kỹ theo từng tài khoản Windows, có sao lưu và hoàn tác, mã nguồn chia module và build ra một file `.bat`. | P0: không treo khi thiếu cửa sổ dòng lệnh, hoàn tác không đè file đã sửa sau đó, mã thoát. |
-| DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI. Bản vẽ lớn chậm (5–35 phút). | P1: giải mã TCVN3; bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
+| DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5–35 phút). | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
 | Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn. | P1: tên kết quả giữ đuôi file gốc, lưu tiến độ để chạy tiếp, chỉ chạy lại bằng CPU khi đúng là lỗi card. |
 | Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. | P0: lệnh `doctor` kiểm tra môi trường, không dùng chung cổng 8760. |
 | Chuyển dữ liệu khi cài lại Windows | Kỹ thuật | Sao lưu Wi-Fi kèm mật khẩu, máy in kèm driver, dữ liệu Claude. Bản sao lưu nằm cạnh script, chứa bí mật dạng chữ thường. | P0: chọn nơi lưu ngoài thư mục công cụ, đánh dấu sao lưu đã xong, chạy thử trước. |
@@ -109,8 +110,8 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
       *Tối ưu* có trang trạng thái.
 - [ ] Khôi phục .mdf: `.venv` riêng có pyodbc khoá phiên bản; dọn database tạm, thư mục làm việc bị bỏ lại.
 - [ ] Ghi âm sang Word: tên kết quả giữ đuôi file gốc; lưu tiến độ từng khúc; hết bộ nhớ card thì thử lại khúc đó với beam nhỏ.
-- [ ] DWG sang PDF: giải mã TCVN3 (`.VnTime`, `.VnArial`...) giống cách đã làm với VNI; bộ bản vẽ mẫu + so ảnh từng trang
-      khi nâng ezdxf, PyMuPDF, LibreDWG.
+- [x] DWG sang PDF: giải mã TCVN3 (`.VnTime`, `.VnArial`...) giống cách đã làm với VNI.
+- [ ] DWG sang PDF: bộ bản vẽ mẫu + so ảnh từng trang khi nâng ezdxf, PyMuPDF, LibreDWG.
 
 ### Giai đoạn 3: mở rộng (P2)
 
