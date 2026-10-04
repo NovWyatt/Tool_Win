@@ -132,8 +132,9 @@ try {
     }
 
     Safe-Run "4) SMART / TINH TRANG O CUNG" {
-        Write-Host "WMIC diskdrive model/status:"
-        cmd /c "wmic diskdrive get model,status,serialnumber" 2>&1
+        # wmic da bi go khoi Windows 11 24H2 tro len, doc thang qua CIM
+        Write-Host "O dia vat ly (model / trang thai / serial):"
+        Get-CimInstance Win32_DiskDrive | Select-Object Model, Status, SerialNumber, @{Name='SizeGB';Expression={[math]::Round($_.Size/1GB,1)}} | Format-Table -AutoSize
         Write-Host ""
         Write-Host "MSStorageDriver_FailurePredictStatus:"
         Get-CimInstance -Namespace root\wmi -ClassName MSStorageDriver_FailurePredictStatus | Select-Object InstanceName, PredictFailure, Reason | Format-Table -AutoSize
