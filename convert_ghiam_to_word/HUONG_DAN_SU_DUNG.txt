@@ -1,0 +1,35 @@
+CÔNG CỤ CHUYỂN GHI ÂM THÀNH VĂN BẢN (TIẾNG VIỆT)
+=================================================
+
+Chạy hoàn toàn trên máy này (card đồ họa NVIDIA), không tải file ghi âm lên mạng.
+
+CÁCH DÙNG
+---------
+1. Chép file ghi âm (mp3, m4a, wav, aac, ogg, flac, wma, amr, mp4...) vào thư mục này.
+2. Bấm đúp CHUYEN_DOI_GHI_AM.bat.
+   - Công cụ tự xử lý mọi file ghi âm chưa có kết quả.
+   - Hoặc kéo thả một file ghi âm vào CHUYEN_DOI_GHI_AM.bat để xử lý đúng file đó.
+3. Kết quả nằm trong thư mục ket_qua:
+   - <tên file> - ban tho.docx : văn bản Word, có mốc thời gian đầu mỗi đoạn.
+   - <tên file> - ban tho.txt  : từng câu kèm thời điểm bắt đầu → kết thúc.
+   Chỗ tô vàng là chỗ máy kém chắc chắn; [không nghe rõ] là đoạn máy không nhận dạng được.
+
+Tốc độ: khoảng 5 lần nhanh hơn thời gian thực (1 giờ ghi âm mất chừng 12–15 phút).
+Nếu card đồ họa lỗi, công cụ tự chạy lại bằng CPU (chậm hơn nhiều).
+
+TÙY CHỌN (chạy trong cửa sổ lệnh tại thư mục này)
+-------------------------------------------------
+  .venv\Scripts\python.exe chuyen_doi.py "file.m4a" --goi-y "Nguyễn Văn A, hợp đồng ủy quyền"
+      --goi-y   : tên riêng, thuật ngữ có trong ghi âm, giúp máy nghe đúng hơn khi gặp đoạn khó
+      --lam-lai : làm lại file đã có kết quả
+      --cpu     : chạy bằng CPU
+      --mo-hinh phowhisper-large-ct2 : dùng mô hình PhoWhisper của VinAI (nghe từ tiếng Việt tốt
+                  hơn nhưng ra chữ thường, không có dấu câu)
+
+LƯU Ý
+-----
+- Bản thô là máy tự nghe: sai tên riêng, con số và thuật ngữ là chuyện thường gặp, nhất là ghi âm
+  qua loa hội trường hoặc nhiều người nói chen nhau. Muốn có bản biên tập hoàn chỉnh (sửa lỗi, chia
+  người nói, đặt tiêu đề, mục lục), nhờ Claude biên tập từ kết quả trong ket_qua\_du_lieu.
+- Thư mục models chứa mô hình nhận dạng (khoảng 6 GB); .venv chứa Python và thư viện. Đừng xóa hai
+  thư mục này.

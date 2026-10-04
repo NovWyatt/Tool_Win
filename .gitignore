@@ -1,0 +1,80 @@
+# =====================================================================
+# Trạm Tool - những thứ KHÔNG BAO GIỜ commit
+# Quy ước: dữ liệu khách / kết quả chạy để trong thư mục con du-lieu/
+# hoặc ket_qua/ của từng công cụ. Git bỏ qua toàn bộ.
+# =====================================================================
+
+# --- dữ liệu chạy của trạm (lịch sử, cài đặt, mã phiên) ---
+hub/data/
+
+# --- dữ liệu khách, kết quả chạy ---
+du-lieu/
+ket_qua/
+
+# CheckWinFix (báo cáo có tên máy khách)
+LagReport_*.txt
+HwDiag_*.txt
+WheaDecode_*.txt
+SupNguon_*.txt
+SupNguon_TheoDoi_*.csv
+PinReport_*.html
+HoSoBangChung_*/
+health_report_*.txt
+KET_QUA_CUU_DU_LIEU.txt
+
+# MyExcelFix
+MyExcelCheck/
+BaoCao_MyExcel_*.txt
+snapshot_*.json
+NhatKy_Sua*.txt
+MyExcelFix_SaoLuu_*/
+
+# New_w: bản sao lưu chứa mật khẩu Wi-Fi, dữ liệu Claude
+DuLieu_SaoLuu*/
+
+# Ghi âm / video
+*.m4a
+*.mp3
+*.wav
+*.aac
+*.ogg
+*.flac
+*.wma
+*.amr
+*.mp4
+
+# Bản vẽ, cơ sở dữ liệu
+*.dwg
+*.dxf
+*.mdf
+*.ldf
+*.ndf
+*.bak
+*.dwl
+*.dwl2
+sav*.tmp
+plot.log
+
+# --- môi trường, mô hình, công cụ tải về (cài lại bằng setup) ---
+.venv/
+venv/
+models/
+__pycache__/
+*.py[cod]
+tools/dwg2pdf/bin/
+node_modules/
+
+# --- gói đóng sẵn, file tạm ---
+*.zip
+*.7z
+*.rar
+*.tmp
+*.log
+~$*
+
+# --- hệ điều hành, trình soạn thảo ---
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/

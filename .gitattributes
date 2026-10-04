@@ -1,0 +1,18 @@
+# Script Windows luôn CRLF (cmd.exe xử lý nhãn/goto sai với LF).
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+*.psm1 text eol=crlf
+
+*.py   text eol=lf
+*.js   text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.svg  text eol=lf
+
+*.ico   binary
+*.png   binary
+*.woff2 binary
+*.zip   binary
