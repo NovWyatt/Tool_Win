@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Trạm Tool</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="app.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="topbar">
+      <button class="icon-btn menu-btn" id="menu-btn" aria-label="Mở menu"><svg class="ic" aria-hidden="true"><use href="icons.svg#list"></use></svg></button>
+      <span>Trạm Tool</span>
+    </div>
+
+    <nav class="nav" id="nav" aria-label="Điều hướng chính">
+      <div class="brand">
+        <span class="brand-mark"><svg class="ic" aria-hidden="true"><use href="icons.svg#toolbox"></use></svg></span>
+        <span>Trạm Tool<small id="brand-sub">Công cụ Windows của Wyatt</small></span>
+      </div>
+      <div class="nav-search">
+        <fluent-text-input id="search" placeholder="Tìm công cụ" appearance="filled-darker" aria-label="Tìm công cụ (Ctrl+K)" autocomplete="off">
+          <svg slot="start" class="ic ic-16" aria-hidden="true"><use href="icons.svg#search"></use></svg>
+        </fluent-text-input>
+      </div>
+      <div id="nav-tools"></div>
+      <div class="nav-group-title">Trạm</div>
+      <div id="nav-pages"></div>
+      <div class="nav-spacer"></div>
+      <div class="nav-foot">
+        <span id="foot-machine"></span>
+        <fluent-switch id="sw-simple" title="Chế độ đơn giản: ẩn công cụ kỹ thuật"></fluent-switch>
+      </div>
+    </nav>
+
+    <main class="main" id="main" tabindex="-1"></main>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <fluent-dialog id="dlg" type="modal" aria-labelledby="dlg-title">
+    <fluent-dialog-body>
+      <span slot="title" id="dlg-title"></span>
+      <fluent-button slot="close" appearance="transparent" icon-only aria-label="Đóng">
+        <svg class="ic ic-16" aria-hidden="true"><use href="icons.svg#dismiss"></use></svg>
+      </fluent-button>
+      <div id="dlg-body"></div>
+      <div slot="action" id="dlg-actions" style="display:contents"></div>
+    </fluent-dialog-body>
+  </fluent-dialog>
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="card box">
+      <svg class="ic ic-24" aria-hidden="true"><use href="icons.svg#plug"></use></svg>
+      <h2 id="overlay-title">Mất kết nối với Trạm Tool</h2>
+      <p id="overlay-text">Có thể cửa sổ máy chủ của trạm đã bị đóng. Mở lại bằng file TramTool.bat rồi bấm Thử lại.</p>
+      <fluent-button appearance="primary" id="overlay-retry">Thử lại</fluent-button>
+    </div>
+  </div>
+</body>
+</html>

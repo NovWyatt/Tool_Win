@@ -50,6 +50,8 @@ DuLieu_SaoLuu*/
 *.ldf
 *.ndf
 *.bak
+*.sql
+*.sql.gz
 *.dwl
 *.dwl2
 sav*.tmp

@@ -1,0 +1,458 @@
+﻿<#
+  Trạm Tool - máy chủ cục bộ cho giao diện chọn và chạy công cụ.
+  Chỉ lắng nghe trên 127.0.0.1, mọi API cần mã thông hành ngẫu nhiên sinh mỗi lần mở,
+  nên trang web khác đang mở trên máy không gọi được. Chạy bằng TramTool.bat ở thư mục gốc.
+#>
+[CmdletBinding()]
+param(
+    [int]$Port = 0,
+    [switch]$NoBrowser,
+    [string]$Browser = ''
+)
+
+$ErrorActionPreference = 'Stop'
+$HubVersion = '1.0.0'
+$HubDir = $PSScriptRoot
+$RootDir = Split-Path $HubDir -Parent
+$ToolsDir = Join-Path $RootDir 'tools'
+$WebDir = Join-Path $HubDir 'web'
+$DataDir = Join-Path $HubDir 'data'
+$RuntimeFile = Join-Path $DataDir 'runtime.json'
+$HistoryFile = Join-Path $DataDir 'history.jsonl'
+$SettingsFile = Join-Path $DataDir 'settings.json'
+
+. (Join-Path $HubDir 'lib\Common.ps1')
+. (Join-Path $HubDir 'lib\Catalog.ps1')
+. (Join-Path $HubDir 'lib\Launcher.ps1')
+. (Join-Path $HubDir 'lib\Checks.ps1')
+
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
+$Host.UI.RawUI.WindowTitle = 'Trạm Tool - máy chủ (đóng cửa sổ này để tắt trạm)'
+if (-not (Test-Path -LiteralPath $DataDir)) { New-Item -ItemType Directory -Path $DataDir | Out-Null }
+
+# ------------------------------------------------------------------ cài đặt
+function Get-HubSettings {
+    $s = [ordered]@{ browser = 'auto'; autoExitMinutes = 10 }
+    if (Test-Path -LiteralPath $SettingsFile) {
+        try {
+            $saved = Read-JsonFile $SettingsFile
+            foreach ($k in @($s.Keys)) { $v = Get-Prop $saved $k $null; if ($null -ne $v) { $s[$k] = $v } }
+        } catch { Write-HubLog "settings.json lỗi, dùng mặc định: $($_.Exception.Message)" 'warn' }
+    }
+    return $s
+}
+
+function Find-Browser {
+    param([string]$Kind)
+    $candidates = switch ($Kind) {
+        'brave' { @("$env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe", "${env:ProgramFiles(x86)}\BraveSoftware\Brave-Browser\Application\brave.exe", "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\Application\brave.exe") }
+        'edge' { @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") }
+        'chrome' { @("$env:ProgramFiles\Google\Chrome\Application\chrome.exe", "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe", "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe") }
+        default { @() }
+    }
+    foreach ($c in $candidates) { if ($c -and (Test-Path -LiteralPath $c)) { return $c } }
+    return $null
+}
+
+function Open-HubUi {
+    # Mở giao diện dạng cửa sổ ứng dụng (--app). Ưu tiên Brave (trình duyệt của Wyatt), rồi Edge.
+    param([string]$Url, [string]$Preference = 'auto')
+    $order = switch ($Preference) { 'brave' { @('brave') } 'edge' { @('edge') } 'chrome' { @('chrome') } 'default' { @() } default { @('brave', 'edge', 'chrome') } }
+    foreach ($kind in $order) {
+        $exe = Find-Browser $kind
+        if ($exe) {
+            Start-Process -FilePath $exe -ArgumentList @("--app=$Url", '--window-size=1320,880')
+            return $kind
+        }
+    }
+    Start-Process $Url
+    return 'default'
+}
+
+# ------------------------------------------------------------------ một phiên bản duy nhất
+function Test-RunningHub {
+    if (-not (Test-Path -LiteralPath $RuntimeFile)) { return $null }
+    try {
+        $rt = Read-JsonFile $RuntimeFile
+        $proc = Get-Process -Id ([int]$rt.pid) -ErrorAction SilentlyContinue
+        if (-not $proc) { return $null }
+        $req = [Net.HttpWebRequest]::Create("http://127.0.0.1:$($rt.port)/api/ping")
+        $req.Proxy = $null; $req.Timeout = 2000; $req.Headers.Add('X-Tram-Token', $rt.token)
+        $resp = $req.GetResponse(); $resp.Close()
+        return $rt
+    } catch { return $null }
+}
+
+$existing = Test-RunningHub
+if ($existing) {
+    Write-HubLog "Trạm Tool đang chạy sẵn (cổng $($existing.port)), mở lại giao diện." 'ok'
+    if (-not $NoBrowser) {
+        $pref = if ($Browser) { $Browser } else { (Get-HubSettings).browser }
+        [void](Open-HubUi -Url "http://127.0.0.1:$($existing.port)/#t=$($existing.token)" -Preference $pref)
+    }
+    return
+}
+
+# ------------------------------------------------------------------ khởi động máy chủ
+$Token = New-HubToken
+$Listener = $null
+$ports = if ($Port) { @($Port) } else { @(47800..47820) + @(0) }
+foreach ($p in $ports) {
+    if ($p -eq 0) {
+        $tcp = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback, 0); $tcp.Start(); $p = $tcp.LocalEndpoint.Port; $tcp.Stop()
+    }
+    $l = New-Object Net.HttpListener
+    $l.Prefixes.Add("http://127.0.0.1:$p/")
+    try { $l.Start(); $Listener = $l; $Port = $p; break } catch { $l.Close() }
+}
+if (-not $Listener) { throw 'Không mở được cổng nào trên 127.0.0.1. Thử chạy lại hoặc khởi động lại máy.' }
+
+$State = @{
+    Catalog = @(); Categories = @(); LastSeen = Get-Date; Connected = $false; StartedAt = Get-Date
+    Settings = Get-HubSettings; Stop = $false; Browser = ''
+}
+
+function Update-Catalog {
+    $State.Categories = Get-HubCategories -HubDir $HubDir
+    $State.Catalog = Get-HubCatalog -ToolsDir $ToolsDir -RootDir $RootDir
+    Clear-CheckCache
+}
+
+function Get-ToolById {
+    param([string]$Id)
+    $t = $State.Catalog | Where-Object { $_.id -eq $Id } | Select-Object -First 1
+    if (-not $t) { throw "Không tìm thấy công cụ '$Id'. Bấm Làm mới danh sách." }
+    return $t
+}
+
+function Get-ActionById {
+    param($Tool, [string]$Id)
+    $a = $Tool.actions | Where-Object { $_.id -eq $Id } | Select-Object -First 1
+    if (-not $a) { throw "Công cụ '$($Tool.name)' không có action '$Id'." }
+    return $a
+}
+
+# Bỏ dấu "tải từ Internet" trên script của trạm (khi chép qua Zalo/USB), tránh Windows chặn chạy.
+try {
+    Get-ChildItem -LiteralPath $HubDir -Recurse -File -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
+    foreach ($d in @(Get-ChildItem -LiteralPath $ToolsDir -Directory -ErrorAction SilentlyContinue)) {
+        Get-ChildItem -LiteralPath $d.FullName -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -match '^\.(bat|cmd|ps1|py|vbs)$' } | Unblock-File -ErrorAction SilentlyContinue
+    }
+} catch { }
+
+Update-Catalog
+Write-JsonFile -Path $RuntimeFile -InputObject ([ordered]@{ port = $Port; token = $Token; pid = $PID; startedAt = (Get-IsoTime) })
+$BaseUrl = "http://127.0.0.1:$Port"
+Write-HubLog "Trạm Tool $HubVersion đang chạy tại $BaseUrl (đóng cửa sổ này để tắt)." 'ok'
+Write-HubLog "Đã nạp $($State.Catalog.Count) công cụ từ $ToolsDir"
+
+# ------------------------------------------------------------------ HTTP helpers
+$MimeTypes = @{
+    '.html' = 'text/html; charset=utf-8'; '.js' = 'text/javascript; charset=utf-8'; '.mjs' = 'text/javascript; charset=utf-8'
+    '.css' = 'text/css; charset=utf-8'; '.svg' = 'image/svg+xml'; '.json' = 'application/json; charset=utf-8'
+    '.png' = 'image/png'; '.ico' = 'image/x-icon'; '.woff2' = 'font/woff2'; '.md' = 'text/markdown; charset=utf-8'; '.txt' = 'text/plain; charset=utf-8'
+}
+$Csp = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+
+function Send-Bytes {
+    param($Ctx, [byte[]]$Bytes, [string]$ContentType, [int]$Status = 200)
+    $res = $Ctx.Response
+    $res.StatusCode = $Status
+    $res.ContentType = $ContentType
+    $res.Headers['X-Content-Type-Options'] = 'nosniff'
+    $res.Headers['Cache-Control'] = 'no-store'
+    $res.Headers['Referrer-Policy'] = 'no-referrer'
+    if ($ContentType -like 'text/html*') { $res.Headers['Content-Security-Policy'] = $Csp }
+    $res.ContentLength64 = $Bytes.Length
+    $res.OutputStream.Write($Bytes, 0, $Bytes.Length)
+}
+
+function Send-Json {
+    param($Ctx, $Object, [int]$Status = 200)
+    Send-Bytes -Ctx $Ctx -Bytes ([Text.Encoding]::UTF8.GetBytes((ConvertTo-HubJson $Object -Compress))) -ContentType 'application/json; charset=utf-8' -Status $Status
+}
+
+function Send-Text {
+    param($Ctx, [string]$Text, [string]$ContentType = 'text/plain; charset=utf-8', [int]$Status = 200)
+    Send-Bytes -Ctx $Ctx -Bytes ([Text.Encoding]::UTF8.GetBytes($Text)) -ContentType $ContentType -Status $Status
+}
+
+function Read-Body {
+    param($Ctx)
+    if (-not $Ctx.Request.HasEntityBody) { return [pscustomobject]@{} }
+    $reader = New-Object IO.StreamReader($Ctx.Request.InputStream, [Text.Encoding]::UTF8)
+    try { $text = $reader.ReadToEnd() } finally { $reader.Dispose() }
+    if (-not $text.Trim()) { return [pscustomobject]@{} }
+    return ($text | ConvertFrom-Json)
+}
+
+function Test-RequestAllowed {
+    # Chống DNS rebinding (Host phải là 127.0.0.1/localhost) và trang khác gọi API (Origin + token).
+    param($Ctx, [bool]$NeedToken)
+    $req = $Ctx.Request
+    $hostHeader = [string]$req.Headers['Host']
+    if ($hostHeader -ne "127.0.0.1:$Port" -and $hostHeader -ne "localhost:$Port") { return $false }
+    $origin = [string]$req.Headers['Origin']
+    if ($origin -and $origin -ne "http://127.0.0.1:$Port" -and $origin -ne "http://localhost:$Port") { return $false }
+    if ($NeedToken) {
+        $tok = [string]$req.Headers['X-Tram-Token']
+        if (-not $tok -or $tok.Length -ne $Token.Length) { return $false }
+        $diff = 0
+        for ($i = 0; $i -lt $tok.Length; $i++) { $diff = $diff -bor ([int][char]$tok[$i] -bxor [int][char]$Token[$i]) }
+        if ($diff -ne 0) { return $false }
+    }
+    return $true
+}
+
+function Send-Static {
+    param($Ctx, [string]$RelPath)
+    if (-not $RelPath -or $RelPath -eq '/') { $RelPath = 'index.html' }
+    $rel = [Uri]::UnescapeDataString($RelPath.TrimStart('/')).Replace('/', '\')
+    $full = [IO.Path]::GetFullPath((Join-Path $WebDir $rel))
+    if (-not (Test-PathInside -Path $full -Root $WebDir) -or -not (Test-Path -LiteralPath $full -PathType Leaf)) {
+        Send-Text -Ctx $Ctx -Text 'Không tìm thấy.' -Status 404; return
+    }
+    $ext = [IO.Path]::GetExtension($full).ToLowerInvariant()
+    $type = $MimeTypes[$ext]; if (-not $type) { $type = 'application/octet-stream' }
+    Send-Bytes -Ctx $Ctx -Bytes ([IO.File]::ReadAllBytes($full)) -ContentType $type
+}
+
+function ConvertTo-ToolSummary {
+    param($Tool)
+    $copy = [ordered]@{}
+    foreach ($k in $Tool.Keys) { $copy[$k] = $Tool[$k] }
+    return $copy
+}
+
+function Get-RepoDoc {
+    # Chỉ cho đọc các file .md trong docs\ và README.md ở gốc.
+    param([string]$Name)
+    if ($Name -eq 'readme') { $path = Join-Path $RootDir 'README.md' }
+    else {
+        if ($Name -notmatch '^[A-Za-z0-9_-]+$') { throw 'Tên tài liệu không hợp lệ.' }
+        $path = Join-Path $RootDir ("docs\$Name.md")
+    }
+    if (-not (Test-Path -LiteralPath $path)) { throw "Chưa có tài liệu '$Name'." }
+    return [IO.File]::ReadAllText($path, [Text.Encoding]::UTF8)
+}
+
+function New-DesktopShortcut {
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    $lnk = Join-Path $desktop 'Trạm Tool.lnk'
+    $shell = New-Object -ComObject WScript.Shell
+    $s = $shell.CreateShortcut($lnk)
+    $s.TargetPath = Join-Path $RootDir 'TramTool.bat'
+    $s.WorkingDirectory = $RootDir
+    $s.WindowStyle = 7
+    $ico = Join-Path $HubDir 'web\tramtool.ico'
+    $s.IconLocation = if (Test-Path -LiteralPath $ico) { $ico } else { "$env:SystemRoot\System32\imageres.dll,109" }
+    $s.Description = 'Trạm Tool - chọn và chạy công cụ của Wyatt'
+    $s.Save()
+    return $lnk
+}
+
+# ------------------------------------------------------------------ định tuyến API
+function Invoke-Api {
+    param($Ctx, [string]$Method, [string]$Path)
+    $q = $Ctx.Request.QueryString
+    switch ("$Method $Path") {
+        'GET /api/ping' { $State.LastSeen = Get-Date; $State.Connected = $true; return @{ ok = $true; version = $HubVersion } }
+        'GET /api/state' {
+            return [ordered]@{
+                hub        = [ordered]@{
+                    version = $HubVersion; root = $RootDir; toolsDir = $ToolsDir; computer = $env:COMPUTERNAME; user = $env:USERNAME
+                    isAdmin = (Test-IsAdmin); startedAt = (Get-IsoTime $State.StartedAt); browser = $State.Browser; settings = $State.Settings
+                }
+                categories = $State.Categories
+                tools      = @($State.Catalog | ForEach-Object { ConvertTo-ToolSummary $_ })
+            }
+        }
+        'POST /api/reload' { Update-Catalog; return @{ ok = $true; count = $State.Catalog.Count } }
+        'GET /api/system' { return (Get-SystemSummary) }
+        'GET /api/deps' {
+            $tool = Get-ToolById $q['id']
+            return @{ id = $tool.id; items = @(Get-ToolRequirements -Tool $tool -Fresh:($q['fresh'] -eq '1')) }
+        }
+        'GET /api/deps-all' {
+            $all = [ordered]@{}
+            foreach ($t in $State.Catalog) { if (@($t.requires).Count) { $all[$t.id] = @(Get-ToolRequirements -Tool $t -Fresh:($q['fresh'] -eq '1')) } }
+            return $all
+        }
+        'GET /api/probes' { $tool = Get-ToolById $q['id']; return @{ id = $tool.id; items = @(Get-ToolProbes -Tool $tool) } }
+        'GET /api/outputs' {
+            if ($q['id']) { $tool = Get-ToolById $q['id']; return @{ items = @(Get-ToolOutputs -Tool $tool) } }
+            $all = New-Object System.Collections.ArrayList
+            foreach ($t in $State.Catalog) { foreach ($o in @(Get-ToolOutputs -Tool $t -Limit 15)) { [void]$all.Add($o) } }
+            return @{ items = @($all | Sort-Object { $_.modified } -Descending | Select-Object -First 80) }
+        }
+        'GET /api/docs' {
+            $tool = Get-ToolById $q['id']
+            if (-not $tool.hasDocs) { throw 'Công cụ này chưa có hướng dẫn.' }
+            $p = Expand-HubPath -Path $tool.docs -BaseDir $tool.dir
+            return @{ id = $tool.id; name = $tool.docs; markdown = [IO.File]::ReadAllText($p, [Text.Encoding]::UTF8) }
+        }
+        'GET /api/doc' { return @{ name = $q['name']; markdown = (Get-RepoDoc $q['name']) } }
+        'GET /api/history' { return @{ items = @(Get-RunHistory -HistoryPath $HistoryFile) } }
+        'POST /api/run' {
+            $b = Read-Body $Ctx
+            $tool = Get-ToolById ([string](Get-Prop $b 'toolId' ''))
+            $action = Get-ActionById -Tool $tool -Id ([string](Get-Prop $b 'actionId' ''))
+            $argv = Resolve-ActionArguments -Action $action -Values (Get-Prop $b 'values' $null)
+            Write-HubLog "Chạy: $($tool.name) > $($action.label)$(if ($action.admin) { ' (Admin)' })"
+            return (Start-ToolAction -Tool $tool -Action $action -Arguments $argv -HistoryPath $HistoryFile)
+        }
+        'POST /api/pick' {
+            $b = Read-Body $Ctx
+            $tool = Get-ToolById ([string](Get-Prop $b 'toolId' ''))
+            $action = Get-ActionById -Tool $tool -Id ([string](Get-Prop $b 'actionId' ''))
+            $argId = [string](Get-Prop $b 'argId' '')
+            $spec = @($action.args | Where-Object { $_.id -eq $argId -and $_.type -in 'file', 'folder' }) | Select-Object -First 1
+            if (-not $spec) { throw 'Tham số này không phải chọn file hay thư mục.' }
+            $initial = switch ($spec.startIn) {
+                'tool' { $tool.dir }
+                'documents' { [Environment]::GetFolderPath('MyDocuments') }
+                default { [Environment]::GetFolderPath('Desktop') }
+            }
+            $paths = Show-FilePicker -Title $spec.label -Filter $spec.filter -Multiple:$spec.multiple -Folder:($spec.type -eq 'folder') -InitialDir $initial
+            $State.LastSeen = Get-Date
+            return @{ paths = @($paths) }
+        }
+        'POST /api/open' {
+            $b = Read-Body $Ctx
+            $tool = Get-ToolById ([string](Get-Prop $b 'toolId' ''))
+            $target = [string](Get-Prop $b 'target' 'folder')
+            switch ($target) {
+                'folder' { Open-HubPath -Path $tool.dir -Reveal }
+                'docs' {
+                    # hasDocs chỉ đúng khi file hướng dẫn tồn tại và nằm trong thư mục công cụ (kiểm lúc đọc tool.json).
+                    if (-not $tool.hasDocs) { throw 'Công cụ này không có file hướng dẫn.' }
+                    Open-HubPath -Path (Expand-HubPath -Path $tool.docs -BaseDir $tool.dir)
+                }
+                { $_ -in 'output', 'output-folder' } {
+                    $path = [string](Get-Prop $b 'path' '')
+                    $known = @(Get-ToolOutputs -Tool $tool -Limit 500 | Where-Object { $_.path -eq $path })
+                    if (-not $known.Count) { throw 'File này không thuộc kết quả của công cụ.' }
+                    Open-HubPath -Path $path -Reveal:($target -eq 'output-folder')
+                }
+                default { throw "Không hiểu yêu cầu mở '$target'." }
+            }
+            return @{ ok = $true }
+        }
+        'POST /api/fix' {
+            $b = Read-Body $Ctx
+            $tool = Get-ToolById ([string](Get-Prop $b 'toolId' ''))
+            $req = @($tool.requires | Where-Object { (Get-Prop $_ 'id' (Get-Prop $_ 'type' '')) -eq (Get-Prop $b 'reqId' '') }) | Select-Object -First 1
+            if (-not $req) { throw 'Không tìm thấy yêu cầu này.' }
+            $fix = Get-Prop $req 'fix' $null
+            if (-not $fix) { throw 'Yêu cầu này không có cách sửa tự động.' }
+            $actionId = [string](Get-Prop $fix 'action' '')
+            if ($actionId) {
+                $action = Get-ActionById -Tool $tool -Id $actionId
+                return (Start-ToolAction -Tool $tool -Action $action -Arguments (Resolve-ActionArguments -Action $action -Values $null) -HistoryPath $HistoryFile)
+            }
+            $hubScript = [string](Get-Prop $fix 'hubScript' '')
+            if ($hubScript) {
+                # Script cài đặt dùng chung của trạm, chỉ lấy trong hub\fixes.
+                if ($hubScript -notmatch '^[A-Za-z0-9._-]+\.ps1$') { throw 'Tên script cài đặt không hợp lệ.' }
+                $fixTool = [ordered]@{ id = $tool.id; name = $tool.name; dir = (Join-Path $HubDir 'fixes') }
+                $fixAction = [ordered]@{
+                    id = "fix-$(Get-Prop $req 'id' 'yeu-cau')"; label = [string](Get-Prop $fix 'label' 'Cài đặt'); type = 'console'; file = $hubScript
+                    admin = [bool](Get-Prop $fix 'admin' $false); keepOpen = $true
+                }
+                Write-HubLog "Cài: $($tool.name) > $hubScript$(if ($fixAction.admin) { ' (Admin)' })"
+                return (Start-ToolAction -Tool $fixTool -Action $fixAction -HistoryPath $HistoryFile)
+            }
+            Start-RequirementFix -Fix $fix
+            return @{ ok = $true; message = 'Đã mở cửa sổ cài đặt. Cài xong bấm "Kiểm tra lại".' }
+        }
+        'POST /api/pack' {
+            $b = Read-Body $Ctx
+            $tool = Get-ToolById ([string](Get-Prop $b 'toolId' ''))
+            $r = New-ToolPackage -Tool $tool
+            Open-HubPath -Path $r.path -Reveal
+            return $r
+        }
+        'POST /api/scaffold' {
+            $b = Read-Body $Ctx
+            $tool = Get-ToolById ([string](Get-Prop $b 'toolId' ''))
+            $path = New-ToolManifestFile -Tool $tool
+            Update-Catalog
+            Open-HubPath -Path $path -Reveal
+            return @{ ok = $true; path = $path }
+        }
+        'GET /api/settings' { return $State.Settings }
+        'POST /api/settings' {
+            $b = Read-Body $Ctx
+            $browser = [string](Get-Prop $b 'browser' $State.Settings.browser)
+            if (@('auto', 'brave', 'edge', 'chrome', 'default') -notcontains $browser) { throw 'Trình duyệt không hợp lệ.' }
+            $minutes = [int](Get-Prop $b 'autoExitMinutes' $State.Settings.autoExitMinutes)
+            if ($minutes -lt 0 -or $minutes -gt 1440) { throw 'Số phút tự tắt phải từ 0 đến 1440.' }
+            $State.Settings.browser = $browser; $State.Settings.autoExitMinutes = $minutes
+            Write-JsonFile -Path $SettingsFile -InputObject $State.Settings
+            return $State.Settings
+        }
+        'POST /api/shortcut' { return @{ ok = $true; path = (New-DesktopShortcut) } }
+        'POST /api/open-root' { Open-HubPath -Path $RootDir -Reveal; return @{ ok = $true } }
+        'POST /api/shutdown' { $State.Stop = $true; return @{ ok = $true } }
+        default { throw [System.Collections.Generic.KeyNotFoundException]::new("Không có API $Method $Path") }
+    }
+}
+
+function Invoke-Request {
+    param($Ctx)
+    $req = $Ctx.Request
+    $path = $req.Url.AbsolutePath
+    $isApi = $path.StartsWith('/api/')
+    if (-not (Test-RequestAllowed -Ctx $Ctx -NeedToken $isApi)) {
+        Send-Json -Ctx $Ctx -Object @{ error = 'Từ chối: yêu cầu không đến từ giao diện Trạm Tool.' } -Status 403
+        return
+    }
+    if (-not $isApi) {
+        if ($req.HttpMethod -ne 'GET') { Send-Text -Ctx $Ctx -Text 'Method not allowed' -Status 405; return }
+        Send-Static -Ctx $Ctx -RelPath $path
+        return
+    }
+    $State.LastSeen = Get-Date
+    try {
+        $result = Invoke-Api -Ctx $Ctx -Method $req.HttpMethod -Path $path
+        Send-Json -Ctx $Ctx -Object $result
+    } catch [System.Collections.Generic.KeyNotFoundException] {
+        Send-Json -Ctx $Ctx -Object @{ error = $_.Exception.Message } -Status 404
+    } catch {
+        Write-HubLog "$($req.HttpMethod) $path lỗi: $($_.Exception.Message)" 'error'
+        Send-Json -Ctx $Ctx -Object @{ error = $_.Exception.Message } -Status 500
+    }
+}
+
+# ------------------------------------------------------------------ vòng lặp chính
+try {
+    if (-not $NoBrowser) {
+        $pref = if ($Browser) { $Browser } else { $State.Settings.browser }
+        $State.Browser = Open-HubUi -Url "$BaseUrl/#t=$Token" -Preference $pref
+        Write-HubLog "Đã mở giao diện bằng: $($State.Browser)"
+    }
+    while ($Listener.IsListening -and -not $State.Stop) {
+        $task = $Listener.GetContextAsync()
+        while (-not $task.AsyncWaitHandle.WaitOne(1000)) {
+            $limit = [int]$State.Settings.autoExitMinutes
+            $idle = ((Get-Date) - $State.LastSeen).TotalMinutes
+            if ($limit -gt 0 -and $idle -ge $limit) {
+                Write-HubLog "Không còn cửa sổ giao diện nào trong $limit phút, tự tắt trạm." 'warn'
+                $State.Stop = $true
+                break
+            }
+        }
+        if ($State.Stop) { break }
+        $ctx = $task.GetAwaiter().GetResult()
+        try { Invoke-Request -Ctx $ctx }
+        catch { Write-HubLog "Lỗi xử lý yêu cầu: $($_.Exception.Message)" 'error' }
+        finally { try { $ctx.Response.Close() } catch { } }
+    }
+} finally {
+    try { $Listener.Stop(); $Listener.Close() } catch { }
+    try {
+        $rt = Read-JsonFile $RuntimeFile
+        if ([int]$rt.pid -eq $PID) { Remove-Item -LiteralPath $RuntimeFile -Force -ErrorAction SilentlyContinue }
+    } catch { }
+    Write-HubLog 'Trạm Tool đã tắt.'
+}

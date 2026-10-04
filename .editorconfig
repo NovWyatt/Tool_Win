@@ -1,0 +1,23 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# PowerShell 5.1 chỉ đọc đúng tiếng Việt khi file có BOM.
+[*.ps1]
+charset = utf-8-bom
+
+# cmd.exe hỏng dòng đầu nếu có BOM; giữ ASCII/UTF-8 không BOM + CRLF.
+[*.{bat,cmd}]
+charset = utf-8
+
+[*.{js,css,html,json,md,svg}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false

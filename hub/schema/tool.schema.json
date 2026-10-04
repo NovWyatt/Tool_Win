@@ -1,0 +1,262 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "tool.schema.json",
+  "title": "Trạm Tool – tool.json",
+  "description": "Khai báo một công cụ trong tools\\<thư-mục>\\tool.json. Trạm đọc file này để hiện tên, nút chạy, form tham số, yêu cầu cài đặt, trạng thái máy và kết quả. Xem docs\\THEM-CONG-CU.md.",
+  "type": "object",
+  "required": ["id", "name", "summary", "actions"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": {
+      "description": "Mã công cụ, không dấu, chữ thường, nối bằng gạch ngang. Dùng trong địa chỉ #/tool/<id> và lịch sử chạy; đổi id thì mất ghim và lịch sử cũ.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "name": { "description": "Tên hiển thị, viết cho người dùng cuối.", "type": "string", "minLength": 1 },
+    "version": { "description": "Phiên bản công cụ, vd 1.0 hoặc 2026.10.", "type": "string" },
+    "category": {
+      "description": "Nhóm trong thanh bên. Danh sách nhóm ở hub\\categories.json.",
+      "type": "string",
+      "default": "chua-phan-loai",
+      "examples": ["chan-doan", "sua-loi", "toi-uu", "van-phong", "chuyen-doi", "cai-lai-may", "tien-ich", "chua-phan-loai"]
+    },
+    "icon": { "$ref": "#/definitions/icon" },
+    "audience": {
+      "description": "all: ai cũng dùng được. tech: công cụ kỹ thuật, ẩn khi bật Chế độ đơn giản.",
+      "enum": ["all", "tech"],
+      "default": "all"
+    },
+    "status": {
+      "description": "ok: bình thường. warning: dùng được nhưng có lỗi đã biết (hiện statusNote). broken: không nên chạy.",
+      "enum": ["ok", "warning", "broken"],
+      "default": "ok"
+    },
+    "statusNote": { "description": "Câu giải thích hiện ở đầu trang công cụ khi status là warning hoặc broken.", "type": "string" },
+    "summary": { "description": "Một câu nói công cụ làm gì, hiện trong danh sách và kết quả tìm kiếm.", "type": "string", "minLength": 1 },
+    "description": { "description": "Đoạn mô tả dài hơn ở trang chi tiết: khi nào dùng, cần chuẩn bị gì.", "type": "string" },
+    "tags": { "description": "Từ khoá phụ cho ô tìm kiếm (tìm không dấu vẫn ra).", "type": "array", "items": { "type": "string" } },
+    "author": { "type": "string", "default": "Wyatt" },
+    "docs": { "description": "File hướng dẫn (.md hoặc .txt) trong thư mục công cụ, đường dẫn tương đối.", "type": "string" },
+    "actions": {
+      "description": "Các nút Chạy. Nút đầu tiên có primary: true (hoặc nút đầu danh sách) là nút chính.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/action" }
+    },
+    "requires": {
+      "description": "Điều kiện cần trước khi chạy (Python, thư viện, mô hình, driver...). Trạm kiểm tra và hiện nút Cài khi thiếu.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/require" }
+    },
+    "probes": {
+      "description": "Trạng thái hiện tại trên máy mà công cụ thay đổi (dịch vụ, registry). Chỉ đọc.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/probe" }
+    },
+    "outputs": {
+      "description": "Nơi công cụ ghi kết quả. Trạm liệt kê file mới nhất ở trang công cụ và trang Kết quả gần đây.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/output" }
+    },
+    "pack": { "$ref": "#/definitions/pack" },
+    "notes": { "description": "Ghi chú tự do, trạm chưa hiển thị.", "type": "array", "items": { "type": "string" } },
+    "issues": { "description": "Lỗi, rủi ro đã biết. Hiện ở mục 'Lỗi đã biết và hướng nâng cấp'.", "type": "array", "items": { "type": "string" } },
+    "upgrades": {
+      "description": "Hướng nâng cấp, mở đầu bằng mức ưu tiên: 'P0 – ...' (nên làm ngay), 'P1 – ...', 'P2 – ...'.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^P[0-2] – " }
+    }
+  },
+  "definitions": {
+    "icon": {
+      "description": "Tên biểu tượng trong hub\\web\\icons.svg.",
+      "type": "string",
+      "default": "toolbox",
+      "examples": [
+        "search", "wrench", "stethoscope", "wifi", "gauge", "database", "mic", "document", "document-text", "pdf", "table", "sync",
+        "folder", "play", "history", "settings", "moon", "sun", "apps", "desktop-pulse", "toolbox", "box", "archive", "branch", "key",
+        "warning", "check-circle", "dismiss-circle", "info", "open", "code", "power", "export", "import", "laptop", "server", "plug",
+        "star", "heart-pulse", "broom", "window-wrench", "pulse", "flash", "shield-lock", "shield-check", "globe", "lock", "book",
+        "lightbulb", "person", "copy", "download", "refresh", "question", "clock", "eye", "edit", "checkmark", "ruler", "swap", "map",
+        "flag", "filter", "grid", "list", "wrench-screwdriver", "people", "data-bar", "hard-drive", "tab-desktop", "shield-error",
+        "arrow-repeat", "battery", "cpu", "temperature", "tasks", "document-search", "phone-desktop", "puzzle", "send"
+      ]
+    },
+    "action": {
+      "type": "object",
+      "required": ["id", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "description": "Mã nút, duy nhất trong công cụ.", "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$" },
+        "label": { "description": "Chữ trên nút / tiêu đề dòng.", "type": "string", "minLength": 1 },
+        "description": { "description": "Nút này làm gì, hỏi gì, xuất ra đâu.", "type": "string" },
+        "type": {
+          "description": "console: chạy .bat/.cmd/.ps1 trong cửa sổ riêng. open: mở file bằng chương trình mặc định. url: mở trang web.",
+          "enum": ["console", "open", "url"],
+          "default": "console"
+        },
+        "file": { "description": "Script hoặc file cần mở, đường dẫn tương đối trong thư mục công cụ (không được trỏ ra ngoài).", "type": "string" },
+        "url": { "description": "Địa chỉ web khi type là url.", "type": "string", "format": "uri" },
+        "admin": { "description": "true: trạm mở bằng quyền Admin (Windows hỏi UAC).", "type": "boolean", "default": false },
+        "selfElevates": { "description": "Script tự xin quyền Admin; trạm chạy thường và để script tự nâng quyền.", "type": "boolean", "default": false },
+        "risk": {
+          "description": "read-only: chỉ đọc. asks-before-change: hỏi trước khi sửa. modifies-system: thay đổi máy (trạm hỏi xác nhận). Thiếu thì coi là modifies-system.",
+          "enum": ["read-only", "asks-before-change", "modifies-system"],
+          "default": "modifies-system"
+        },
+        "primary": { "description": "Nút chính (hiện to nhất, chạy khi bấm Chạy ở danh sách).", "type": "boolean", "default": false },
+        "duration": { "description": "Thời gian chạy ước lượng, vd 'Dưới 1 phút'.", "type": "string" },
+        "keepOpen": { "description": "Giữ cửa sổ sau khi script xong (thêm pause) để người dùng đọc kết quả.", "type": "boolean", "default": false },
+        "confirm": { "description": "Câu cảnh báo riêng hiện trong hộp xác nhận trước khi chạy.", "type": "string" },
+        "changes": { "description": "Liệt kê thay đổi lên máy; hiện trong hộp xác nhận.", "type": "array", "items": { "type": "string" } },
+        "fixedArgs": {
+          "description": "Tham số cố định truyền trước các tham số người dùng nhập, vd [\"convert\"]. Không được chứa % hoặc dấu ngoặc kép.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[^%\"]*$" }
+        },
+        "args": {
+          "description": "Ô nhập trong form trước khi chạy. Có 'flag' thì truyền 'flag giá trị', không có thì truyền theo thứ tự khai báo.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/arg" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "url" } }, "required": ["type"] },
+          "then": { "required": ["url"] },
+          "else": { "required": ["file"] }
+        }
+      ]
+    },
+    "arg": {
+      "type": "object",
+      "required": ["id", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "description": "Mã tham số, duy nhất trong nút.", "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$" },
+        "type": {
+          "description": "file / folder: chọn bằng hộp thoại Windows. text, number: ô nhập. choice: danh sách chọn. bool: công tắc (cần flag).",
+          "enum": ["file", "folder", "text", "number", "choice", "bool"]
+        },
+        "label": { "type": "string" },
+        "flag": { "description": "Tên cờ, vd --ra hoặc -LamLai.", "type": "string", "pattern": "^--?[A-Za-z0-9][A-Za-z0-9_-]*$" },
+        "required": { "type": "boolean", "default": false },
+        "optional": { "description": "Cách viết cũ, ngược nghĩa với required. Dùng required.", "type": "boolean" },
+        "multiple": { "description": "Cho chọn nhiều file (type file).", "type": "boolean", "default": false },
+        "filter": { "description": "Bộ lọc hộp thoại chọn file: 'Mô tả|*.ext;*.ext2'.", "type": "string", "default": "Tất cả|*.*" },
+        "startIn": { "description": "Thư mục mở sẵn khi chọn file.", "enum": ["tool", "desktop", "documents"], "default": "desktop" },
+        "placeholder": { "type": "string" },
+        "help": { "description": "Dòng gợi ý nhỏ dưới ô nhập.", "type": "string" },
+        "default": { "description": "Giá trị mặc định (choice: value; bool: true/false; number: số)." },
+        "options": {
+          "description": "Lựa chọn của type choice.",
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "required": ["value"],
+                "additionalProperties": false,
+                "properties": { "value": { "type": "string" }, "label": { "type": "string" } }
+              }
+            ]
+          }
+        },
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      },
+      "allOf": [
+        { "if": { "properties": { "type": { "const": "bool" } } }, "then": { "required": ["flag"] } },
+        { "if": { "properties": { "type": { "const": "choice" } } }, "then": { "required": ["options"] } }
+      ]
+    },
+    "fix": {
+      "description": "Cách cài khi thiếu. Chọn đúng một trong: winget, action, hubScript.",
+      "type": "object",
+      "required": ["label"],
+      "additionalProperties": false,
+      "properties": {
+        "label": { "description": "Chữ trên nút Cài.", "type": "string" },
+        "winget": { "description": "Mã gói winget, vd Python.Python.3.12.", "type": "string", "pattern": "^[A-Za-z0-9._-]+$" },
+        "args": { "description": "Tham số thêm cho winget, vd --scope user.", "type": "string", "pattern": "^[^;&|`$]*$" },
+        "action": { "description": "id một nút trong chính công cụ này (vd nút cài đặt môi trường).", "type": "string" },
+        "hubScript": { "description": "Tên script trong hub\\fixes, vd Cai-SqlLocalDB.ps1.", "type": "string", "pattern": "^[A-Za-z0-9._-]+\\.ps1$" },
+        "admin": { "description": "Chạy hubScript bằng quyền Admin.", "type": "boolean", "default": false }
+      },
+      "oneOf": [
+        { "required": ["winget"] },
+        { "required": ["action"] },
+        { "required": ["hubScript"] }
+      ]
+    },
+    "require": {
+      "type": "object",
+      "required": ["type", "label"],
+      "properties": {
+        "id": { "description": "Mã yêu cầu (mặc định là type). Cần khi có hai yêu cầu cùng type.", "type": "string" },
+        "type": {
+          "description": "python: Python trên máy. venv: .venv của công cụ. file: file/thư mục trong công cụ. pymodule: thư viện của Python chung. path: đường dẫn bất kỳ (nhận %BIEN% và *). command: lệnh trong PATH. odbc: driver ODBC. sqlserver: LocalDB/Express. gpu: card đồ hoạ. windows: build Windows tối thiểu.",
+          "enum": ["python", "venv", "file", "pymodule", "path", "command", "odbc", "sqlserver", "gpu", "windows"]
+        },
+        "label": { "type": "string" },
+        "optional": { "description": "Thiếu cũng chạy được (chỉ hiện nhắc).", "type": "boolean", "default": false },
+        "fix": { "$ref": "#/definitions/fix" },
+        "min": { "description": "python, pymodule: phiên bản Python tối thiểu, vd 3.9.", "type": "string", "pattern": "^\\d+\\.\\d+$" },
+        "max": { "description": "python: phiên bản tối đa.", "type": "string", "pattern": "^\\d+\\.\\d+$" },
+        "path": { "description": "venv (mặc định .venv), file: đường dẫn tương đối trong công cụ.", "type": "string" },
+        "modules": { "description": "venv: thư viện phải import được.", "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.]*$" } },
+        "minSizeMB": { "description": "file: dung lượng tối thiểu (bắt trường hợp tải dở).", "type": "number", "minimum": 0 },
+        "module": { "description": "pymodule: tên thư viện.", "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.]*$" },
+        "paths": { "description": "path: các đường dẫn thử lần lượt.", "type": "array", "items": { "type": "string" } },
+        "name": { "description": "command: tên lệnh, vd winget.", "type": "string" },
+        "names": { "description": "odbc: tên driver chấp nhận được.", "type": "array", "items": { "type": "string" } },
+        "vendor": { "description": "gpu: chữ có trong tên card, vd NVIDIA.", "type": "string" },
+        "minBuild": { "description": "windows: build tối thiểu, vd 22000 (Windows 11).", "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "probe": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["service", "registry"] },
+        "label": { "type": "string" },
+        "name": { "description": "service: tên dịch vụ (vd SysMain). registry: tên giá trị.", "type": "string" },
+        "default": {
+          "description": "service: kiểu khởi động mặc định của Windows; khác giá trị này thì hiện 'Đã đổi'.",
+          "enum": ["Automatic", "Manual", "Disabled", "Boot", "System"]
+        },
+        "path": { "description": "registry: khoá dạng HKLM:\\...", "type": "string", "pattern": "^(HKLM|HKCU|HKCR|HKU|HKCC):\\\\" },
+        "values": { "description": "registry: bảng giá trị → chữ hiển thị.", "type": "object", "additionalProperties": { "type": "string" } },
+        "note": { "description": "Dòng giải thích nhỏ dưới giá trị.", "type": "string" }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": { "description": "Loại kết quả, vd 'Báo cáo chẩn đoán'.", "type": "string" },
+        "dir": {
+          "description": "Thư mục chứa kết quả (mặc định thư mục công cụ). Nhận %BIEN%, {Desktop} và dấu * ở phần cuối, vd C:\\CUU_DU_LIEU_*.",
+          "type": "string"
+        },
+        "glob": { "description": "Mẫu tên file, nhiều mẫu cách nhau bằng ';', nhận %COMPUTERNAME%.", "type": "string", "default": "*" },
+        "type": { "description": "file hoặc folder (kết quả là cả thư mục).", "enum": ["file", "folder"], "default": "file" },
+        "recurse": { "description": "Tìm cả thư mục con.", "type": "boolean", "default": false }
+      }
+    },
+    "pack": {
+      "description": "Nút 'Đóng gói gửi khách': nén file cần thiết thành .zip trên Desktop kèm DOC-TRUOC.txt.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "description": "Tên file zip (không đuôi).", "type": "string" },
+        "include": { "description": "Mẫu file đưa vào, tương đối, dấu * chỉ ở phần tên file. Bỏ trống: lấy các file của actions và docs.", "type": "array", "items": { "type": "string" } },
+        "exclude": { "description": "Mẫu file loại ra (so với đường dẫn tương đối).", "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
