@@ -115,6 +115,9 @@ function Get-LaunchCommand {
             $q = { param($s) "'" + ($s -replace "'", "''") + "'" }
             $psArgs = ($items | ForEach-Object { if ($_.IsFlag) { $_.Value } else { & $q $_.Value } }) -join ' '
             $cmd = 'Set-Location -LiteralPath ' + (& $q $workDir) + '; & ' + (& $q $File) + ' ' + $psArgs
+            # -Command chỉ trả 0/1: "exit 3" trong script thành 1. Tự chuyển mã thoát của script ra ngoài để trạm
+            # phân biệt được lỗi (1), thiếu điều kiện (2), làm được một phần (3). Không làm khi giữ cửa sổ (-NoExit).
+            if (-not $KeepOpen) { $cmd += '; if ($?) { exit 0 }; if ($LASTEXITCODE) { exit $LASTEXITCODE }; exit 1' }
             $noExit = if ($KeepOpen) { '-NoExit ' } else { '' }
             return @{ Exe = 'powershell.exe'; Args = '-NoProfile -ExecutionPolicy Bypass ' + $noExit + '-Command "' + $cmd.Replace('"', '\"') + '"'; WorkDir = $workDir }
         }

@@ -212,6 +212,12 @@ Nên liệt kê tên file cụ thể để gói không lẫn báo cáo, dữ li�
   để chuẩn hoá BOM và CRLF.
 - Kiểm tra quyền Admin bằng `fltmc >nul 2>&1` thay cho `net session` (lệnh này cần dịch vụ Server).
 - Kiểm tra mã lỗi của từng lệnh trước khi in "thành công"; thoát với mã khác 0 khi thất bại.
+- Mã thoát: `0` xong, `1` lỗi, `2` thiếu điều kiện (quyền Admin, phần mềm, thiết bị), `3` làm được một phần. Trạm
+  ghi mã vào Lịch sử (khác 0 hiện *Báo lỗi, mã N*). Từ Trạm 1.1.1, `.ps1` gọi `exit N` thì trạm nhận đúng `N`;
+  trước đó mọi mã khác 0 thành 1.
+- Script thay đổi máy nên có chế độ chạy thử (công tắc `-ChayThu` trong `args`): in việc sẽ làm rồi thoát, không
+  đổi gì. Một script nhiều chế độ thì mỗi chế độ một action, chọn bằng `fixedArgs` (vd `["-Mode", "chan-doan"]`),
+  như `tools\may-in-lan`.
 - Script phải chạy được cả khi bấm đúp ngoài trạm: trạm chỉ là nơi mở, không thay thế script.
 - Kết quả và dữ liệu của khách để trong thư mục con `ket_qua\` hoặc `du-lieu\` (git bỏ qua). Mẫu tên báo cáo mới
   thì thêm vào `.gitignore` trước khi commit.

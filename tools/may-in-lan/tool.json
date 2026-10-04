@@ -1,0 +1,264 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "may-in-lan",
+  "name": "Máy in mạng LAN và thư mục chia sẻ",
+  "version": "1.0",
+  "category": "sua-loi",
+  "icon": "print",
+  "audience": "all",
+  "summary": "Tìm vì sao không in được, không thấy máy khác trong mạng, không vào được thư mục chia sẻ; sửa từng bước, mọi thay đổi hoàn tác được.",
+  "description": "Chạy Chẩn đoán trước: công cụ đọc dịch vụ in, hàng đợi, máy in trùng, cổng của máy in mạng, mạng Public/Private, tường lửa, cấu hình SMB (ký, đăng nhập khách), cài driver qua mạng, ổ mạng, nhật ký lỗi, rồi ghi báo cáo kèm nút nên chạy. Các nút sửa đều in ra việc sẽ làm và hỏi trước khi làm; đánh dấu \"Chạy thử\" để chỉ xem. Mỗi lần sửa ghi nhật ký trong ket_qua\\hoan-tac để Hoàn tác. Không bao giờ bật SMB1.",
+  "tags": ["máy in", "printer", "in", "lan", "mạng nội bộ", "chia sẻ", "share", "smb", "nas", "ổ mạng", "spooler", "hàng đợi in", "offline", "0x0000011b", "0x00000709", "0x00000bcb", "0x80070035", "1272"],
+  "docs": "HUONG-DAN.md",
+  "actions": [
+    {
+      "id": "chan-doan",
+      "label": "Chẩn đoán",
+      "file": "MayInLan.ps1",
+      "fixedArgs": ["-Mode", "chan-doan"],
+      "admin": true,
+      "risk": "read-only",
+      "primary": true,
+      "duration": "Dưới 1 phút",
+      "description": "Chỉ đọc. Ghi báo cáo ket_qua\\BaoCao_MayIn_<tên máy>_<thời gian>.txt; cuối báo cáo là danh sách lỗi theo thứ tự nên xử lý và nút cần chạy.",
+      "args": [
+        {
+          "id": "may-chu", "type": "text", "flag": "-MayChu", "label": "Kiểm tra thêm một máy (không bắt buộc)",
+          "placeholder": "PC-KETOAN hoặc 192.168.1.50",
+          "help": "Máy đang chia sẻ máy in hoặc thư mục, NAS, hay IP của máy in: thử tên, các cổng 445, 135, 9100, 631 và xem danh sách chia sẻ."
+        }
+      ]
+    },
+    {
+      "id": "sua-hang-doi",
+      "label": "Sửa hàng đợi in bị kẹt",
+      "file": "MayInLan.ps1",
+      "fixedArgs": ["-Mode", "sua-hang-doi"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Lệnh in kẹt không xoá được, máy in báo tạm dừng hoặc ngoại tuyến, dịch vụ in dừng.",
+      "changes": [
+        "Dừng rồi bật lại Print Spooler, đặt tự khởi động cùng Windows",
+        "Xoá file trong hàng đợi in: lệnh in đang chờ mất, phải in lại",
+        "Cho máy in đang tạm dừng in tiếp, tắt \"Dùng máy in ngoại tuyến\""
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "xoa-may-in-trung",
+      "label": "Xoá máy in trùng (Copy 1)",
+      "file": "MayInLan.ps1",
+      "fixedArgs": ["-Mode", "xoa-may-in-trung"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Gom các bản \"(Copy 1)\", \"(Bản sao 1)\" theo tên gốc, thử kết nối từng bản và gợi ý bản nên giữ; bạn chọn bản giữ lại.",
+      "changes": [
+        "Xoá các bản trùng không giữ",
+        "Đổi tên bản giữ lại về tên gốc, đặt làm máy in mặc định nếu bản bị xoá đang là mặc định"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "bat-chia-se",
+      "label": "Bật chia sẻ file và máy in trên máy này",
+      "file": "MayInLan.ps1",
+      "fixedArgs": ["-Mode", "bat-chia-se"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Chạy trên máy chia sẻ (máy cắm máy in USB, máy chứa thư mục chung) và trên máy không thấy máy khác trong mục Network.",
+      "changes": [
+        "Đổi mạng Public sang Private (hỏi riêng từng mạng)",
+        "Bật quy tắc tường lửa \"Chia sẻ file và máy in\", \"Phát hiện mạng\" chỉ cho mạng Private/Domain, không mở trên Public",
+        "Bật dịch vụ phát hiện mạng (FDResPub, fdPHost) và Server, Workstation nếu đang tắt",
+        "Chia sẻ máy in bạn chọn"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "ket-noi-may-in",
+      "label": "Kết nối máy in chia sẻ từ máy khác",
+      "file": "MayInLan.ps1",
+      "fixedArgs": ["-Mode", "ket-noi-may-in"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Chạy bằng quyền Admin nên Windows cài được driver từ máy chia sẻ (tránh lỗi 0x00000BCB). Lỗi khác thì giải thích theo mã lỗi.",
+      "changes": ["Thêm máy in \\\\máy\\máy-in cho tài khoản này, hoặc cho mọi tài khoản trên máy"],
+      "args": [
+        {
+          "id": "may-chu", "type": "text", "flag": "-MayChu", "label": "Máy đang chia sẻ máy in", "required": true,
+          "placeholder": "PC-KETOAN, 192.168.1.20 hoặc \\\\PC-KETOAN\\HP"
+        },
+        {
+          "id": "ten-chia-se", "type": "text", "flag": "-TenChiaSe", "label": "Tên máy in chia sẻ (không bắt buộc)",
+          "help": "Bỏ trống: công cụ liệt kê máy in đang chia sẻ trên máy đó để chọn."
+        },
+        { "id": "cho-moi-nguoi", "type": "bool", "flag": "-ChoMoiNguoi", "label": "Thêm cho mọi tài khoản trên máy này" },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "them-may-in-ip",
+      "label": "Thêm máy in mạng bằng địa chỉ IP",
+      "file": "MayInLan.ps1",
+      "fixedArgs": ["-Mode", "them-may-in-ip"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Thử các cổng in của máy in; có IPP (cổng 631) thì thêm bằng driver chung của Windows, không cần driver hãng; không có thì in qua cổng 9100 với driver hãng đã cài.",
+      "changes": ["Tạo cổng TCP/IP IP_<địa chỉ> nếu chưa có", "Thêm máy in mới"],
+      "args": [
+        {
+          "id": "dia-chi", "type": "text", "flag": "-DiaChi", "label": "Địa chỉ IP máy in", "required": true, "placeholder": "192.168.1.50",
+          "help": "Xem trên màn hình máy in hoặc in trang cấu hình mạng (Network Configuration)."
+        },
+        { "id": "ten", "type": "text", "flag": "-TenMayIn", "label": "Tên đặt cho máy in (không bắt buộc)", "placeholder": "Máy in phòng kế toán" },
+        {
+          "id": "kieu", "type": "choice", "flag": "-Kieu", "label": "Cách kết nối", "default": "tu-dong",
+          "options": [
+            { "value": "tu-dong", "label": "Tự chọn (IPP nếu máy in hỗ trợ)" },
+            { "value": "ipp", "label": "IPP, không cần driver hãng" },
+            { "value": "raw", "label": "Cổng 9100 với driver hãng đã cài" }
+          ]
+        },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "ket-noi-thu-muc",
+      "label": "Kết nối hoặc ngắt thư mục chia sẻ (ổ mạng)",
+      "file": "MayInLan.ps1",
+      "fixedArgs": ["-Mode", "ket-noi-thu-muc"],
+      "admin": false,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Chạy quyền thường để ổ mạng hiện trong File Explorer. Có tài khoản thì mật khẩu gõ trong cửa sổ công cụ (không hiện ký tự), Windows lưu lại; trạm không nhận mật khẩu.",
+      "changes": ["Gắn ổ mạng, tự nối lại mỗi lần đăng nhập", "Lưu tài khoản của máy chia sẻ vào Windows (nếu nhập)", "Khi ngắt: bỏ ổ mạng, hỏi có xoá mật khẩu đã lưu không"],
+      "args": [
+        {
+          "id": "duong-dan", "type": "text", "flag": "-DuongDan", "label": "Thư mục chia sẻ", "placeholder": "\\\\PC-KETOAN\\TaiLieu",
+          "help": "Khi ngắt có thể bỏ trống: công cụ liệt kê ổ mạng để chọn."
+        },
+        { "id": "o-dia", "type": "text", "flag": "-ODia", "label": "Chữ ổ đĩa (không bắt buộc)", "placeholder": "Z" },
+        {
+          "id": "tai-khoan", "type": "text", "flag": "-TaiKhoan", "label": "Tài khoản trên máy chia sẻ (không bắt buộc)", "placeholder": "PC-KETOAN\\ketoan",
+          "help": "Tài khoản của máy chia sẻ, không phải của máy này."
+        },
+        { "id": "ngat", "type": "bool", "flag": "-Ngat", "label": "Ngắt ổ mạng thay vì kết nối" },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "noi-bao-mat",
+      "label": "Nới bảo mật cho thiết bị cũ",
+      "file": "MayInLan.ps1",
+      "fixedArgs": ["-Mode", "noi-bao-mat"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "Dưới 1 phút",
+      "description": "Cách tạm khi NAS, máy in, máy Windows cũ không theo kịp bảo mật mới của Windows. Không bao giờ bật SMB1.",
+      "confirm": "Chỉ dùng khi đã thử cách an toàn mà vẫn lỗi: mục đã chọn làm máy dễ bị tấn công hơn trong mạng nội bộ. Cửa sổ công cụ còn hỏi lại (gõ DONG Y). Hoàn tác được.",
+      "changes": [
+        "RPC qua named pipe: chính sách RpcUseNamedPipeProtocol = 1",
+        "Tắt mã hoá RPC cho máy in chia sẻ: RpcAuthnLevelPrivacyEnabled = 0",
+        "Cho đăng nhập khách: EnableInsecureGuestLogons bật, RequireSecuritySignature tắt",
+        "Không bắt buộc ký SMB: RequireSecuritySignature tắt"
+      ],
+      "args": [
+        {
+          "id": "muc", "type": "choice", "flag": "-Muc", "label": "Mục cần nới", "required": true,
+          "options": [
+            { "value": "rpc-named-pipe", "label": "Lỗi 0x00000709 khi kết nối máy in chia sẻ (máy dùng máy in)" },
+            { "value": "rpc-privacy-off", "label": "Lỗi 0x0000011B ở máy khác (chạy trên máy chia sẻ máy in)" },
+            { "value": "smb-guest", "label": "Vào NAS, thư mục chia sẻ không mật khẩu (guest)" },
+            { "value": "smb-signing-off", "label": "NAS báo chữ ký không hợp lệ (0xC000A000)" }
+          ]
+        },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "hoan-tac",
+      "label": "Hoàn tác lần sửa trước",
+      "file": "MayInLan.ps1",
+      "fixedArgs": ["-Mode", "hoan-tac"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Liệt kê các lần sửa trong ket_qua\\hoan-tac; trả từng thay đổi về như cũ theo thứ tự ngược lại. Lệnh in đã xoá không lấy lại được.",
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "menu",
+      "label": "Mở menu (như bấm đúp MAY_IN_LAN.bat)",
+      "file": "MAY_IN_LAN.bat",
+      "admin": false,
+      "risk": "asks-before-change",
+      "description": "Menu đủ các mục trên; mục cần quyền Admin tự hỏi UAC trong cửa sổ riêng."
+    }
+  ],
+  "probes": [
+    { "type": "service", "name": "Spooler", "label": "Dịch vụ in (Print Spooler)", "default": "Automatic" },
+    { "type": "service", "name": "LanmanServer", "label": "Chia sẻ thư mục, máy in của máy này (Server)", "default": "Automatic" },
+    { "type": "service", "name": "FDResPub", "label": "Hiện máy này trong mục Network (FDResPub)", "default": "Manual" },
+    {
+      "type": "registry", "label": "RPC qua named pipe khi kết nối máy in chia sẻ",
+      "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\\RPC", "name": "RpcUseNamedPipeProtocol",
+      "values": { "1": "Đang nới (named pipe)", "0": "RPC qua TCP" }
+    },
+    {
+      "type": "registry", "label": "Mã hoá RPC khi máy khác in qua máy này",
+      "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Print", "name": "RpcAuthnLevelPrivacyEnabled",
+      "values": { "0": "Đã tắt (đang nới)", "1": "Bật" }
+    },
+    {
+      "type": "registry", "label": "Bắt buộc ký SMB khi vào máy khác",
+      "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters", "name": "RequireSecuritySignature",
+      "values": { "0": "Không bắt buộc (đang nới)", "1": "Bắt buộc" }
+    },
+    {
+      "type": "registry", "label": "Cho đăng nhập khách (guest) vào NAS",
+      "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters", "name": "AllowInsecureGuestAuth",
+      "values": { "1": "Cho phép", "0": "Chặn" }
+    }
+  ],
+  "outputs": [
+    { "label": "Báo cáo chẩn đoán", "dir": "ket_qua", "glob": "BaoCao_MayIn_%COMPUTERNAME%_*.txt" },
+    {
+      "label": "Nhật ký để hoàn tác", "dir": "ket_qua\\hoan-tac", "glob": "HoanTac_*.json",
+      "deleteNote": "\"Hoàn tác lần sửa trước\" cần file này để trả máy về như trước lần sửa. Xoá rồi thì không hoàn tác được lần sửa đó nữa."
+    }
+  ],
+  "pack": {
+    "name": "MayInLan",
+    "include": ["MAY_IN_LAN.bat", "MayInLan.ps1", "lib/Chung.ps1", "lib/NhatKy.ps1", "lib/ChanDoan.ps1", "lib/SuaLoi.ps1", "HUONG-DAN.md"]
+  },
+  "issues": [
+    "Mới chạy trên máy phát triển: Chẩn đoán và Chạy thử của mọi nút; chưa chạy các nút sửa trên máy có máy in mạng, NAS, máy chia sẻ thật.",
+    "Thêm máy in bằng IPP giả định đường dẫn /ipp/print; máy in dùng đường dẫn khác thì công cụ chuyển sang cổng 9100 (cần driver hãng).",
+    "\"Bật chia sẻ\" thu các quy tắc tường lửa gộp \"Private, Public\" của Windows về chỉ Private, nên trang Advanced sharing settings của Windows có thể hiện khác trước; Hoàn tác trả lại như cũ.",
+    "Kết nối máy in \"cho mọi tài khoản\" (printui /ga) chỉ hiện sau khi đăng nhập lại; công cụ không tự khởi động lại dịch vụ in để khỏi mất lệnh in đang chạy.",
+    "Xoá máy in trùng rồi hoàn tác chỉ thêm lại máy in với driver, cổng cũ; tuỳ chỉnh khay giấy, in hai mặt của bản bị xoá không giữ được.",
+    "Ổ mạng không ghi vào nhật ký hoàn tác: ngắt bằng chính nút \"Kết nối hoặc ngắt thư mục chia sẻ\" (đánh dấu Ngắt).",
+    "Khi UAC hỏi mật khẩu một Admin khác, Chẩn đoán đọc ổ mạng, mật khẩu đã lưu của tài khoản Admin đó, không phải của người đang dùng máy (báo cáo có ghi cảnh báo)."
+  ],
+  "upgrades": [
+    "P1 – Dò máy in trong mạng (cổng 9100, 631, WS-Discovery, mDNS) để chọn trong danh sách thay vì gõ IP.",
+    "P1 – Đọc model và đường dẫn IPP thật của máy in (IPP Get-Printer-Attributes) thay vì giả định /ipp/print.",
+    "P1 – Nút tắt \"SNMP status\" cho cổng TCP/IP khi máy in báo Offline mà vẫn in được.",
+    "P1 – Kết nối máy in chia sẻ qua Local Port (\\\\MÁY\\máy-in) với driver hãng cài sẵn: tránh hẳn RPC (0x0000011B, 0x00000709) mà không phải nới bảo mật.",
+    "P2 – Sao lưu, khôi phục máy in (printbrm) khi chuyển máy, dùng chung với \"Chuyển dữ liệu khi cài lại Windows\".",
+    "P2 – Chẩn đoán cả văn phòng: chạy từ một máy, kiểm tra lần lượt các máy và máy in trong danh sách."
+  ]
+}

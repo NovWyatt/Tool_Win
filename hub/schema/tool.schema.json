@@ -80,7 +80,7 @@
         "star", "heart-pulse", "broom", "window-wrench", "pulse", "flash", "shield-lock", "shield-check", "globe", "lock", "book",
         "lightbulb", "person", "copy", "download", "refresh", "question", "clock", "eye", "edit", "checkmark", "ruler", "swap", "map",
         "flag", "filter", "grid", "list", "wrench-screwdriver", "people", "data-bar", "hard-drive", "tab-desktop", "shield-error",
-        "arrow-repeat", "battery", "cpu", "temperature", "tasks", "document-search", "phone-desktop", "puzzle", "send"
+        "arrow-repeat", "battery", "cpu", "temperature", "tasks", "document-search", "phone-desktop", "puzzle", "send", "print"
       ]
     },
     "action": {

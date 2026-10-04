@@ -1,6 +1,6 @@
 [
   { "id": "chan-doan", "label": "Chẩn đoán", "icon": "stethoscope", "description": "Thu thập thông tin, tìm nguyên nhân máy chậm, sập nguồn, màn hình xanh." },
-  { "id": "sua-loi", "label": "Sửa lỗi Windows", "icon": "window-wrench", "description": "Sửa file hệ thống, mạng, Wi-Fi, Windows Update." },
+  { "id": "sua-loi", "label": "Sửa lỗi Windows", "icon": "window-wrench", "description": "Sửa file hệ thống, mạng, Wi-Fi, máy in và chia sẻ trong mạng LAN, Windows Update." },
   { "id": "toi-uu", "label": "Tối ưu", "icon": "gauge", "description": "Bật, tắt dịch vụ nền và thiết lập hiệu năng. Thay đổi hệ thống, có thể hoàn tác." },
   { "id": "van-phong", "label": "Văn phòng", "icon": "table", "description": "Excel, add-in MyExcel, VietQR." },
   { "id": "chuyen-doi", "label": "Chuyển đổi dữ liệu", "icon": "swap", "description": "Ghi âm sang Word, bản vẽ DWG sang PDF, cơ sở dữ liệu .mdf sang .sql." },

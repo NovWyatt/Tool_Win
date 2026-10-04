@@ -35,6 +35,7 @@ driver...): trạm kiểm tra khi mở trang công cụ và có nút **Cài** ch
 | `tools\health-report` | Báo cáo sức khoẻ máy | Kiểm tra nhanh CPU, RAM, ổ đĩa, SMART, nhật ký lỗi, ghi ra Desktop. |
 | `tools\fix-win` | Sửa lỗi Windows | Menu SFC, DISM, đặt lại mạng, CHKDSK, kiểm tra RAM, đặt lại Windows Update. |
 | `tools\wifi-fix` | Kiểm tra và sửa lỗi Wi-Fi | Xem card và mạng xung quanh, thử Internet/DNS, đặt lại IP, DNS, Winsock. |
+| `tools\may-in-lan` | Máy in mạng LAN và thư mục chia sẻ | Chẩn đoán in, chia sẻ, SMB; sửa hàng đợi kẹt, máy in trùng, lỗi 0x0000011B, 0x00000709, 0x00000BCB; thêm máy in bằng IP, gắn ổ mạng; có hoàn tác. |
 | `tools\service-optimizer` | Tắt/bật dịch vụ nền | DiagTrack, Optimize Drives, Windows Insider, SysMain. |
 | `tools\clock-optimizer` | Tối ưu đồng hồ hệ thống | UsePlatformClock, Dynamic Tick. **Hiện không có tác dụng**, xem phân tích. |
 | `tools\myexcelfix` | MyExcel VietQR | Chẩn đoán và sửa add-in MyExcel không bật hoặc không tạo được VietQR; có hoàn tác. |
