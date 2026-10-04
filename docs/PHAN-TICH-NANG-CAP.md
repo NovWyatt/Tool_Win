@@ -1,6 +1,6 @@
 # Phân tích và hướng nâng cấp
 
-Cập nhật 04/10/2026. Đánh giá 12 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
+Cập nhật 04/10/2026. Đánh giá 13 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
 và lộ trình nâng cấp theo mức ưu tiên.
 
 Danh sách lỗi và hướng nâng cấp đầy đủ của từng công cụ nằm trong `issues` và `upgrades` của `tool.json`,
@@ -21,6 +21,8 @@ Mức ưu tiên:
 - **Bây giờ**: mỗi công cụ một thư mục trong `tools\` có `tool.json`. Trạm Tool (`TramTool.bat`) cho chọn, chạy,
   nhập tham số bằng form, kiểm tra điều kiện cần cài, xem trạng thái máy, mở kết quả và đóng gói gửi khách.
 - **Dùng tốt ngay**: CheckWinFix (phần chẩn đoán), MyExcelFix, Ghi âm sang Word, DWG sang PDF.
+- **Mới**: Máy in mạng LAN và thư mục chia sẻ (mục P0 số 1 của *Công cụ Windows nên thêm*). Chẩn đoán đã chạy thật;
+  các nút sửa mới chạy thử, chưa chạy ở văn phòng có máy in mạng, NAS, máy chia sẻ.
 - **Cần sửa trước khi đưa người khác dùng (P0)**: Sửa lỗi Windows, Tắt/bật dịch vụ, Chuyển dữ liệu khi cài lại Windows,
   phần *Cứu dữ liệu* của CheckWinFix.
 - **Không có tác dụng**: Tối ưu đồng hồ hệ thống ghi thiết lập vào registry trong khi Windows đọc từ BCD (`bcdedit`).
@@ -42,6 +44,7 @@ Mức ưu tiên:
 | `dcd7d61` | Tắt/bật dịch vụ, Tối ưu đồng hồ | Dấu `&` trong tiêu đề, menu làm cmd chạy phần sau như một lệnh; *bật lại* Optimize Drives trả về Manual (mặc định) thay vì Automatic. |
 | `0c73dc2`, `840a0ef` | MyExcelFix, mdf2sql | Thêm `HOAN_TAC.bat` (hoàn tác từ trạm) và `CHAY_DONG_LENH.bat` (xem thông tin, chuyển đổi không cần trình duyệt). |
 | `cabde6b` | DWG sang PDF | Giải mã chữ font TCVN3 (`.VnTime`, `.VnArial`...); chuyển lại KT-02, trang KT01-02 hết lỗi chữ (`®-êng ®Êt` → "đường đất"). Đã quét 13 bản vẽ còn lại của bộ SAMSORA: không bản nào dùng TCVN3. |
+| `4a1afe8` | Máy in mạng LAN (mới), Trạm | Công cụ mới `tools\may-in-lan`. Trạm 1.1.1: `.ps1` chạy qua `-Command` trả đúng mã thoát; trước đó `exit 2`, `exit 3` thành 1 nên Lịch sử không phân biệt được thiếu điều kiện, làm được một phần. |
 
 ## Bảng tổng quan
 
@@ -51,6 +54,7 @@ Mức ưu tiên:
 | Báo cáo sức khoẻ | Mọi người | Chạy được, nhưng trùng phần lớn với *Thu thập thông tin* của CheckWinFix. | P1: gộp vào CheckWinFix thành chế độ nhanh. |
 | Sửa lỗi Windows | Kỹ thuật | Đủ lệnh thường dùng nhưng không kiểm tra quyền Admin, báo *hoàn tất* cả khi thất bại; *Reset Network* âm thầm xoá luật tường lửa. | P0: tự nâng quyền, kiểm tra mã lỗi; tách đặt lại tường lửa, bỏ *Registry Cleanup*. |
 | Kiểm tra và sửa lỗi Wi-Fi | Mọi người | Dùng được, hỏi trước khi sửa. Tìm card bằng chữ trong output nên hụt khi card đổi tên hoặc Windows khác ngôn ngữ. | P1: `Get-NetAdapter`, `fltmc` thay `net session`. |
+| Máy in mạng LAN và thư mục chia sẻ | Mọi người | Chẩn đoán 11 nhóm, chỉ nút sửa theo mã lỗi; 8 nút sửa in việc sẽ làm, hỏi trước, có Chạy thử, ghi nhật ký hoàn tác; nới bảo mật tách riêng, hỏi 2 lần; không bật SMB1. Mới kiểm chứng trên máy phát triển. | P1: chạy các nút sửa ở văn phòng thật; Local Port `\\MÁY\máy-in` thay cho nới RPC; dò máy in trong mạng. |
 | Tắt/bật dịch vụ nền | Kỹ thuật | Báo *thành công* cả khi `sc config` bị từ chối; coi *đã dừng* là *đã tắt*. Tắt Optimize Drives làm mất TRIM cho SSD. | P0: tự nâng quyền, xét kiểu khởi động, lưu trạng thái gốc để khôi phục đúng. |
 | Tối ưu đồng hồ hệ thống | Kỹ thuật | Không có tác dụng (ghi sai chỗ). | P0: bỏ khỏi trạm, hoặc viết lại bằng `bcdedit` và đo trước/sau. |
 | MyExcelFix | Mọi người | Chẩn đoán kỹ theo từng tài khoản Windows, có sao lưu và hoàn tác, mã nguồn chia module và build ra một file `.bat`. | P0: không treo khi thiếu cửa sổ dòng lệnh, hoàn tác không đè file đã sửa sau đó, mã thoát. |
@@ -158,6 +162,13 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 - *Máy này* hiện trạng thái Secure Boot và chứng chỉ 2023 (chỉ đọc registry).
 - Mã giao diện chia theo trang (`hub\web\js\`), vẽ bằng lit-html; vẫn không cần build, chạy không cần mạng.
 
+**Bản 1.1.1 (04/10/2026)**
+
+- Script `.ps1` trả đúng mã thoát. Trạm chạy `.ps1` bằng `-Command` (để đặt thư mục làm việc), mà `-Command` chỉ trả
+  0 hoặc 1; nay trạm tự chuyển mã của `exit N` ra ngoài, Lịch sử hiện đúng *Báo lỗi, mã 2* (thiếu điều kiện),
+  *mã 3* (làm được một phần). Khi giữ cửa sổ (`keepOpen`) vẫn như cũ.
+- Biểu tượng `print` cho công cụ máy in.
+
 Hướng thiết kế: giao diện kiểu *Cài đặt* của Windows 11 (Fluent 2), trầm, rõ, một màu nhấn, sáng tối như nhau. Áp dụng
 các quy tắc của [taste-skill](https://github.com/Leonxlnx/taste-skill) (MIT) hợp với ứng dụng công cụ: đủ trạng thái
 đang tải, trống, lỗi; một hệ bo góc; chữ số thẳng cột; không gạch dài trong chữ giao diện. Tham khảo cách làm của
@@ -169,9 +180,10 @@ phần *Công cụ Windows nên thêm* dưới đây (điểm khôi phục, nh�
 
 ## Công cụ Windows nên thêm
 
-Nghiên cứu ngày 04/10/2026, chủ yếu từ tài liệu của Microsoft và trang chính thức của từng phần mềm. Chưa làm mục nào;
-chọn mục nào thì làm mục đó. Không lặp lại những thứ đã có hoặc đã nằm trong lộ trình (SFC, DISM, chkdsk, đặt lại
-Windows Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-Fi, máy in).
+Nghiên cứu ngày 04/10/2026, chủ yếu từ tài liệu của Microsoft và trang chính thức của từng phần mềm. Đã làm mục 1
+(`tools\may-in-lan`); các mục khác chọn mục nào thì làm mục đó. Không lặp lại những thứ đã có hoặc đã nằm trong lộ
+trình (SFC, DISM, chkdsk, đặt lại Windows Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-Fi,
+máy in).
 
 ### Công cụ mới
 
@@ -193,6 +205,11 @@ Windows Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-F
      [ký SMB](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-signing),
      [KB5005652](https://support.microsoft.com/kb/5005652),
      [lộ trình driver máy in](https://learn.microsoft.com/en-us/windows-hardware/drivers/print/end-of-servicing-plan-for-third-party-printer-drivers-on-windows).
+   - **Đã làm** (`tools\may-in-lan` 1.0, commit `4a1afe8`): Chẩn đoán và 8 nút sửa, mỗi nút có Chạy thử và nhật ký
+     hoàn tác; thêm *Thêm máy in bằng IP* (IPP không cần driver hãng, hoặc cổng 9100) và *Kết nối thư mục chia sẻ*
+     (mật khẩu gõ trong cửa sổ công cụ, lưu bằng `cmdkey`). Chưa làm: Local Port `\\MAY\share` (đưa vào hướng nâng cấp
+     của công cụ), đánh dấu máy in đang dùng *Microsoft IPP Class Driver*. Đã thử trên máy phát triển: Chẩn đoán, Chạy
+     thử mọi nút, nhật ký và hoàn tác registry (khoá thử trong HKCU); chưa chạy các nút sửa với máy in, NAS thật.
 2. **BitLocker và khoá khôi phục.** Cần Admin, rủi ro thấp (chỉ đọc và tạm dừng, không bao giờ giải mã).
    - Vì sao: từ 24H2, cài sạch Windows tự mã hoá ổ hệ thống và cả ổ dữ liệu. Máy chỉ có tài khoản cục bộ thì khoá
      không được lưu ở đâu; khoá lên tài khoản Microsoft Admin đầu tiên đăng nhập. Sau khi cập nhật BIOS, thay main hoặc
@@ -268,7 +285,8 @@ Windows Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-F
 
 - **P0 Trạm**: tạo điểm khôi phục trước action thay đổi máy (`Checkpoint-Computer`; Windows chỉ cho một điểm mỗi 24
   giờ trừ khi đặt `SystemRestorePointCreationFrequency=0`). Nhật ký hoàn tác: xuất registry, kiểu khởi động dịch vụ ra
-  JSON. Kiểm tra winget trước vì mọi nút *Cài* dựa vào nó
+  JSON (`tools\may-in-lan\lib\NhatKy.ps1` đã làm kiểu này cho dịch vụ, registry, tường lửa, SMB, máy in; có thể tách
+  ra dùng chung). Kiểm tra winget trước vì mọi nút *Cài* dựa vào nó
   ([winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/): đăng ký lại App Installer, rồi
   `Repair-WinGetPackageManager`). Thêm loại probe `script` chỉ đọc: probe hiện chỉ đọc dịch vụ và registry nên chưa
   hiện được BitLocker hay SMB.
@@ -292,8 +310,8 @@ Windows Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-F
 
 ### Nên làm trước
 
-1. **Máy in mạng LAN và thư mục chia sẻ**: việc hỏi nhiều nhất, cách sửa cũ đã hết tác dụng; có sẵn thang sửa theo
-   tài liệu Microsoft kèm hoàn tác.
+1. ~~**Máy in mạng LAN và thư mục chia sẻ**~~: đã làm (`tools\may-in-lan`); còn chạy thử các nút sửa ở một văn phòng
+   thật.
 2. **BitLocker**, kèm xuất khoá và driver trong *Chuyển dữ liệu khi cài lại Windows*: tránh mất dữ liệu không cứu
    được khi sửa phần cứng hoặc cài lại máy.
 3. **Lan can an toàn của trạm**: điểm khôi phục, nhật ký hoàn tác, kiểm tra winget, giúp mọi bản sửa khác an toàn hơn.
@@ -309,9 +327,9 @@ Mới có nguồn cộng đồng hoặc chưa thử; kiểm tra trên máy thậ
 - Tham số sửa Office Click-to-Run.
 - Cách dựng lại chỉ mục tìm kiếm, bộ nhớ đệm biểu tượng, `wsreset -i`.
 - Đường dẫn thư mục dữ liệu Zalo.
-- `RpcAuthnLevelPrivacyEnabled=0` còn tác dụng trên máy chủ in 24H2, 25H2 không.
+- `RpcAuthnLevelPrivacyEnabled=0` còn tác dụng trên máy chủ in 24H2, 25H2 không (diễn đàn báo còn; Microsoft chưa
+  ghi rõ). Công cụ máy in để mục này ở *Nới bảo mật*, hoàn tác được.
 - `manage-bde` trên Windows bản Home.
-- Mã nhóm luật tường lửa `@FirewallAPI.dll,-28502`.
 - Mã winget `RustDesk.RustDesk`.
 - UltraViewer bản miễn phí có cho dùng thương mại không.
 - Yêu cầu eSigner của thuế điện tử.
