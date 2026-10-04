@@ -16,7 +16,7 @@ echo    KHONG xoa, KHONG sua bat cu file nao tren o D:.
 echo.
 echo    Script se tam DUNG dich vu SQL Server de copy duoc file database,
 echo    sau do TU BAT LAI. Phan mem giu xe se ngung vai phut.
-echo    => Hay chay vao luc bai xe vang nhat.
+echo    =^> Hay chay vao luc bai xe vang nhat.
 echo  ==========================================================================
 echo.
 
