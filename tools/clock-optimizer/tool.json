@@ -1,0 +1,57 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "clock-optimizer",
+  "name": "Tối ưu đồng hồ hệ thống (UsePlatformClock, Dynamic Tick)",
+  "version": "1.0",
+  "category": "toi-uu",
+  "icon": "clock",
+  "audience": "tech",
+  "status": "warning",
+  "statusNote": "Công cụ ghi useplatformclock và disabledynamictick vào registry, nhưng đây là tuỳ chọn khởi động (bcdedit) nên Windows không đọc chỗ đó: chạy xong không có tác dụng dù báo thành công. Xem mục Lỗi đã biết trước khi dùng.",
+  "summary": "Menu tắt hoặc bật lại UsePlatformClock và Dynamic Tick với mục đích giảm giật trong game.",
+  "tags": ["tối ưu", "game", "timer", "HPET", "dynamic tick", "registry"],
+  "actions": [
+    {
+      "id": "menu",
+      "label": "Mở menu tối ưu đồng hồ",
+      "file": "ServiceOptimizer.bat",
+      "type": "console",
+      "admin": true,
+      "risk": "modifies-system",
+      "primary": true,
+      "duration": "Vài giây, cần khởi động lại máy",
+      "description": "Menu 7 mục: tắt/bật từng thiết lập, tắt cả hai, kiểm tra trạng thái.",
+      "confirm": "Hai thiết lập này thực ra nằm trong BCD (bcdedit). Công cụ hiện chỉ ghi registry nên không có tác dụng thật.",
+      "changes": ["Ghi useplatformclock, disabledynamictick vào HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel"]
+    }
+  ],
+  "probes": [
+    {
+      "type": "registry",
+      "label": "useplatformclock (giá trị công cụ ghi)",
+      "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel",
+      "name": "useplatformclock",
+      "values": { "0": "0 (công cụ đã 'tắt')", "1": "1 (công cụ đã 'bật lại')" },
+      "note": "Windows không đọc giá trị này. Thiết lập thật: bcdedit /enum {current} (cần Admin)."
+    },
+    {
+      "type": "registry",
+      "label": "disabledynamictick (giá trị công cụ ghi)",
+      "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel",
+      "name": "disabledynamictick",
+      "values": { "0": "0 (công cụ đã 'bật lại')", "1": "1 (công cụ đã 'tắt')" },
+      "note": "Windows không đọc giá trị này. Thiết lập thật: bcdedit /enum {current} (cần Admin)."
+    }
+  ],
+  "issues": [
+    "Ghi useplatformclock/disabledynamictick vào registry (Session Manager\\kernel) trong khi đây là tuỳ chọn BCD (bcdedit /set ...): mọi lựa chọn trong menu đều không có tác dụng.",
+    "Không kiểm tra quyền Admin; chạy thường thì 'reg add' bị từ chối nhưng thông báo bị giấu nên vẫn in 'Đã tắt thành công'.",
+    "'Bật lại' ghi useplatformclock=1 (ép dùng HPET) chứ không trả về mặc định (mặc định là không có giá trị).",
+    "Tên file ServiceOptimizer.bat dễ nhầm với công cụ tối ưu dịch vụ."
+  ],
+  "upgrades": [
+    "P0 – Hoặc bỏ công cụ, hoặc viết lại bằng 'bcdedit /set {current} disabledynamictick yes' và 'bcdedit /deletevalue {current} useplatformclock' (trả về mặc định), có tự nâng quyền và đọc trạng thái thật từ 'bcdedit /enum {current}'.",
+    "P1 – Đo trước/sau (độ trễ DPC bằng LatencyMon) rồi mới khuyên dùng: hai tinh chỉnh này thường không cải thiện trên Windows 10/11 hiện đại và có thể tăng điện năng tiêu thụ.",
+    "P2 – Đổi tên file thành ClockOptimizer.bat; gộp với tối ưu dịch vụ thành một công cụ 'Tối ưu' có trang trạng thái."
+  ]
+}

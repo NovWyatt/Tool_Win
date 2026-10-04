@@ -1,0 +1,83 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "myexcelfix",
+  "name": "MyExcel VietQR – kiểm tra và sửa lỗi",
+  "version": "2026.10",
+  "category": "van-phong",
+  "icon": "table",
+  "audience": "all",
+  "summary": "Chẩn đoán và sửa lỗi add-in MyExcel không bật hoặc không tạo được VietQR trên một tài khoản Windows (tài khoản khác vẫn chạy được).",
+  "description": "Kiểm tra trước (chỉ đọc), rồi mới sửa. Bản sửa luôn sao lưu trước và hoàn tác được. Chạy bằng đúng tài khoản Windows bị lỗi, không chạy quyền Admin.",
+  "tags": ["excel", "myexcel", "vietqr", "add-in", "trust center", "ngân hàng", "QR"],
+  "docs": "HUONG-DAN.md",
+  "actions": [
+    {
+      "id": "kiem-tra",
+      "label": "Kiểm tra lỗi VietQR (chỉ đọc)",
+      "file": "CheckMyExcel_VietQR.bat",
+      "type": "console",
+      "admin": false,
+      "risk": "read-only",
+      "primary": true,
+      "duration": "5–60 giây",
+      "description": "Kiểm tra 12 nhóm nguyên nhân (Excel, add-in, Trust Center, Trusted Locations, file bị chặn, dữ liệu MyExcel, TEMP, Defender, mạng). Ghi báo cáo .txt và snapshot .json rồi mở bằng Notepad. Chạy thêm ở một tài khoản tạo được VietQR để so sánh."
+    },
+    {
+      "id": "sua-loi",
+      "label": "Sửa lỗi VietQR (có sao lưu)",
+      "file": "FixMyExcel_VietQR.bat",
+      "type": "console",
+      "admin": false,
+      "risk": "modifies-system",
+      "duration": "2–10 phút, có hỏi từng bước",
+      "description": "Sao lưu ra Desktop, nạp lại add-in, thêm Trusted Location, bật lại add-in bị vô hiệu hoá, sửa đường dẫn MyExcel tự lưu, xoá cache .exd, bỏ chặn file. Hỏi trước khi đổi tên bộ cài thừa, sửa liên kết trong file Excel và đặt lại dữ liệu MyExcel.",
+      "confirm": "Lưu và đóng Excel trước khi chạy. Chạy bằng đúng tài khoản Windows đang bị lỗi.",
+      "changes": [
+        "Registry Excel của tài khoản này: danh sách add-in, Trusted Locations, Disabled Items",
+        "Đổi tên bộ cài MyExcel thừa thành *_cu (có hỏi; ảnh hưởng mọi tài khoản)",
+        "Sửa liên kết trong file Excel ở Desktop, Documents, Downloads, OneDrive (có hỏi, có sao lưu)",
+        "Đặt lại dữ liệu MyExcel, phải khai báo lại tài khoản ngân hàng (có hỏi)"
+      ]
+    },
+    {
+      "id": "hoan-tac",
+      "label": "Hoàn tác lần sửa",
+      "file": "HOAN_TAC.bat",
+      "type": "console",
+      "admin": false,
+      "risk": "modifies-system",
+      "duration": "Dưới 1 phút",
+      "description": "Khôi phục cấu hình Excel và dữ liệu MyExcel từ thư mục sao lưu của một lần sửa, đổi tên lại thư mục bộ cài, chép lại các file Excel đã sửa liên kết.",
+      "confirm": "Các file Excel đã sửa liên kết sẽ bị bản sao lưu chép đè: dữ liệu nhập thêm vào các file đó sau lần sửa sẽ mất. Lỗi VietQR cũ có thể quay lại.",
+      "args": [
+        { "id": "thu-muc", "type": "folder", "required": true, "label": "Thư mục sao lưu MyExcelFix_SaoLuu_... của lần sửa", "help": "Thường nằm trên Desktop của tài khoản đã sửa." }
+      ]
+    }
+  ],
+  "outputs": [
+    { "label": "Báo cáo kiểm tra", "dir": "%PUBLIC%\\Documents\\MyExcelCheck", "glob": "BaoCao_MyExcel_%COMPUTERNAME%_*.txt" },
+    { "label": "Bản sao báo cáo trên Desktop", "dir": "{Desktop}", "glob": "BaoCao_MyExcel_*.txt" },
+    { "label": "Sao lưu của lần sửa (dùng để hoàn tác)", "dir": "{Desktop}", "type": "folder", "glob": "MyExcelFix_SaoLuu_*" }
+  ],
+  "pack": {
+    "name": "MyExcelFix",
+    "include": ["CheckMyExcel_VietQR.bat", "FixMyExcel_VietQR.bat", "HUONG-DAN.md"]
+  },
+  "issues": [
+    "Sửa lỗi bị treo, ăn 100% CPU nếu chạy mà không có cửa sổ dòng lệnh thật (đầu vào bị chuyển hướng); Trạm Tool luôn mở cửa sổ riêng nên không gặp.",
+    "Hoàn tác chép đè file Excel bằng bản sao lưu mà không kiểm tra file đã bị sửa sau đó; xoá khoá registry mà không lưu trạng thái hiện tại trước.",
+    "Báo '[ĐÃ SỬA]' Trusted Location cả khi Group Policy ghi đè nên thực tế không đổi.",
+    "Chỉ kiểm tra Excel đã đóng lúc bắt đầu; mở lại Excel giữa chừng thì Excel ghi đè danh sách add-in khi tắt.",
+    "Sao lưu nằm trên Desktop (thường đồng bộ OneDrive) và chứa số tài khoản ngân hàng; ThongTinKhaiBao.txt được ghi cả khi chọn không đặt lại.",
+    "Một file snapshot hỏng làm mọi lần kiểm tra sau không lưu được snapshot; báo cáo ở Public Documents mọi tài khoản đều đọc được.",
+    "Mã thoát luôn 0 nên không phân biệt được thành công hay thất bại."
+  ],
+  "upgrades": [
+    "P0 – Hết đầu vào thì dừng có thông báo; mã thoát: Kiểm tra 0/1/2, Sửa 0/1/2/3.",
+    "P0 – Hoàn tác an toàn: lưu hash file sau khi sửa, file đã đổi thì giữ bản hiện tại (*.truoc_hoantac); lưu trạng thái trước khi hoàn tác; đường dẫn tương đối.",
+    "P0 – Xuất JSON kết quả (mã lỗi ổn định, mức độ, cách sửa) để Trạm Tool hiển thị; build.ps1 đóng dấu phiên bản.",
+    "P1 – FixMyExcel_VietQR.bat /undo \"<thư mục>\" và /list để Trạm Tool liệt kê bản sao lưu.",
+    "P1 – Thư mục common\\ dùng chung cho hai bản build; lưu nguồn UTF-8 có BOM.",
+    "P2 – Lưu báo cáo, sao lưu theo từng tài khoản ở %LOCALAPPDATA%\\MyExcelFix thay vì Public Documents và Desktop."
+  ]
+}

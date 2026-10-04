@@ -9,7 +9,7 @@ CÁCH DÙNG
 2. Bấm đúp CHUYEN_DOI_GHI_AM.bat.
    - Công cụ tự xử lý mọi file ghi âm chưa có kết quả.
    - Hoặc kéo thả một file ghi âm vào CHUYEN_DOI_GHI_AM.bat để xử lý đúng file đó.
-   - Trong Trạm Tool: bấm "Chuyển một file ghi âm" rồi chọn file.
+   - Trong Trạm Tool: bấm Chạy ở "Chuyển ghi âm thành Word", chọn file (bỏ trống thì xử lý cả thư mục).
 3. Kết quả nằm trong thư mục ket_qua:
    - <tên file> - ban tho.docx : văn bản Word, có mốc thời gian đầu mỗi đoạn.
    - <tên file> - ban tho.txt  : từng câu kèm thời điểm bắt đầu → kết thúc.

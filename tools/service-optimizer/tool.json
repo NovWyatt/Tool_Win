@@ -1,0 +1,44 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "service-optimizer",
+  "name": "Tắt/bật dịch vụ nền Windows 11",
+  "version": "1.0",
+  "category": "toi-uu",
+  "icon": "gauge",
+  "audience": "tech",
+  "summary": "Menu tắt hoặc bật lại 4 dịch vụ: DiagTrack (telemetry), Optimize Drives (defragsvc), Windows Insider (wisvc), SysMain.",
+  "tags": ["dịch vụ", "service", "telemetry", "sysmain", "defrag", "tối ưu"],
+  "actions": [
+    {
+      "id": "menu",
+      "label": "Mở menu tắt/bật dịch vụ",
+      "file": "off_servicer.bat",
+      "type": "console",
+      "admin": true,
+      "risk": "modifies-system",
+      "primary": true,
+      "duration": "Vài giây",
+      "description": "Menu 11 mục: tắt/bật từng dịch vụ, tắt/bật tất cả, xem trạng thái.",
+      "confirm": "Tắt 'Optimize Drives' (defragsvc) cũng tắt TRIM định kỳ cho SSD, lâu ngày SSD chậm đi. Chỉ nên tắt SysMain trên máy RAM rất ít.",
+      "changes": ["Đổi kiểu khởi động và dừng/chạy các dịch vụ DiagTrack, defragsvc, wisvc, SysMain"]
+    }
+  ],
+  "probes": [
+    { "type": "service", "name": "DiagTrack", "label": "DiagTrack (telemetry)", "default": "Automatic" },
+    { "type": "service", "name": "defragsvc", "label": "Optimize Drives (defragsvc)", "default": "Manual" },
+    { "type": "service", "name": "wisvc", "label": "Windows Insider (wisvc)", "default": "Manual" },
+    { "type": "service", "name": "SysMain", "label": "SysMain (SuperFetch)", "default": "Automatic" }
+  ],
+  "issues": [
+    "Không kiểm tra quyền Admin; chạy thường thì 'sc config' bị từ chối nhưng thông báo bị giấu nên vẫn in 'Đã tắt thành công'.",
+    "Coi trạng thái STOPPED là 'đã tắt': defragsvc, wisvc bình thường vẫn dừng (Manual) nên công cụ báo 'đã tắt rồi' mà không đặt Disabled; mục kiểm tra trạng thái cũng báo sai.",
+    "Mô tả 'tắt defrag phù hợp với SSD' sai: dịch vụ này chạy TRIM cho SSD.",
+    "'Bật lại tất cả' không trả về đúng trạng thái trước khi tắt (không lưu trạng thái ban đầu)."
+  ],
+  "upgrades": [
+    "P0 – Tự nâng quyền và kiểm tra kết quả 'sc config' trước khi báo thành công.",
+    "P0 – Xét kiểu khởi động thay vì trạng thái chạy; lưu trạng thái ban đầu ra file để khôi phục đúng giá trị cũ.",
+    "P1 – Bỏ tắt defragsvc hoặc cảnh báo rõ về TRIM; kiểm tra bằng 'Optimize-Volume -ReTrim'.",
+    "P2 – Gộp với tối ưu đồng hồ thành một công cụ 'Tối ưu' có trang trạng thái trong Trạm Tool."
+  ]
+}

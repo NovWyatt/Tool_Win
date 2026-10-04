@@ -1,0 +1,49 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "fix-win",
+  "name": "Sửa lỗi Windows (SFC, DISM, mạng, Windows Update)",
+  "version": "1.0",
+  "category": "sua-loi",
+  "icon": "window-wrench",
+  "audience": "tech",
+  "summary": "Menu các lệnh sửa chữa Windows thường dùng: SFC, DISM, đặt lại mạng, CHKDSK, kiểm tra RAM, đặt lại Windows Update, dọn file tạm.",
+  "tags": ["sfc", "dism", "chkdsk", "winsock", "windows update", "sửa lỗi", "file hệ thống"],
+  "actions": [
+    {
+      "id": "menu",
+      "label": "Mở menu sửa lỗi",
+      "file": "fix_win.bat",
+      "type": "console",
+      "admin": true,
+      "risk": "modifies-system",
+      "primary": true,
+      "duration": "Tuỳ mục: SFC 10–15 phút, DISM 15–30 phút, 'chạy tất cả' 30–60 phút",
+      "description": "Menu 10 mục, chọn số rồi Enter. Nên chạy DISM (mục 2) trước rồi mới SFC (mục 1).",
+      "confirm": "Một số mục thay đổi lớn: 'Reset Network' đặt lại cả tường lửa Windows (xoá mọi luật tự thêm); 'Check Disk' chạy chkdsk /f /r (hàng giờ, không chạy trên ổ đang hỏng trước khi cứu dữ liệu); 'Registry Cleanup' xoá khoá DelegateFolders. Đọc kỹ trước khi chọn.",
+      "changes": [
+        "sfc /scannow, DISM RestoreHealth sửa file hệ thống",
+        "netsh winsock reset, netsh int ip reset, netsh advfirewall reset (đặt lại tường lửa)",
+        "chkdsk C: /f /r (hẹn chạy khi khởi động lại)",
+        "Đổi tên SoftwareDistribution, catroot2 để đặt lại Windows Update",
+        "Xoá file trong %TEMP% và C:\\Windows\\Temp",
+        "Xoá khoá registry DelegateFolders và RunMRU"
+      ]
+    }
+  ],
+  "issues": [
+    "Không tự kiểm tra/nâng quyền Admin: chạy thường thì sfc, dism, chkdsk, netsh đều thất bại nhưng menu vẫn báo 'hoàn tất'.",
+    "'Reset Network' chạy cả 'netsh advfirewall reset': xoá mọi luật tường lửa tự thêm (VPN, phần mềm chấm công, SQL...) mà nhãn menu không nói.",
+    "'Run All' chạy SFC trước DISM (nên DISM trước) và đặt lại mạng không cần thiết.",
+    "'Reset Windows Update' lỗi ở lần chạy thứ hai vì SoftwareDistribution.old đã tồn tại; dùng cứng C:\\Windows thay vì %SystemRoot%.",
+    "'Registry Cleanup' xoá cả khoá DelegateFolders mà Explorer dùng để hiện ổ, thiết bị: có rủi ro mà không có lợi ích rõ ràng.",
+    "'Clean Temp' gọi cleanmgr /sagerun:1 khi chưa từng /sageset:1 nên không dọn thêm gì.",
+    "'Check Disk' chạy chkdsk /f /r trên ổ sắp hỏng có thể làm mất dữ liệu; nên cứu dữ liệu (CheckWinFix) trước."
+  ],
+  "upgrades": [
+    "P0 – Tự nâng quyền Admin (fltmc + RunAs) và kiểm tra mã lỗi từng lệnh trước khi báo hoàn tất.",
+    "P0 – Tách 'đặt lại tường lửa' khỏi 'Reset Network' và hỏi lại trước khi chạy; bỏ mục 'Registry Cleanup'.",
+    "P1 – 'Run All' theo thứ tự DISM rồi SFC; đặt lại Windows Update dùng tên có thời gian (.old_<giờ>) và %SystemRoot%.",
+    "P1 – Ghi nhật ký ra file (tóm tắt CBS.log, DISM.log) để gửi kèm báo cáo.",
+    "P2 – Gộp vào CheckWinFix như bước 'Sửa' sau chẩn đoán, chỉ đề xuất lệnh hợp với bệnh đã tìm thấy."
+  ]
+}

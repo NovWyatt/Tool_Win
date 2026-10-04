@@ -1,0 +1,39 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "wifi-fix",
+  "name": "Kiểm tra và sửa lỗi Wi-Fi",
+  "version": "1.0",
+  "category": "sua-loi",
+  "icon": "wifi",
+  "audience": "all",
+  "summary": "Xem card Wi-Fi và mạng xung quanh, thử kết nối Internet/DNS; đặt lại IP, DNS, Winsock, TCP/IP; khởi động lại card Wi-Fi.",
+  "tags": ["wifi", "mạng", "internet", "dns", "winsock", "sửa lỗi"],
+  "actions": [
+    {
+      "id": "menu",
+      "label": "Mở menu Wi-Fi",
+      "file": "fixwf.bat",
+      "type": "console",
+      "admin": true,
+      "risk": "asks-before-change",
+      "primary": true,
+      "duration": "Dưới 1 phút",
+      "description": "Mục 1 chỉ kiểm tra (card, mạng xung quanh, ping). Mục 2 và 3 thay đổi cấu hình mạng.",
+      "changes": [
+        "Mục 2: ipconfig /release /renew (mất mạng vài giây), netsh winsock reset, netsh int ip reset (cần khởi động lại máy)",
+        "Mục 3: tắt rồi bật lại card Wi-Fi"
+      ]
+    }
+  ],
+  "issues": [
+    "Kiểm tra quyền Admin bằng 'net session' cần dịch vụ Server; dịch vụ này bị tắt thì báo nhầm là chưa có quyền.",
+    "Mục 2 không nhắc phải khởi động lại sau khi đặt lại Winsock/TCP-IP; ipconfig /release ngắt mạng mọi card, không chỉ Wi-Fi.",
+    "Tìm card bằng chữ 'Wi-Fi'/'Wireless' trong output netsh: card đã đổi tên hoặc Windows ngôn ngữ khác thì không thấy; nhiều card thì lấy card cuối.",
+    "Ping google.com thất bại bị báo là 'lỗi DNS' kể cả khi chỉ là mất Internet."
+  ],
+  "upgrades": [
+    "P1 – Tự nâng quyền (fltmc + RunAs) thay vì bắt chạy lại.",
+    "P1 – Tìm card Wi-Fi bằng Get-NetAdapter (NdisPhysicalMedium 802.11) và khởi động lại bằng Restart-NetAdapter.",
+    "P2 – Thêm chẩn đoán driver, chế độ tiết kiệm điện của card, 'netsh wlan show wlanreport' và xuất báo cáo .txt."
+  ]
+}

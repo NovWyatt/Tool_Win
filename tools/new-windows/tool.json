@@ -1,0 +1,72 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "new-windows",
+  "name": "Chuyển dữ liệu khi cài lại Windows",
+  "version": "2026.10",
+  "category": "cai-lai-may",
+  "icon": "laptop",
+  "audience": "tech",
+  "summary": "Sao lưu Wi-Fi (kèm mật khẩu), máy in (driver, cổng, cấu hình) và dữ liệu Claude trước khi cài lại Windows, rồi khôi phục sau khi cài xong.",
+  "description": "Không sao lưu tài liệu, trình duyệt, Zalo, font hay danh sách ứng dụng. Thư mục dự án chỉ được liệt kê (thu-muc-du-an.txt), phải tự chép.",
+  "tags": ["cài lại Windows", "sao lưu", "khôi phục", "Wi-Fi", "máy in", "driver", "Claude"],
+  "actions": [
+    {
+      "id": "xuat",
+      "label": "1. Xuất dữ liệu (trước khi cài lại)",
+      "file": "1_XUAT_DU_LIEU.bat",
+      "type": "console",
+      "admin": true,
+      "selfElevates": true,
+      "risk": "asks-before-change",
+      "primary": true,
+      "duration": "2–15 phút, tuỳ dung lượng ~\\.claude",
+      "description": "Tạo thư mục DuLieu_SaoLuu cạnh file .bat: hồ sơ Wi-Fi, máy in (driver, cổng TCP/IP, cấu hình in, máy in mặc định), ~\\.claude, ~\\.claude.json, dữ liệu Claude Desktop và bản HTML đọc được của các hội thoại Claude Code.",
+      "confirm": "Bản sao lưu chứa mật khẩu Wi-Fi dạng chữ thường và toàn bộ hội thoại Claude, nằm trong thư mục công cụ (git đã bỏ qua). Chép ra USB rồi xoá khỏi máy khi xong.",
+      "changes": [
+        "Hỏi trước khi tự đóng Claude",
+        "Đổi tên bản sao lưu cũ thành DuLieu_SaoLuu_cu_<giờ>",
+        "Có thể bật dịch vụ Wi-Fi, Print Spooler nếu đang tắt (không trả lại như cũ)"
+      ]
+    },
+    {
+      "id": "nhap",
+      "label": "2. Nhập dữ liệu (sau khi cài lại)",
+      "file": "2_NHAP_DU_LIEU.bat",
+      "type": "console",
+      "admin": true,
+      "selfElevates": true,
+      "risk": "modifies-system",
+      "duration": "3–15 phút",
+      "description": "Đọc DuLieu_SaoLuu cạnh file .bat rồi cho chọn: [1] tất cả, [2] Wi-Fi, [3] máy in, [4] Claude. Wi-Fi và máy in đã có thì bỏ qua.",
+      "confirm": "Chỉ chạy trên máy VỪA cài lại Windows. Phần Claude chép cấu hình từ bản sao lưu đè lên ~\\.claude, .claude.json và Claude Desktop (cấu hình cũ được lưu bản .truoc-khoi-phuc-*); hội thoại và file Cowork trên máy mới hơn bản sao lưu được giữ nguyên.",
+      "changes": [
+        "Thêm hồ sơ Wi-Fi, cài driver và máy in, đặt máy in mặc định",
+        "Chép dữ liệu Claude Code, Claude Desktop, thư mục Cowork; sửa đường dẫn nếu tên tài khoản đổi",
+        "Có thể chuyển dịch vụ Wi-Fi, Print Spooler sang Automatic nếu đang tắt"
+      ]
+    }
+  ],
+  "outputs": [
+    { "label": "Thư mục sao lưu (có mật khẩu Wi-Fi)", "type": "folder", "glob": "DuLieu_SaoLuu" },
+    { "label": "Các bản sao lưu cũ", "type": "folder", "glob": "DuLieu_SaoLuu_cu_*" },
+    { "label": "Hướng dẫn khôi phục", "dir": "DuLieu_SaoLuu", "glob": "HUONG_DAN.txt" },
+    { "label": "Nhật ký xuất, nhập", "dir": "DuLieu_SaoLuu", "glob": "nhat-ky-*.txt" },
+    { "label": "Hội thoại Claude Code (đọc bằng trình duyệt)", "dir": "DuLieu_SaoLuu\\Claude\\HoiThoai-Code", "glob": "index.html" }
+  ],
+  "issues": [
+    "Bản sao lưu chứa bí mật (mật khẩu Wi-Fi, token MCP trong cấu hình Claude, toàn bộ hội thoại) dạng chữ thường ngay cạnh script; các bản _cu_ nhân thêm số bản.",
+    "Máy in dùng driver có sẵn của Windows (IPP, PCL6, PS, Generic) bị bỏ qua khi nhập vì bước cài driver chỉ cài driver ngoài.",
+    "Không có dấu 'sao lưu đã xong': xuất bị ngắt giữa chừng thì bước nhập có thể tự lấy một bản _cu_ cũ.",
+    "Kiểm tra 'Claude đang chạy' bắt cả phiên Claude Code; chọn T khi xuất sẽ đóng cả các phiên Claude Code đang mở.",
+    "Nâng quyền bằng tài khoản Admin khác thì sao lưu/khôi phục nhầm hồ sơ của tài khoản Admin đó.",
+    "Một số bước báo [OK] cả khi chép lỗi (.claude.json, driver, phần Claude Desktop)."
+  ],
+  "upgrades": [
+    "P0 – Chọn nơi lưu (mặc định ổ không phải ổ hệ thống hoặc USB), không cho lưu trong thư mục công cụ; tuỳ chọn nén có mật khẩu cho Wi-Fi và cấu hình Claude.",
+    "P0 – manifest.json ghi 'đang làm' lúc bắt đầu và 'xong'/'một phần' lúc kết thúc; bước nhập từ chối bản chưa xong và hỏi trước khi dùng bản _cu_.",
+    "P0 – Tham số -Mode, -Target, -DryRun, -Yes, -NoPause; mã thoát 0/1/2/3 để Trạm Tool biết kết quả.",
+    "P1 – Kiểm đếm số file, dung lượng, SHA-256 file nhỏ; chạy thử (robocopy /L) xuất plan.json để xem trước.",
+    "P1 – Cài driver có sẵn của Windows bằng Add-PrinterDriver -Name; hỏi trước khi đổi kiểu khởi động dịch vụ và trả lại sau.",
+    "P2 – Thêm phần tuỳ chọn: winget export, thư mục người dùng (xem trước dung lượng), dấu trang trình duyệt, font."
+  ]
+}

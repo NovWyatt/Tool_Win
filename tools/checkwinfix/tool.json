@@ -1,0 +1,124 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "checkwinfix",
+  "name": "CheckWinFix – chẩn đoán máy Windows",
+  "version": "2026.10",
+  "category": "chan-doan",
+  "icon": "stethoscope",
+  "audience": "all",
+  "summary": "Bộ script chẩn đoán máy chậm, ổ cứng sắp hỏng, lỗi phần cứng WHEA, màn hình xanh và sụp nguồn; xuất báo cáo .txt để gửi người hỗ trợ.",
+  "description": "Chạy 'Thu thập thông tin' trước, đọc mục CẢNH BÁO TỰ ĐỘNG ở đầu báo cáo rồi mới chọn script chuyên sâu. Tất cả cần quyền Admin; các script chẩn đoán chỉ đọc.",
+  "tags": ["chẩn đoán", "máy chậm", "ổ cứng", "SMART", "WHEA", "màn hình xanh", "sụp nguồn", "nhật ký sự kiện", "cứu dữ liệu"],
+  "docs": "HUONG-DAN.md",
+  "actions": [
+    {
+      "id": "thu-thap",
+      "label": "Thu thập thông tin (chạy đầu tiên)",
+      "file": "ThuThapThongTin.bat",
+      "type": "console",
+      "admin": true,
+      "selfElevates": true,
+      "risk": "read-only",
+      "primary": true,
+      "duration": "1,5–3 phút",
+      "description": "Đọc 24 nhóm thông tin (ổ đĩa, SMART, CPU, RAM, khởi động, dịch vụ, nhật ký lỗi, dòng thời gian 90 ngày...) và tự chấm khoảng 45 cảnh báo. Hỏi 2 câu, Enter để bỏ qua. Xuất LagReport_<máy>_<giờ>.txt cạnh file .bat, mở Notepad và chép đường dẫn báo cáo vào clipboard."
+    },
+    {
+      "id": "phan-cung",
+      "label": "Chẩn đoán phần cứng: ổ đĩa, SMART, màn hình xanh",
+      "file": "2-CHAN-DOAN-PHAN-CUNG.bat",
+      "type": "console",
+      "admin": true,
+      "selfElevates": true,
+      "risk": "read-only",
+      "duration": "Dưới 1 phút",
+      "description": "Bản đồ Disk N với ổ logic, lỗi đọc/ghi 30 ngày theo từng ổ và địa chỉ sector, SMART có ngưỡng, mã lỗi trong minidump, RAM. Không hỏi gì. Xuất HwDiag_<máy>_<giờ>.txt."
+    },
+    {
+      "id": "giai-ma-whea",
+      "label": "Giải mã lỗi phần cứng WHEA",
+      "file": "3-GIAI-MA-WHEA.bat",
+      "type": "console",
+      "admin": true,
+      "selfElevates": true,
+      "risk": "read-only",
+      "duration": "10–30 giây",
+      "description": "Giải mã bản ghi CPER của WHEA-Logger để chỉ ra lỗi nằm ở CPU, RAM hay thiết bị PCIe. Không hỏi gì. Xuất WheaDecode_<máy>_<giờ>.txt."
+    },
+    {
+      "id": "sup-nguon",
+      "label": "Chẩn đoán sụp nguồn, tự tắt, tự khởi động lại",
+      "file": "5-CHAN-DOAN-SUP-NGUON.bat",
+      "type": "console",
+      "admin": true,
+      "selfElevates": true,
+      "risk": "asks-before-change",
+      "duration": "1–2 phút; chế độ theo dõi chạy đến khi đóng cửa sổ",
+      "description": "Phân loại từng lần tắt đột ngột trong 60 ngày (mất điện thật, màn hình xanh ẩn, giữ nút nguồn, lỗi khi ngủ), nhiệt độ, pin và nguồn. Xuất SupNguon_<máy>_<giờ>.txt rồi mới hỏi các thay đổi bên dưới (C/K, Enter = không).",
+      "changes": [
+        "Nếu đồng ý: bật ghi minidump và tắt tự khởi động lại khi màn hình xanh (HKLM\\SYSTEM\\CurrentControlSet\\Control\\CrashControl)",
+        "Nếu đồng ý: theo dõi liên tục, ghi CSV mỗi 5 giây đến khi đóng cửa sổ"
+      ]
+    },
+    {
+      "id": "bang-chung",
+      "label": "Xuất hồ sơ bằng chứng lỗi ổ đĩa",
+      "file": "4-XUAT-BANG-CHUNG.bat",
+      "type": "console",
+      "admin": true,
+      "selfElevates": true,
+      "risk": "asks-before-change",
+      "duration": "1–3 phút",
+      "description": "Xuất nhật ký gốc .evtx, bảng CSV 60 ngày, SMART và gom các báo cáo vào thư mục HoSoBangChung_<máy>_<giờ> để nộp cho công ty hoặc nơi bảo hành.",
+      "changes": ["Nếu đồng ý: tạo Custom View 'CheckWinFix_BangChung' trong Event Viewer"]
+    },
+    {
+      "id": "cuu-du-lieu",
+      "label": "Cứu dữ liệu D:\\ITS (ca máy giữ xe)",
+      "file": "1-CUU-DU-LIEU.bat",
+      "type": "console",
+      "admin": true,
+      "selfElevates": true,
+      "risk": "modifies-system",
+      "duration": "Vài phút đến vài giờ, tuỳ dung lượng và mức hỏng của ổ",
+      "description": "Viết riêng cho ca máy giữ xe dùng ITS-Pro trên SQL Server khi ổ D: hỏng: dừng SQL Server, chép D:\\ITS bằng robocopy sang nơi lưu (mặc định C:\\CUU_DU_LIEU_ITS_<giờ>), bật lại dịch vụ, đối chiếu MD5. Phải gõ Y để bắt đầu.",
+      "confirm": "Chỉ chạy khi đã xác định ổ D: hỏng phần cứng. Phần mềm giữ xe ngừng trong lúc chép. Nên chọn nơi lưu là USB hoặc ổ khác ổ vật lý đang hỏng (C: và D: có thể cùng một ổ).",
+      "changes": [
+        "Dừng các dịch vụ SQL Server, buộc đóng ITS-Pro, SSMS, sqlservr",
+        "Chép dữ liệu ra thư mục mới, rồi bật lại các dịch vụ đã dừng"
+      ]
+    }
+  ],
+  "outputs": [
+    { "label": "Báo cáo máy chậm", "glob": "LagReport_%COMPUTERNAME%_*.txt" },
+    { "label": "Báo cáo máy chậm (lưu ra Desktop)", "dir": "{Desktop}", "glob": "LagReport_%COMPUTERNAME%_*.txt" },
+    { "label": "Báo cáo phần cứng", "glob": "HwDiag_%COMPUTERNAME%_*.txt" },
+    { "label": "Giải mã WHEA", "glob": "WheaDecode_%COMPUTERNAME%_*.txt" },
+    { "label": "Báo cáo sụp nguồn", "glob": "SupNguon_%COMPUTERNAME%_*.txt" },
+    { "label": "Dữ liệu theo dõi sụp nguồn", "glob": "SupNguon_TheoDoi_%COMPUTERNAME%_*.csv" },
+    { "label": "Báo cáo pin (laptop)", "glob": "PinReport_%COMPUTERNAME%_*.html" },
+    { "label": "Hồ sơ bằng chứng", "type": "folder", "glob": "HoSoBangChung_%COMPUTERNAME%_*" },
+    { "label": "Kết quả cứu dữ liệu", "dir": "C:\\CUU_DU_LIEU_ITS_*", "glob": "KET_QUA_CUU_DU_LIEU.txt" }
+  ],
+  "pack": {
+    "name": "CheckWinFix",
+    "include": ["ThuThapThongTin.bat", "2-CHAN-DOAN-PHAN-CUNG.bat", "3-GIAI-MA-WHEA.bat", "4-XUAT-BANG-CHUNG.bat", "5-CHAN-DOAN-SUP-NGUON.bat"]
+  },
+  "issues": [
+    "Cứu dữ liệu: đối chiếu MD5 chạy sau khi đã bật lại SQL Server nên file .mdf/.ldf đang bị khoá, báo 'không khớp' ngay trong ca script được viết ra.",
+    "Cứu dữ liệu: chỉ chặn nơi lưu là ổ D:, không kiểm tra C: và D: có cùng một ổ vật lý; chỉ dừng instance SQL mặc định; đóng cửa sổ giữa chừng thì SQL Server không được bật lại.",
+    "Thu thập thông tin: bảng cảnh báo chỉ so mã sự kiện mức Error/Critical, bỏ sót disk 154, WHEA-Logger 1 và 10 mã ở mức Warning.",
+    "Xuất bằng chứng: gom mọi LagReport_*, HwDiag_* trong thư mục, kể cả báo cáo của máy khác; bản tóm tắt còn chép cứng số liệu của một ca đã xử lý trước đây.",
+    "Kiểm tra quyền Admin bằng 'net session' cần dịch vụ Server; dịch vụ này bị tắt thì script tự mở lại không dừng.",
+    "Lỗi ghi file cuối bị nuốt nên vẫn báo XONG và mở Notepad với file không tồn tại; mã thoát luôn là 0.",
+    "Đọc chữ trong thông điệp sự kiện tiếng Anh: Windows ngôn ngữ khác bị bỏ sót; CSV theo dõi sụp nguồn lệch cột khi số thập phân dùng dấu phẩy."
+  ],
+  "upgrades": [
+    "P0 – Cứu dữ liệu: đối chiếu khi SQL còn dừng, so ổ vật lý nguồn/đích, tự dò mọi instance MSSQL*, try/finally bật lại dịch vụ, luôn ghi vào thư mục mới.",
+    "P0 – Cảnh báo: so theo nguồn sự kiện + mã, thêm disk 154, WHEA 1/18, đọc cả mức Warning.",
+    "P0 – Thay 'net session' bằng 'fltmc', chỉ tự nâng quyền một lần; báo lỗi rõ và trả mã thoát khác 0 khi thất bại.",
+    "P1 – Gom phần dùng chung (khởi chạy, đọc SMART, minidump, WHEA) vào một lõi, build ra từng .bat như MyExcelFix.",
+    "P1 – Xuất thêm JSON kết quả (máy, thời gian, phát hiện, mức độ) để Trạm Tool hiển thị và gợi ý script tiếp theo.",
+    "P1 – Đọc trường sự kiện từ EventData thay vì chữ trong thông điệp để chạy đúng trên Windows mọi ngôn ngữ."
+  ]
+}
