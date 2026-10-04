@@ -9,6 +9,7 @@ from ezdxf.render import hatching
 from ezdxf.tools import text_layout
 from ezdxf.addons.drawing import Frontend, RenderContext, pymupdf as ezpdf, layout, config
 from ezdxf.addons.drawing.recorder import Recorder, Player
+import tcvn3
 import vni
 
 ISO = {"A0": (1189, 841), "A1": (841, 594), "A2": (594, 420), "A3": (420, 297), "A4": (297, 210)}
@@ -467,6 +468,7 @@ def main(src, dst, mode):
     log(f"inserts on frozen layers hidden: {hide_inserts_on_frozen_layers(doc)}; "
         f"blocks re-sorted by their draw order: {apply_block_draw_order(doc)}")
     repair_texts(doc)
+    tcvn3.fix_document(doc, log=log)  # first: VNI decoding skips texts that are Unicode by then
     vni.fix_document(doc, log=log)
     log("text repairs: " + ", ".join(f"{k}={STATS[k]}" for k in
         ("utf8_rejoined", "indent_emulated", "indent_stripped", "columns_removed")))

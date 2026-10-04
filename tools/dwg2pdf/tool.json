@@ -63,17 +63,16 @@
   ],
   "pack": {
     "name": "dwg2pdf",
-    "include": ["CHUYEN_DWG_SANG_PDF.bat", "CAI_DAT.ps1", "chuyen_dwg_sang_pdf.py", "convert.py", "vni.py", "requirements.txt", "requirements-lock.txt", "HUONG_DAN.md"]
+    "include": ["CHUYEN_DWG_SANG_PDF.bat", "CAI_DAT.ps1", "chuyen_dwg_sang_pdf.py", "convert.py", "tcvn3.py", "vni.py", "requirements.txt", "requirements-lock.txt", "HUONG_DAN.md"]
   },
   "issues": [
-    "Chữ dùng font TCVN3 (.VnTime, .VnArial...) chưa giải mã được, ra ký tự lạ; chữ VNI-Windows thì đã xử lý.",
+    "Chữ TCVN3 trong MULTILEADER, bảng (TABLE) chưa được đổi bảng mã; TEXT, MTEXT, thuộc tính khối thì đã xử lý (cả VNI và TCVN3).",
     "convert.py vá thẳng vào bên trong ezdxf 1.4.4 và PyMuPDF 1.28.2; nâng phiên bản thư viện có thể làm hỏng kết quả.",
     "LibreDWG từ chối nhầm một số file AutoCAD 2007 ('Invalid System Section'); đang lách bằng cách đệm 2 MB vào bản sao.",
     "Bản vẽ lớn tốn 5–35 phút và vài GB RAM; chưa có tiến độ theo phần trăm."
   ],
   "upgrades": [
     "P1 – Bộ bản vẽ mẫu + so sánh ảnh từng trang PDF để kiểm tra mỗi khi nâng ezdxf, PyMuPDF hoặc LibreDWG.",
-    "P1 – Giải mã TCVN3 bằng bảng chuyển mã (giống vni.py), nhận biết theo tên font của kiểu chữ.",
     "P2 – Chọn khổ giấy, bảng nét in (.ctb) và in màu ngay trên form chạy.",
     "P2 – In tiến độ dạng JSON để Trạm Tool hiển thị phần trăm và thời gian còn lại."
   ]

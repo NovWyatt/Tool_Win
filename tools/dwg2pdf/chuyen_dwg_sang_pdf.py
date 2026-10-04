@@ -156,7 +156,6 @@ def main() -> int:
         f"{len(loi)} lỗi, {time.time() - t0:.0f} giây.")
     if loi:
         say("File lỗi: " + "; ".join(loi))
-    say("Lưu ý: chữ dùng font TCVN3 (.VnTime, .VnArial) chưa giải mã được, sẽ ra ký tự lạ. Xem HUONG_DAN.md.")
     return 1 if loi else 0
 
 

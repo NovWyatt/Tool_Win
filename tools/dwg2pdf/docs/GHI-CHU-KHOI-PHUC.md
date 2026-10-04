@@ -209,7 +209,10 @@ Usage: `python convert.py <in.dxf> <out.pdf> [mono]`.
   * inline MTEXT `\fVNI-…` switches become `\fArial`;
   * `Þ` maps to `Ø` (diameter sign).
   * Converted per file: KT07 hồ bơi 1, KT05 11, KT14 12, KT-02 33, KT12-1,2,3 38.
-* **TCVN3 / ABC (.VnTime, .VnArial…) is NOT handled.** See §9.
+* **TCVN3 / ABC (.VnTime, .VnArial…) was NOT handled** in the delivered batch. See §9.
+  * **Fixed 2026-10-04:** `tcvn3.py` decodes texts drawn with TCVN3 fonts (style font or XDATA family, MTEXT `\f`
+    switches, `%%nnn` codes) and draws them with Arial / Times New Roman; `.VnArial Narrow` becomes Arial at
+    width 0.82 because Windows' Arial Narrow lacks most Vietnamese letters. KT-02 was re-rendered.
 * **Vietnamese SHX fonts** (`vnroman.shx`, `vn_vni.shx`) were only used for ASCII text, so nothing was needed there.
 * **Other fonts** named by the drawings are not installed either. Examples: `VAVON_2.TTF`, `VHELVEN*.TTF`, `arial_2.ttf`, `Copy of arial.ttf`, `romans.shx`, `simplex.shx`, `chhbg.shx`. ezdxf picks its own substitutes, so letter shapes differ from an AutoCAD plot.
 * Text is drawn as **vector outlines**: the PDFs have no text layer and are not searchable.
@@ -271,6 +274,7 @@ QA:
   * The survey-map labels use style `Style-CHAR_FAST_FONT`, whose font is named only in xdata as `.VnArial Narrow`.
   * They render as `®-êng ®Êt` (Đường đất), `s©n` (sân) and `Tê 8BT.3` (Tờ 8BT.3).
   * A TCVN3→Unicode table and xdata font lookup would be needed.
+  * **Fixed 2026-10-04** (`tcvn3.py`, see §7) and reported to the user; KT-02 re-rendered.
 * The final `convert.py` was **never run end-to-end in exactly this form**. The delivered PDFs come from the v3 file plus `ole_patch.py`, and `ole_patch.py` ran the new OLE-corner code by importing the final `convert.py`.
 * Minor QA findings from `final3` that may persist, since `final4` was not re-inspected by agents:
   * KT07-VS: the GHI CHÚ legend line wraps out of order.

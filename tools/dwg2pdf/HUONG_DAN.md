@@ -46,12 +46,26 @@ Cần mạng Internet lần đầu, tải khoảng 100 MB.
 2. LibreDWG `dwg2dxf` đổi sang DXF. Một số file AutoCAD 2007 bị LibreDWG từ chối nhầm
    ("Invalid System Section"): công cụ đệm 2 MB số 0 vào **bản sao** rồi thử lại. File gốc không bị đụng.
 3. `convert.py` đọc DXF bằng ezdxf, tìm các khung bản vẽ, sắp theo mã bản vẽ, vẽ từng khung thành một
-   trang PDF bằng PyMuPDF với nét in đen trắng giống `monochrome.ctb`. Chữ VNI-Windows được đổi sang
-   Unicode (`vni.py`), bảng Excel nhúng (OLE) được chèn vào dưới dạng ảnh.
+   trang PDF bằng PyMuPDF với nét in đen trắng giống `monochrome.ctb`. Bảng Excel nhúng (OLE) được chèn vào
+   dưới dạng ảnh.
+
+## Chữ tiếng Việt font cũ
+
+Máy không cần cài font VNI hay TCVN3: công cụ đổi chữ sang Unicode theo font của từng kiểu chữ rồi vẽ bằng
+font Unicode có sẵn trong Windows.
+
+| Bảng mã | Font trong bản vẽ | Xử lý |
+|---|---|---|
+| VNI-Windows | `VNI-Times`, `VNI-Avo`, `VNI-Helve`... | `vni.py`, vẽ bằng Arial |
+| TCVN3 (ABC) | `.VnTime`, `.VnArial`, `.VnArial Narrow`... | `tcvn3.py`: `.VnTime` → Times New Roman, `.VnArial` → Arial, `.VnArial Narrow` → Arial co ngang 0,82 (Arial Narrow của Windows thiếu phần lớn chữ có dấu); font đuôi `H` (`.VnTimeH`) là font chữ hoa nên chữ được viết hoa |
+
+Chỉ chữ thực sự vẽ bằng font TCVN3 mới được đổi (theo kiểu chữ và mã đổi font `\f` trong MTEXT), kể cả mã
+`%%nnn` của AutoCAD (vd `c%%230 phÇn` → "cổ phần"). Chữ Unicode gõ bằng font thường giữ nguyên.
 
 ## Giới hạn đã biết
 
-- Chữ dùng font **TCVN3** (`.VnTime`, `.VnArial`...) chưa giải mã được, sẽ ra ký tự lạ. Chữ VNI thì đã xử lý.
+- Chữ TCVN3 nằm trong đổi font giữa dòng của MTEXT đổi sang Arial nhưng không co ngang; chữ trong MULTILEADER và
+  bảng (TABLE) chưa được đổi bảng mã.
 - `convert.py` vá thẳng vào bên trong ezdxf 1.4.4 và PyMuPDF 1.28.2. **Không tự nâng phiên bản thư viện**;
   muốn nâng thì chạy lại một bộ bản vẽ mẫu và so sánh PDF trước.
 - Bản vẽ không có khung nào nhận ra được thì cả model space ra một trang.
