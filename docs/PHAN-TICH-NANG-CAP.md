@@ -103,7 +103,8 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 ### Giai đoạn 2: chuẩn hoá (P1)
 
 - [ ] File JSON kết quả chung cho mọi công cụ; Trạm đọc để hiện *tìm thấy gì* và gợi ý công cụ chạy tiếp.
-- [ ] Trạm đợi tiến trình xong trong nền, ghi mã thoát và thời gian chạy vào Lịch sử.
+- [x] Trạm đợi tiến trình xong trong nền, ghi mã thoát và thời gian chạy vào Lịch sử (Trạm 1.1.0). Chưa theo dõi được
+      công cụ tự nâng quyền (cửa sổ đầu thoát ngay, cửa sổ Admin là tiến trình khác).
 - [ ] Lõi PowerShell dùng chung (kiểm tra Admin, ghi log, đọc SMART, minidump, WHEA, chọn nơi lưu), build ra từng `.bat`
       một file như MyExcelFix để vẫn gửi khách được một file.
 - [ ] Gộp: Báo cáo sức khoẻ thành chế độ nhanh của CheckWinFix; Tắt/bật dịch vụ + Tối ưu đồng hồ thành một công cụ
@@ -136,7 +137,185 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 - Bảo mật: chỉ nghe `127.0.0.1`, mã thông hành ngẫu nhiên mỗi lần mở, kiểm tra Host/Origin, chỉ chạy action khai báo
   trong `tool.json`, không mở file ngoài thư mục công cụ và danh sách kết quả.
 
-**Hướng tiếp**: các mục *Trạm* trong lộ trình ở trên (đọc mã thoát, JSON kết quả, tiến độ, cập nhật công cụ).
+**Bản 1.1.0 (04/10/2026): làm lại giao diện, theo dõi lần chạy, xoá kết quả**
+
+- *Tổng quan* thành bảng điều khiển: *Cần chú ý* (công cụ hỏng hoặc thiếu yêu cầu, ổ còn dưới 12%, máy bật từ 14 ngày,
+  lần chạy báo lỗi trong 24 giờ, Secure Boot chưa có chứng chỉ 2023), công cụ đã ghim, việc dùng gần đây có nút
+  *Chạy lại*; toàn bộ công cụ theo nhóm ở dưới.
+- Ô tìm nhanh **Ctrl+K**: công cụ, từng việc chạy được, trang, kết quả gần đây; Enter mở, Ctrl+Enter chạy ngay,
+  gõ `>` để chỉ hiện việc chạy được.
+- Thanh **Đang chạy**: trạm giữ tiến trình đã mở, đếm giờ, nút hiện cửa sổ; khi cửa sổ đóng thì ghi mã thoát và thời
+  gian chạy vào lịch sử, báo ngay nếu lỗi, báo xong nếu chạy lâu (từ 30 giây).
+- **Lịch sử** ghi kết quả thay vì chỉ ghi lần mở: *Xong*, *Báo lỗi, mã N*, *Đã đóng cửa sổ*, *Đã huỷ* (từ chối UAC);
+  nhóm theo ngày, lọc lần lỗi, chạy lại với đúng tham số cũ, xoá từng dòng hoặc cả lịch sử.
+- **Xoá kết quả**: chọn nhiều trong *Kết quả gần đây*, xoá là chuyển vào Thùng rác. Máy chủ chỉ nhận đúng mục đang
+  được liệt kê là kết quả của công cụ. `tool.json` khai báo `deleteNote` (cảnh báo phải đánh dấu đã đọc, dùng cho bản
+  sao lưu Wi-Fi, sao lưu để hoàn tác, hồ sơ bằng chứng) và `deletable: false` (file bên trong bản sao lưu).
+- Form chạy: báo lỗi ngay dưới ô sai, điền sẵn giá trị lần trước; nút *Chạy* có biểu tượng khiên khi cần Admin; hộp
+  xác nhận nêu rõ việc sẽ làm. Trang công cụ có dòng *sẵn sàng* (yêu cầu, quyền Admin, thời gian, lần chạy gần nhất).
+- Ghim, giao diện sáng/tối, chế độ đơn giản lưu ở máy chủ (`hub\data\settings.json`) thay vì trình duyệt, vì trạm có
+  thể đổi cổng khi cổng cũ bận và trình duyệt gắn dữ liệu theo cổng.
+- *Máy này* hiện trạng thái Secure Boot và chứng chỉ 2023 (chỉ đọc registry).
+- Mã giao diện chia theo trang (`hub\web\js\`), vẽ bằng lit-html; vẫn không cần build, chạy không cần mạng.
+
+Hướng thiết kế: giao diện kiểu *Cài đặt* của Windows 11 (Fluent 2), trầm, rõ, một màu nhấn, sáng tối như nhau. Áp dụng
+các quy tắc của [taste-skill](https://github.com/Leonxlnx/taste-skill) (MIT) hợp với ứng dụng công cụ: đủ trạng thái
+đang tải, trống, lỗi; một hệ bo góc; chữ số thẳng cột; không gạch dài trong chữ giao diện. Tham khảo cách làm của
+PowerToys Command Palette, Raycast, Linear (ô Ctrl+K), UniGetUI (bảng tác vụ đang chạy, lịch sử), GitHub Desktop
+(trạng thái trống có việc tiếp theo), hướng dẫn UAC và InfoBar của Microsoft.
+
+**Hướng tiếp**: các mục *Trạm* trong lộ trình ở trên (JSON kết quả, tiến độ, cập nhật công cụ) và mục *Trạm* trong
+phần *Công cụ Windows nên thêm* dưới đây (điểm khôi phục, nhật ký hoàn tác, kiểm tra winget).
+
+## Công cụ Windows nên thêm
+
+Nghiên cứu ngày 04/10/2026, chủ yếu từ tài liệu của Microsoft và trang chính thức của từng phần mềm. Chưa làm mục nào;
+chọn mục nào thì làm mục đó. Không lặp lại những thứ đã có hoặc đã nằm trong lộ trình (SFC, DISM, chkdsk, đặt lại
+Windows Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-Fi, máy in).
+
+### Công cụ mới
+
+**P0**
+
+1. **Máy in mạng LAN và thư mục chia sẻ.** Cần Admin, rủi ro vừa.
+   - Vì sao: việc hỏi nhiều nhất ở văn phòng, và Windows gần đây làm cách sửa cũ hết tác dụng. Windows 11 22H2 trở đi
+     in qua RPC/TCP (máy chủ in cần cổng 135 và 49152 đến 65535). 24H2 bản Pro, Enterprise bắt buộc ký SMB và chặn
+     đăng nhập khách, nên NAS và máy photocopy quét vào thư mục báo lỗi 0xc000a000, 0x80070035.
+   - Chẩn đoán (chỉ đọc): `Get-Printer`, cổng, driver (đánh dấu *Microsoft IPP Class Driver*, Windows ưu tiên từ
+     01/07/2026), khoá chính sách in RPC, `Get-SmbClientConfiguration`, `Test-NetConnection` cổng 135 và 445, sự kiện
+     SMBClient 31017.
+   - Sửa theo thứ tự, mỗi bước ghi nhật ký để hoàn tác: khởi động lại Spooler và dọn hàng đợi; xoá máy in "(Copy N)";
+     cài sẵn driver bằng quyền Admin (lỗi 0x00000bcb); bật luật tường lửa *File and Printer Sharing* theo mã nhóm,
+     không theo tên (tên đổi theo ngôn ngữ); dùng cổng TCP/IP, hoặc Local Port `\\MAY\share` kèm `cmdkey /add`.
+     Các cách nới bảo mật (named pipe, `RpcAuthnLevelPrivacyEnabled=0`, nới ký SMB, cho khách) để cuối cùng và hỏi xác
+     nhận. Không bao giờ bật SMB1.
+   - Nguồn: [in qua RPC](https://learn.microsoft.com/en-us/troubleshoot/windows-client/printing/windows-11-rpc-connection-updates-for-print),
+     [ký SMB](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-signing),
+     [KB5005652](https://support.microsoft.com/kb/5005652),
+     [lộ trình driver máy in](https://learn.microsoft.com/en-us/windows-hardware/drivers/print/end-of-servicing-plan-for-third-party-printer-drivers-on-windows).
+2. **BitLocker và khoá khôi phục.** Cần Admin, rủi ro thấp (chỉ đọc và tạm dừng, không bao giờ giải mã).
+   - Vì sao: từ 24H2, cài sạch Windows tự mã hoá ổ hệ thống và cả ổ dữ liệu. Máy chỉ có tài khoản cục bộ thì khoá
+     không được lưu ở đâu; khoá lên tài khoản Microsoft Admin đầu tiên đăng nhập. Sau khi cập nhật BIOS, thay main hoặc
+     TPM, cài lại máy thì gặp màn hình khôi phục hoặc ổ D: bị khoá.
+   - Cách làm: `manage-bde -status`, `manage-bde -protectors -get C:` (dự phòng CIM `Win32_EncryptableVolume`),
+     `Get-Tpm`; lưu khoá vào `ket_qua\`; trước khi sửa phần cứng, firmware thì `Suspend-BitLocker -MountPoint C: -RebootCount 1`.
+   - Nguồn: [BitLocker](https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/).
+3. **Dọn ổ C an toàn, xem trước rồi mới dọn.** Cần Admin, rủi ro thấp (chỉ xoá thứ tự sinh lại được).
+   - Vì sao: ổ C đầy là chuyện thường ngày; *Clean Temp* của Sửa lỗi Windows chỉ dọn TEMP.
+   - Báo cáo trước: TEMP, `Windows\Temp`, `SoftwareDistribution\Download`, Delivery Optimization, WinSxS
+     (`Dism /Online /Cleanup-Image /AnalyzeComponentStore`), bộ nhớ đệm Chrome, Edge, Cốc Cốc, Brave, Teams mới,
+     Windows.old, Zalo (chỉ báo dung lượng).
+   - Dọn: file cũ hơn 7 ngày; `Delete-DeliveryOptimizationCache -Force`; `/StartComponentCleanup` (không dùng
+     `/ResetBase` vì sau đó không gỡ được bản cập nhật đã cài); bộ nhớ đệm ứng dụng chỉ khi ứng dụng đã tắt; mở
+     Storage Sense (`ms-settings:storagesense`); tuỳ chọn BleachBit `--preview` rồi `--clean`.
+   - Nguồn: [dọn WinSxS](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/clean-up-the-winsxs-folder),
+     [bộ nhớ đệm Teams](https://learn.microsoft.com/en-us/troubleshoot/microsoftteams/teams-administration/clear-teams-cache).
+
+**P1**
+
+4. **Gói tiếng Việt.** Phần lớn không cần Admin, rủi ro thấp (sao lưu registry, hoàn tác được).
+   - Bộ gõ: dùng lại phần dò của MyExcelFix (`tools\myexcelfix\src\50_user_env.ps1`) để báo hai bộ gõ cùng lúc
+     (UniKey, EVKey, OpenKey cùng bàn phím Telex của Windows), bộ gõ không chạy quyền Admin nên không gõ được vào ứng
+     dụng chạy Admin, tự khởi động trùng.
+   - Tài liệu cũ: liệt kê font VNI, .Vn; chuyển *bản sao* .docx, .xlsx sang Unicode bằng `vni.py`, `tcvn3.py` của DWG
+     sang PDF. Không kèm font VNI (có bản quyền).
+   - Định dạng số, ngày: mẫu cài sẵn cho `HKCU\Control Panel\International` (dấu thập phân, dấu nghìn, dấu phân cách
+     danh sách, ngày ngắn), hoặc chỉ trong Excel bằng
+     [Use system separators](https://support.microsoft.com/office/c093b545-71cb-4903-b205-aebb9837bd1e).
+5. **Sửa Office.** Cần Admin; Quick Repair rủi ro thấp, Online Repair rủi ro vừa (cài lại cả bộ).
+   - Đọc Platform, ClientCulture trong `ClickToRun\Configuration`; Quick Repair bằng
+     `OfficeClickToRun.exe scenario=Repair platform=<Platform> culture=<ClientCulture> RepairType=QuickRepair`;
+     cập nhật bằng `OfficeC2RClient.exe /update user`.
+   - Mở chế độ `/safe`; liệt kê add-in COM và Disabled Items; đổi tên OST (chỉ tài khoản IMAP, Exchange, không đụng
+     `.pst` của POP); `Unblock-File` cho file macro tin cậy; tìm file chưa lưu.
+   - Đặt lại kích hoạt: GetHelpCmdLine (bản dòng lệnh SaRA đã bị gỡ từ 10/03/2026).
+   - Nguồn: [gỡ SaRA](https://support.microsoft.com/topic/5913939c-87ff-45b0-8e9b-14dc89bfdfee),
+     [dòng lệnh Quick Repair (lưu trữ)](https://learn.microsoft.com/en-us/archive/blogs/office_resource_kit/automating-quick-repairs-in-office-365-proplus).
+6. **Đồng hồ và chữ ký số (USB token).** Sửa thì cần Admin; rủi ro thấp (lưu `w32tm /query /configuration` trước).
+   - Vì sao: sai giờ hoặc múi giờ làm hỏng HTTPS, kích hoạt, và ký số thuế điện tử, hoá đơn điện tử, BHXH.
+   - Đồng hồ: `w32tm /stripchart /computer:time.windows.com /samples:3 /dataonly`, `tzutil /g` (cần
+     *SE Asia Standard Time*), rồi `w32tm /resync /force`.
+   - Token: dịch vụ SCardSvr đang chạy, `certutil -scinfo` đọc được token, chứng thư có khoá riêng trong
+     `Cert:\CurrentUser\My` sắp hết hạn trong 30 ngày, đã cài eSigner chưa.
+   - Nguồn: [gỡ lỗi thẻ thông minh](https://learn.microsoft.com/en-us/windows/security/identity-protection/smart-cards/smart-card-debugging-information).
+7. **Hỗ trợ từ xa.** Chỉ cần Admin khi cài. Quick Assist có sẵn trong Windows (người hỗ trợ cần tài khoản Microsoft,
+   người được hỗ trợ phải tự bấm UAC); thêm UltraViewer (`DucFabulous.UltraViewer`) và RustDesk (AGPL-3.0, dùng lâu dài
+   thì tự dựng máy chủ). Hiện cảnh báo lừa đảo của Microsoft trước khi mở.
+   Nguồn: [Quick Assist](https://learn.microsoft.com/en-us/windows/client-management/client-tools/quick-assist).
+8. **Bộ ứng dụng chuẩn bằng winget.** Danh sách JSON: Zalo (`VNGCorp.Zalo`), UniKey (`UniKey.UniKey`) hoặc EVKey
+   (`lamquangminh.EVKey`), 7-Zip, Foxit Reader, UltraViewer, Cốc Cốc (bản trên winget dừng ở v120, ứng dụng tự cập
+   nhật). Cài bằng `winget install --id X -e --silent --accept-package-agreements --accept-source-agreements`, giữ mới
+   bằng `upgrade` và `pin`. Giao diện tuỳ chọn: [UniGetUI](https://github.com/Devolutions/UniGetUI) (MIT; các trang
+   wingetui, unigetui đuôi .com là trang giả).
+
+**P2**
+
+9. **Bộ đồ nghề kỹ thuật**, cài bằng winget trên máy cần sửa thay vì để trong repo (khỏi vướng nghĩa vụ GPL).
+   - Sysinternals miễn phí nhưng [điều khoản](https://learn.microsoft.com/en-us/sysinternals/license-terms) cấm phát
+     lại: không để trong repo, không đóng gói gửi khách.
+   - Dùng được: CrystalDiskInfo (MIT), smartmontools 7.5 (`smartctl -j` ra JSON), BleachBit, 7-Zip, WinDirStat;
+     Rufus, Ventoy cho USB cứu hộ của mình.
+   - [BlueScreenView](https://www.nirsoft.net/utils/blue_screen_view.html) chỉ được phát lại miễn phí, nguyên bản.
+     Bỏ HWiNFO: dùng thương mại cần [bản Pro](https://www.hwinfo.com/files/license.pdf). WinUtil (MIT) chỉ lấy ý
+     tưởng vì nó chạy kiểu tải script rồi chạy thẳng (`irm | iex`).
+10. **Mã độc và USB.** Defender: `Update-MpSignature`, `Start-MpScan`, `Start-MpWDOScan` (khởi động lại máy, hỏi
+    trước). USB bị "virus shortcut": liệt kê `.lnk`, `autorun.inf`, rồi `attrib -h -s` trả lại file thật.
+11. **Sẵn sàng lên Windows 11.** Kiểm tra như HardwareReadiness.ps1 và `mbr2gpt /validate /allowFullOS` (chỉ đọc).
+    Windows 10 bản thường có cập nhật bảo mật mở rộng tới
+    [12/10/2027](https://www.microsoft.com/windows/extended-security-updates) nên chưa gấp.
+
+### Bổ sung cho trạm và công cụ đang có
+
+- **P0 Trạm**: tạo điểm khôi phục trước action thay đổi máy (`Checkpoint-Computer`; Windows chỉ cho một điểm mỗi 24
+  giờ trừ khi đặt `SystemRestorePointCreationFrequency=0`). Nhật ký hoàn tác: xuất registry, kiểu khởi động dịch vụ ra
+  JSON. Kiểm tra winget trước vì mọi nút *Cài* dựa vào nó
+  ([winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/): đăng ký lại App Installer, rồi
+  `Repair-WinGetPackageManager`). Thêm loại probe `script` chỉ đọc: probe hiện chỉ đọc dịch vụ và registry nên chưa
+  hiện được BitLocker hay SMB.
+- **P0 Chuyển dữ liệu khi cài lại Windows**: trước khi xuất, ghi trạng thái BitLocker mọi ổ và lưu khoá; xuất toàn bộ
+  driver bằng `pnputil /export-driver * <thư mục>` (cần driver mạng, Wi-Fi ngay sau khi cài lại), nhập bằng
+  `pnputil /add-driver <thư mục>\*.inf /subdirs /install`.
+- **P1 CheckWinFix (chỉ đọc)**:
+  - Secure Boot: `UEFICA2023Status` và sự kiện TPM-WMI 1801, 1808. Chứng chỉ Windows Production PCA 2011 hết hạn
+    **19/10/2026**; máy vẫn khởi động nhưng không nhận bản vá bảo mật khởi động nữa
+    ([KB5062710](https://support.microsoft.com/help/5062710)). Trạm 1.1.0 đã hiện ở *Máy này* và *Cần chú ý*; máy
+    này đã có chứng chỉ 2023.
+  - Kích hoạt Windows qua CIM `SoftwareLicensingProduct`, đánh dấu máy chủ KMS lạ và dấu vết phần mềm kích hoạt lậu.
+    Không dùng `slmgr.vbs`: Microsoft định tắt VBScript mặc định khoảng năm 2027.
+  - Thêm `reagentc /info`, `powercfg /requests`, `powercfg /sleepstudy`, sự kiện MemoryDiagnostics-Results 1201, 1202.
+- **P1 Sửa lỗi Windows**: `wsreset.exe -i`; dựng lại bộ nhớ đệm biểu tượng, ảnh thu nhỏ; dựng lại chỉ mục tìm kiếm
+  (`SetupCompletedSuccessfully=0` rồi khởi động lại WSearch); `Repair-Volume -Scan`, `-SpotFix` trước `chkdsk /r`;
+  bước cuối là [Fix problems using Windows Update](https://support.microsoft.com/windows/fix-issues-by-reinstalling-the-current-version-of-windows)
+  (cài lại Windows, giữ ứng dụng và file). Không dùng `msdt.exe`: các trình gỡ rối của nó đã bị bỏ.
+- **P1 Wi-Fi**: đặt lại proxy và hosts: `netsh winhttp reset proxy`, proxy trình duyệt của người dùng
+  (`ProxyEnable=0`), khôi phục file hosts từ bản sao lưu.
+
+### Nên làm trước
+
+1. **Máy in mạng LAN và thư mục chia sẻ**: việc hỏi nhiều nhất, cách sửa cũ đã hết tác dụng; có sẵn thang sửa theo
+   tài liệu Microsoft kèm hoàn tác.
+2. **BitLocker**, kèm xuất khoá và driver trong *Chuyển dữ liệu khi cài lại Windows*: tránh mất dữ liệu không cứu
+   được khi sửa phần cứng hoặc cài lại máy.
+3. **Lan can an toàn của trạm**: điểm khôi phục, nhật ký hoàn tác, kiểm tra winget, giúp mọi bản sửa khác an toàn hơn.
+4. **Dọn ổ C an toàn**: thường gặp, rủi ro thấp, thay cho *Clean Temp*.
+5. **Gói kiểm tra chỉ đọc cho CheckWinFix**: rẻ, nhanh (Secure Boot, kích hoạt, môi trường khôi phục, giấc ngủ).
+
+Sau đó là **Gói tiếng Việt**.
+
+### Chưa kiểm chứng
+
+Mới có nguồn cộng đồng hoặc chưa thử; kiểm tra trên máy thật trước khi đưa vào công cụ:
+
+- Tham số sửa Office Click-to-Run.
+- Cách dựng lại chỉ mục tìm kiếm, bộ nhớ đệm biểu tượng, `wsreset -i`.
+- Đường dẫn thư mục dữ liệu Zalo.
+- `RpcAuthnLevelPrivacyEnabled=0` còn tác dụng trên máy chủ in 24H2, 25H2 không.
+- `manage-bde` trên Windows bản Home.
+- Mã nhóm luật tường lửa `@FirewallAPI.dll,-28502`.
+- Mã winget `RustDesk.RustDesk`.
+- UltraViewer bản miễn phí có cho dùng thương mại không.
+- Yêu cầu eSigner của thuế điện tử.
+- Giấy phép các font .Vn (TCVN3).
 
 ## Thư viện bên thứ ba
 
@@ -146,6 +325,8 @@ thư viện của công cụ được script cài đặt tải về, không đư
 | Thư viện | Dùng cho | Giấy phép |
 |---|---|---|
 | Fluent UI Web Components | Giao diện trạm | MIT |
+| Fluent UI System Icons | Biểu tượng của giao diện trạm (`hub\web\icons.svg`) | MIT |
+| lit-html | Giao diện trạm: vẽ và cập nhật trang | BSD-3-Clause |
 | marked | Hiển thị tài liệu Markdown trong trạm | MIT |
 | DOMPurify | Lọc HTML trước khi hiển thị | Apache-2.0 hoặc MPL-2.0 |
 | LibreDWG | DWG sang PDF: đọc file .dwg | GPL-3.0 |

@@ -14,6 +14,16 @@ Bấm đúp **`TramTool.bat`**.
 - *Cài đặt → Tạo lối tắt* để có biểu tượng **Trạm Tool** trên Desktop.
 - Tuỳ chọn dòng lệnh: `TramTool.bat -Browser edge`, `TramTool.bat -NoBrowser`, `TramTool.bat -Port 47800`.
 
+Trong trạm:
+
+- **Ctrl+K** (hoặc `/`): tìm và chạy nhanh công cụ, việc, trang, kết quả. Gõ `>` để chỉ hiện việc chạy được.
+- **Tổng quan**: mục *Cần chú ý* (thiếu thư viện, ổ gần đầy, máy bật quá lâu, lần chạy báo lỗi, Secure Boot), công cụ
+  đã ghim, việc dùng gần đây.
+- Thanh **Đang chạy** ở cuối trang theo dõi cửa sổ công cụ mở từ trạm; **Lịch sử chạy** ghi kết quả (xong, báo lỗi kèm
+  mã, đã đóng cửa sổ), thời gian chạy, và chạy lại với tham số cũ.
+- **Kết quả gần đây**: mở file, mở thư mục, chọn nhiều để xoá. Xoá là chuyển vào Thùng rác; bản sao lưu có cảnh báo
+  phải đánh dấu đã đọc mới xoá được.
+
 Trạm chỉ cần Windows 10/11 với Windows PowerShell 5.1 có sẵn. Mỗi công cụ có điều kiện riêng (Python, mô hình,
 driver...): trạm kiểm tra khi mở trang công cụ và có nút **Cài** cho thứ còn thiếu.
 
@@ -67,6 +77,7 @@ docs\                     phân tích nâng cấp, hướng dẫn thêm công c�
   kiểm tra kiểu và ký tự trước khi truyền vào script.
 - Action thay đổi máy hiện hộp xác nhận liệt kê thay đổi; action cần Admin đi qua hộp thoại UAC của Windows.
 - Trạm không tự cài gì: nút *Cài* mở cửa sổ cài đặt để người dùng thấy và đồng ý.
+- Xoá kết quả chỉ nhận đúng file, thư mục đang được liệt kê là kết quả của công cụ, và chỉ chuyển vào Thùng rác.
 
 ## Dữ liệu khách
 
@@ -82,5 +93,9 @@ các mẫu tên báo cáo. Thêm công cụ mới có mẫu tên kết quả m�
   `.bat` không BOM, CRLF).
 - Chạy máy chủ không mở trình duyệt: `TramTool.bat -NoBrowser`. Cổng và mã thông hành nằm trong `hub\data\runtime.json`;
   mở `http://127.0.0.1:<port>/#t=<token>`.
+- Thử giao diện mà không đụng lịch sử, cài đặt thật: thêm `-DataDir <thư mục tạm>\data`, và `-ToolsDir <thư mục tạm>\tools`
+  để dùng công cụ giả (một `tool.json` trỏ tới `.bat` chờ vài giây rồi thoát) khi thử nút Chạy, Xoá.
+- Giao diện là ES module chạy thẳng, không cần build: `hub\web\app.js` (định tuyến), `hub\web\js\` (dữ liệu, hộp thoại,
+  ô tìm nhanh, thanh Đang chạy), `hub\web\js\pages\` (mỗi trang một file), vẽ bằng lit-html và thành phần Fluent UI.
 - Môi trường Python của công cụ cài bằng `CAI_DAT.ps1` trong thư mục công cụ (DWG sang PDF, Ghi âm sang Word),
   phiên bản khoá trong `requirements-lock.txt`.

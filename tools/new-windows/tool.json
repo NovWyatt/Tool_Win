@@ -47,11 +47,13 @@
     }
   ],
   "outputs": [
-    { "label": "Thư mục sao lưu (có mật khẩu Wi-Fi)", "type": "folder", "glob": "DuLieu_SaoLuu" },
-    { "label": "Các bản sao lưu cũ", "type": "folder", "glob": "DuLieu_SaoLuu_cu_*" },
-    { "label": "Hướng dẫn khôi phục", "dir": "DuLieu_SaoLuu", "glob": "HUONG_DAN.txt" },
-    { "label": "Nhật ký xuất, nhập", "dir": "DuLieu_SaoLuu", "glob": "nhat-ky-*.txt" },
-    { "label": "Hội thoại Claude Code (đọc bằng trình duyệt)", "dir": "DuLieu_SaoLuu\\Claude\\HoiThoai-Code", "glob": "index.html" }
+    { "label": "Thư mục sao lưu (có mật khẩu Wi-Fi)", "type": "folder", "glob": "DuLieu_SaoLuu",
+      "deleteNote": "Đây là bản sao lưu để khôi phục Wi-Fi, máy in và dữ liệu Claude sau khi cài lại Windows. Chỉ xoá khi đã nhập xong trên máy mới hoặc đã chép bản sao lưu sang nơi khác. Thùng rác vẫn giữ mật khẩu Wi-Fi cho tới khi dọn Thùng rác." },
+    { "label": "Các bản sao lưu cũ", "type": "folder", "glob": "DuLieu_SaoLuu_cu_*",
+      "deleteNote": "Bản sao lưu cũ, cũng chứa mật khẩu Wi-Fi. Xoá khi bản DuLieu_SaoLuu mới đã đủ; Thùng rác vẫn giữ mật khẩu cho tới khi dọn Thùng rác." },
+    { "label": "Hướng dẫn khôi phục", "dir": "DuLieu_SaoLuu", "glob": "HUONG_DAN.txt", "deletable": false },
+    { "label": "Nhật ký xuất, nhập", "dir": "DuLieu_SaoLuu", "glob": "nhat-ky-*.txt", "deletable": false },
+    { "label": "Hội thoại Claude Code (đọc bằng trình duyệt)", "dir": "DuLieu_SaoLuu\\Claude\\HoiThoai-Code", "glob": "index.html", "deletable": false }
   ],
   "issues": [
     "Bản sao lưu chứa bí mật (mật khẩu Wi-Fi, token MCP trong cấu hình Claude, toàn bộ hội thoại) dạng chữ thường ngay cạnh script; các bản _cu_ nhân thêm số bản.",

@@ -173,16 +173,23 @@ thô thành chữ dễ hiểu.
 ```json
 "outputs": [
   { "label": "Báo cáo chẩn đoán", "glob": "LagReport_%COMPUTERNAME%_*.txt;HwDiag_%COMPUTERNAME%_*.txt" },
-  { "label": "Bản sao lưu", "dir": "{Desktop}", "glob": "MyExcelFix_SaoLuu_*", "type": "folder" }
+  { "label": "Bản sao lưu", "dir": "{Desktop}", "glob": "MyExcelFix_SaoLuu_*", "type": "folder",
+    "deleteNote": "\"Hoàn tác lần sửa\" cần đúng thư mục này. Xoá rồi thì không hoàn tác được lần sửa đó nữa." },
+  { "label": "Hướng dẫn trong bản sao lưu", "dir": "DuLieu_SaoLuu", "glob": "HUONG_DAN.txt", "deletable": false }
 ]
 ```
 
 - `dir`: mặc định thư mục công cụ; nhận `%BIEN%`, `{Desktop}` và dấu `*` ở phần cuối (vd `C:\CUU_DU_LIEU_*`).
 - `glob`: nhiều mẫu cách nhau bằng `;`. Nên lọc theo `%COMPUTERNAME%` khi báo cáo có tên máy.
 - `type: "folder"` khi kết quả là cả thư mục; `recurse: true` để tìm cả thư mục con.
+- `deleteNote`: cảnh báo hiện trong hộp thoại xoá, người dùng phải đánh dấu "đã đọc" mới xoá được. Dùng cho bản sao
+  lưu để hoàn tác, dữ liệu có mật khẩu, bằng chứng còn cần gửi đi.
+- `deletable: false`: không cho xoá từ trạm. Dùng cho file nằm bên trong một bản sao lưu (xoá lẻ làm hỏng cả bộ)
+  hoặc file công cụ còn đọc lại.
 
-Trạm liệt kê kết quả mới nhất ở trang công cụ và trang **Kết quả gần đây**, có nút Mở và Thư mục.
-Trạm chỉ mở file nằm trong danh sách kết quả đã khai báo.
+Trạm liệt kê kết quả mới nhất ở trang công cụ và trang **Kết quả gần đây**, có nút Mở, Thư mục và Xoá.
+Trạm chỉ mở, xoá file nằm trong danh sách kết quả đã khai báo. Xoá là chuyển vào Thùng rác (ổ USB, ổ mạng không có
+Thùng rác thì Windows hỏi trước khi xoá hẳn).
 
 ## Đóng gói gửi khách (`pack`)
 

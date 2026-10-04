@@ -57,7 +57,8 @@
   "outputs": [
     { "label": "Báo cáo kiểm tra", "dir": "%PUBLIC%\\Documents\\MyExcelCheck", "glob": "BaoCao_MyExcel_%COMPUTERNAME%_*.txt" },
     { "label": "Bản sao báo cáo trên Desktop", "dir": "{Desktop}", "glob": "BaoCao_MyExcel_*.txt" },
-    { "label": "Sao lưu của lần sửa (dùng để hoàn tác)", "dir": "{Desktop}", "type": "folder", "glob": "MyExcelFix_SaoLuu_*" }
+    { "label": "Sao lưu của lần sửa (dùng để hoàn tác)", "dir": "{Desktop}", "type": "folder", "glob": "MyExcelFix_SaoLuu_*",
+      "deleteNote": "\"Hoàn tác lần sửa\" cần đúng thư mục này. Xoá rồi thì không hoàn tác được lần sửa đó nữa (trừ khi lấy lại từ Thùng rác)." }
   ],
   "pack": {
     "name": "MyExcelFix",

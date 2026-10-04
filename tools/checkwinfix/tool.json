@@ -95,9 +95,11 @@
     { "label": "Báo cáo phần cứng", "glob": "HwDiag_%COMPUTERNAME%_*.txt" },
     { "label": "Giải mã WHEA", "glob": "WheaDecode_%COMPUTERNAME%_*.txt" },
     { "label": "Báo cáo sụp nguồn", "glob": "SupNguon_%COMPUTERNAME%_*.txt" },
-    { "label": "Dữ liệu theo dõi sụp nguồn", "glob": "SupNguon_TheoDoi_%COMPUTERNAME%_*.csv" },
+    { "label": "Dữ liệu theo dõi sụp nguồn", "glob": "SupNguon_TheoDoi_%COMPUTERNAME%_*.csv",
+      "deleteNote": "Lần chẩn đoán sụp nguồn sau đọc file theo dõi mới nhất để biết máy đang làm gì ngay trước khi tắt. Chỉ xoá khi đã chẩn đoán xong." },
     { "label": "Báo cáo pin (laptop)", "glob": "PinReport_%COMPUTERNAME%_*.html" },
-    { "label": "Hồ sơ bằng chứng", "type": "folder", "glob": "HoSoBangChung_%COMPUTERNAME%_*" },
+    { "label": "Hồ sơ bằng chứng", "type": "folder", "glob": "HoSoBangChung_%COMPUTERNAME%_*",
+      "deleteNote": "Hồ sơ bằng chứng (nhật ký sự kiện gốc của Windows và các báo cáo) để nộp bảo hành hoặc gửi người hỗ trợ. Chỉ xoá khi đã gửi đi hoặc không cần nữa." },
     { "label": "Kết quả cứu dữ liệu", "dir": "C:\\CUU_DU_LIEU_ITS_*", "glob": "KET_QUA_CUU_DU_LIEU.txt" }
   ],
   "pack": {
