@@ -1,12 +1,12 @@
 @echo off
 chcp 65001 >nul
-title Windows Clock & Performance Optimizer
+title Windows Clock ^& Performance Optimizer
 color 0B
 
 :menu
 cls
 echo =====================================
-echo  WINDOWS CLOCK & PERFORMANCE OPTIMIZER
+echo  WINDOWS CLOCK ^& PERFORMANCE OPTIMIZER
 echo         Created by: Wyatt
 echo =====================================
 echo.

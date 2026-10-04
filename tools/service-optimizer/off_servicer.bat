@@ -116,7 +116,7 @@ goto menu
 cls
 echo =====================================
 echo          TẮT SYSMAIN
-echo     (Prefetch & SuperFetch)
+echo     (Prefetch ^& SuperFetch)
 echo =====================================
 echo.
 echo Chức năng: Preload ứng dụng vào RAM để khởi động nhanh
@@ -230,7 +230,7 @@ if %errorlevel%==0 (
     echo ✓ Service Defrag đã được bật rồi, đang hoạt động bình thường!
 ) else (
     echo Đang bật lại Defrag service...
-    sc config defragsvc start= auto >nul 2>&1
+    sc config defragsvc start= demand >nul 2>&1
     sc start defragsvc >nul 2>&1
     echo ✓ Đã bật lại thành công Defrag service!
 )
@@ -264,7 +264,7 @@ goto menu
 cls
 echo =====================================
 echo          BẬT LẠI SYSMAIN
-echo     (Prefetch & SuperFetch)
+echo     (Prefetch ^& SuperFetch)
 echo =====================================
 echo.
 echo Khôi phục: Preload ứng dụng vào RAM để khởi động nhanh
@@ -307,7 +307,7 @@ sc query defragsvc | find "RUNNING" >nul
 if %errorlevel%==0 (
     echo ✓ Defrag đã bật rồi
 ) else (
-    sc config defragsvc start= auto >nul 2>&1
+    sc config defragsvc start= demand >nul 2>&1
     sc start defragsvc >nul 2>&1
     echo ✓ Đã bật lại Defrag
 )
