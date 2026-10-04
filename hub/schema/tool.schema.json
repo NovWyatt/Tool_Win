@@ -245,7 +245,16 @@
         },
         "glob": { "description": "Mẫu tên file, nhiều mẫu cách nhau bằng ';', nhận %COMPUTERNAME%.", "type": "string", "default": "*" },
         "type": { "description": "file hoặc folder (kết quả là cả thư mục).", "enum": ["file", "folder"], "default": "file" },
-        "recurse": { "description": "Tìm cả thư mục con.", "type": "boolean", "default": false }
+        "recurse": { "description": "Tìm cả thư mục con.", "type": "boolean", "default": false },
+        "deletable": {
+          "description": "Cho xoá từ trạm (chuyển vào Thùng rác). Đặt false cho file nằm bên trong một bản sao lưu hoặc file công cụ còn cần, xoá lẻ sẽ làm hỏng cả bộ.",
+          "type": "boolean",
+          "default": true
+        },
+        "deleteNote": {
+          "description": "Cảnh báo hiện trong hộp thoại xoá; người dùng phải đánh dấu 'đã đọc' mới xoá được. Dùng cho bản sao lưu để hoàn tác, dữ liệu có mật khẩu, bằng chứng còn cần gửi.",
+          "type": "string"
+        }
       }
     },
     "pack": {

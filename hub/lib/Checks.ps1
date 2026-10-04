@@ -229,7 +229,8 @@ function Get-ToolProbes {
 # ---------------------------------------------------------------- Outputs
 function Get-ToolOutputs {
     # outputs[]: { label, dir (mặc định thư mục công cụ; nhận %BIEN%, {Desktop}, dấu * ở phần cuối),
-    #              glob (nhiều mẫu cách nhau ';', nhận %COMPUTERNAME%...), type file|folder, recurse }
+    #              glob (nhiều mẫu cách nhau ';', nhận %COMPUTERNAME%...), type file|folder, recurse,
+    #              deletable (mặc định true: xoá được từ trạm), deleteNote (cảnh báo hiện khi xoá) }
     param($Tool, [int]$Limit = 40)
     $files = New-Object System.Collections.ArrayList
     $seen = @{}
@@ -250,6 +251,8 @@ function Get-ToolOutputs {
         else { $dirs = @($dir) }
         $isFolder = [string](Get-Prop $o 'type' 'file') -eq 'folder'
         $recurse = [bool](Get-Prop $o 'recurse' $false)
+        $deletable = [bool](Get-Prop $o 'deletable' $true)
+        $deleteNote = [string](Get-Prop $o 'deleteNote' '')
         $globs = @(([Environment]::ExpandEnvironmentVariables([string](Get-Prop $o 'glob' '*'))) -split ';' | Where-Object { $_ })
         foreach ($d in $dirs) {
             foreach ($glob in $globs) {
@@ -262,7 +265,7 @@ function Get-ToolOutputs {
                             toolId = $Tool.id; toolName = $Tool.name; label = [string](Get-Prop $o 'label' 'Kết quả')
                             name = $f.Name; path = $f.FullName; isFolder = $isFolder
                             size = $(if ($isFolder) { 0 } else { $f.Length }); sizeText = $(if ($isFolder) { 'Thư mục' } else { Format-Size $f.Length })
-                            modified = (Get-IsoTime $f.LastWriteTime)
+                            modified = (Get-IsoTime $f.LastWriteTime); deletable = $deletable; deleteNote = $deleteNote
                         })
                 }
             }
@@ -346,6 +349,17 @@ function Get-SystemSummary {
                 })
         } catch { }
         $py = Find-Python
+        # Secure Boot: chứng chỉ Windows Production PCA 2011 hết hạn 19/10/2026; máy cần chứng chỉ "Windows UEFI CA 2023"
+        # (Windows Update tự cài). Chỉ đọc registry, không cần Admin. Trạng thái: NotStarted, InProgress, Updated.
+        $sb = [ordered]@{ enabled = $null; ca2023 = ''; capable = $null }
+        try {
+            $st = Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\SecureBoot\State' -ErrorAction Stop
+            $sb.enabled = [int](Get-Prop $st 'UEFISecureBootEnabled' 0) -eq 1
+            $sv = Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\SecureBoot\Servicing' -ErrorAction Stop
+            $sb.ca2023 = [string](Get-Prop $sv 'UEFICA2023Status' '')
+            $cap = Get-Prop $sv 'WindowsUEFICA2023Capable' $null
+            if ($null -ne $cap) { $sb.capable = [int]$cap }
+        } catch { }
         [ordered]@{
             computer   = $env:COMPUTERNAME
             user       = "$env:USERDOMAIN\$env:USERNAME"
@@ -366,6 +380,7 @@ function Get-SystemSummary {
             python     = $(if ($py) { "Python $($py.version)" } else { '' })
             pythonPath = $(if ($py) { $py.path } else { '' })
             winget     = [bool](Get-Command winget.exe -ErrorAction SilentlyContinue)
+            secureBoot = $sb
         }
     }
 }

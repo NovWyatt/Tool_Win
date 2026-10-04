@@ -7,16 +7,18 @@
 param(
     [int]$Port = 0,
     [switch]$NoBrowser,
-    [string]$Browser = ''
+    [string]$Browser = '',
+    [string]$DataDir = '',    # chạy thử: thư mục dữ liệu riêng (mặc định hub\data), không đụng lịch sử, cài đặt thật
+    [string]$ToolsDir = ''    # chạy thử: thư mục công cụ khác (mặc định tools\)
 )
 
 $ErrorActionPreference = 'Stop'
-$HubVersion = '1.0.0'
+$HubVersion = '1.1.0'
 $HubDir = $PSScriptRoot
 $RootDir = Split-Path $HubDir -Parent
-$ToolsDir = Join-Path $RootDir 'tools'
+if (-not $ToolsDir) { $ToolsDir = Join-Path $RootDir 'tools' }
 $WebDir = Join-Path $HubDir 'web'
-$DataDir = Join-Path $HubDir 'data'
+if (-not $DataDir) { $DataDir = Join-Path $HubDir 'data' }
 $RuntimeFile = Join-Path $DataDir 'runtime.json'
 $HistoryFile = Join-Path $DataDir 'history.jsonl'
 $SettingsFile = Join-Path $DataDir 'settings.json'
@@ -32,13 +34,17 @@ if (-not (Test-Path -LiteralPath $DataDir)) { New-Item -ItemType Directory -Path
 
 # ------------------------------------------------------------------ cài đặt
 function Get-HubSettings {
-    $s = [ordered]@{ browser = 'auto'; autoExitMinutes = 10 }
+    # Ghim, giao diện sáng/tối và chế độ đơn giản lưu ở máy chủ: localStorage của trình duyệt gắn với cổng,
+    # mà cổng có thể đổi (47800-47820) nên lưu ở trình duyệt sẽ mất.
+    $s = [ordered]@{ browser = 'auto'; autoExitMinutes = 10; pins = @(); theme = 'system'; simple = $false }
     if (Test-Path -LiteralPath $SettingsFile) {
         try {
             $saved = Read-JsonFile $SettingsFile
             foreach ($k in @($s.Keys)) { $v = Get-Prop $saved $k $null; if ($null -ne $v) { $s[$k] = $v } }
         } catch { Write-HubLog "settings.json lỗi, dùng mặc định: $($_.Exception.Message)" 'warn' }
     }
+    $s.pins = @(@($s.pins) | Where-Object { $_ } | ForEach-Object { [string]$_ })   # 1 phần tử đọc từ JSON thành chuỗi
+    $s.simple = [bool]$s.simple
     return $s
 }
 
@@ -292,14 +298,33 @@ function Invoke-Api {
             return @{ id = $tool.id; name = $tool.docs; markdown = [IO.File]::ReadAllText($p, [Text.Encoding]::UTF8) }
         }
         'GET /api/doc' { return @{ name = $q['name']; markdown = (Get-RepoDoc $q['name']) } }
-        'GET /api/history' { return @{ items = @(Get-RunHistory -HistoryPath $HistoryFile) } }
+        'GET /api/history' { Update-ToolJobs -HistoryPath $HistoryFile; return @{ items = @(Get-RunHistory -HistoryPath $HistoryFile) } }
+        'POST /api/history/delete' {
+            $b = Read-Body $Ctx
+            if ([bool](Get-Prop $b 'all' $false)) { $n = Remove-RunHistory -HistoryPath $HistoryFile -All }
+            else {
+                $times = @(@(Get-Prop $b 'times' @()) | ForEach-Object { [string]$_ } | Where-Object { $_ })
+                if (-not $times.Count) { throw 'Chưa chọn lần chạy nào để xoá.' }
+                $n = Remove-RunHistory -HistoryPath $HistoryFile -Times $times
+            }
+            Write-HubLog "Xoá lịch sử: $n lần chạy"
+            return @{ removed = $n }
+        }
+        'GET /api/jobs' { Update-ToolJobs -HistoryPath $HistoryFile; return @{ items = @(Get-ToolJobs); now = (Get-IsoTime) } }
+        'POST /api/jobs/dismiss' {
+            $b = Read-Body $Ctx
+            $ids = @(@(Get-Prop $b 'ids' @()) | ForEach-Object { [string]$_ })
+            return @{ removed = (Remove-ToolJobs -Ids $ids -AllFinished:([bool](Get-Prop $b 'all' $false))) }
+        }
+        'POST /api/jobs/focus' { $b = Read-Body $Ctx; Show-ToolJobWindow -Id ([string](Get-Prop $b 'id' '')); return @{ ok = $true } }
         'POST /api/run' {
             $b = Read-Body $Ctx
             $tool = Get-ToolById ([string](Get-Prop $b 'toolId' ''))
             $action = Get-ActionById -Tool $tool -Id ([string](Get-Prop $b 'actionId' ''))
-            $argv = Resolve-ActionArguments -Action $action -Values (Get-Prop $b 'values' $null)
+            $values = Get-Prop $b 'values' $null
+            $argv = Resolve-ActionArguments -Action $action -Values $values
             Write-HubLog "Chạy: $($tool.name) > $($action.label)$(if ($action.admin) { ' (Admin)' })"
-            return (Start-ToolAction -Tool $tool -Action $action -Arguments $argv -HistoryPath $HistoryFile)
+            return (Start-ToolAction -Tool $tool -Action $action -Arguments $argv -HistoryPath $HistoryFile -Values $values)
         }
         'POST /api/pick' {
             $b = Read-Body $Ctx
@@ -337,6 +362,36 @@ function Invoke-Api {
                 default { throw "Không hiểu yêu cầu mở '$target'." }
             }
             return @{ ok = $true }
+        }
+        'POST /api/outputs/delete' {
+            # Chỉ xoá đúng file/thư mục đang được liệt kê là kết quả của công cụ, và chuyển vào Thùng rác.
+            $b = Read-Body $Ctx
+            $items = @(Get-Prop $b 'items' @())
+            if (-not $items.Count) { throw 'Chưa chọn mục nào để xoá.' }
+            if ($items.Count -gt 200) { throw 'Mỗi lần xoá tối đa 200 mục.' }
+            $known = @{}
+            $results = New-Object System.Collections.ArrayList
+            foreach ($it in $items) {
+                $toolId = [string](Get-Prop $it 'toolId' '')
+                $path = [string](Get-Prop $it 'path' '')
+                $r = [ordered]@{ toolId = $toolId; path = $path; status = 'error'; message = '' }
+                try {
+                    if (-not $known.ContainsKey($toolId)) {
+                        $map = @{}
+                        foreach ($o in @(Get-ToolOutputs -Tool (Get-ToolById $toolId) -Limit 1000)) { $map[$o.path] = $o }
+                        $known[$toolId] = $map
+                    }
+                    $o = $known[$toolId][$path]
+                    if (-not $o) { throw 'Không thuộc kết quả của công cụ (có thể đã bị xoá hoặc đổi tên).' }
+                    if (-not $o.deletable) { throw 'Kết quả này không xoá từ trạm được.' }
+                    $r.status = Remove-ToRecycleBin -Path $path
+                    if ($r.status -eq 'cancelled') { $r.message = 'Đã huỷ ở hộp thoại của Windows.' }
+                } catch { $r.message = $_.Exception.Message }
+                [void]$results.Add($r)
+            }
+            $deleted = @($results | Where-Object { $_.status -eq 'deleted' }).Count
+            Write-HubLog "Xoá kết quả: $deleted/$($items.Count) mục vào Thùng rác"
+            return @{ deleted = $deleted; results = @($results) }
         }
         'POST /api/fix' {
             $b = Read-Body $Ctx
@@ -382,14 +437,25 @@ function Invoke-Api {
         }
         'GET /api/settings' { return $State.Settings }
         'POST /api/settings' {
+            # Chỉ đổi những mục có trong yêu cầu.
             $b = Read-Body $Ctx
-            $browser = [string](Get-Prop $b 'browser' $State.Settings.browser)
+            $s = $State.Settings
+            $browser = [string](Get-Prop $b 'browser' $s.browser)
             if (@('auto', 'brave', 'edge', 'chrome', 'default') -notcontains $browser) { throw 'Trình duyệt không hợp lệ.' }
-            $minutes = [int](Get-Prop $b 'autoExitMinutes' $State.Settings.autoExitMinutes)
+            $minutes = [int](Get-Prop $b 'autoExitMinutes' $s.autoExitMinutes)
             if ($minutes -lt 0 -or $minutes -gt 1440) { throw 'Số phút tự tắt phải từ 0 đến 1440.' }
-            $State.Settings.browser = $browser; $State.Settings.autoExitMinutes = $minutes
-            Write-JsonFile -Path $SettingsFile -InputObject $State.Settings
-            return $State.Settings
+            $theme = [string](Get-Prop $b 'theme' $s.theme)
+            if (@('system', 'light', 'dark') -notcontains $theme) { throw 'Giao diện không hợp lệ.' }
+            $pins = @($s.pins)
+            if ($b.PSObject.Properties['pins']) {
+                # Không dùng Get-Prop: hàm trả mảng rỗng thành $null, bỏ ghim hết sẽ không lưu được.
+                $pins = @(@($b.pins) | Where-Object { $null -ne $_ } | ForEach-Object { [string]$_ } |
+                        Where-Object { $_ -match '^[a-z0-9][a-z0-9-]{0,63}$' } | Select-Object -Unique -First 100)
+            }
+            $s.browser = $browser; $s.autoExitMinutes = $minutes; $s.theme = $theme; $s.pins = $pins
+            $s.simple = [bool](Get-Prop $b 'simple' $s.simple)
+            Write-JsonFile -Path $SettingsFile -InputObject $s
+            return $s
         }
         'POST /api/shortcut' { return @{ ok = $true; path = (New-DesktopShortcut) } }
         'POST /api/open-root' { Open-HubPath -Path $RootDir -Reveal; return @{ ok = $true } }
@@ -431,12 +497,19 @@ try {
         $State.Browser = Open-HubUi -Url "$BaseUrl/#t=$Token" -Preference $pref
         Write-HubLog "Đã mở giao diện bằng: $($State.Browser)"
     }
+    $lastJobCheck = Get-Date
     while ($Listener.IsListening -and -not $State.Stop) {
         $task = $Listener.GetContextAsync()
         while (-not $task.AsyncWaitHandle.WaitOne(1000)) {
+            # Ghi kết quả của cửa sổ công cụ vừa đóng kể cả khi không mở giao diện.
+            if (((Get-Date) - $lastJobCheck).TotalSeconds -ge 3) {
+                $lastJobCheck = Get-Date
+                try { Update-ToolJobs -HistoryPath $HistoryFile } catch { Write-HubLog "Lỗi theo dõi công cụ: $($_.Exception.Message)" 'warn' }
+            }
             $limit = [int]$State.Settings.autoExitMinutes
             $idle = ((Get-Date) - $State.LastSeen).TotalMinutes
-            if ($limit -gt 0 -and $idle -ge $limit) {
+            # Còn công cụ đang chạy thì chờ, để ghi được kết quả khi cửa sổ đóng.
+            if ($limit -gt 0 -and $idle -ge $limit -and -not (Test-ToolJobsRunning)) {
                 Write-HubLog "Không còn cửa sổ giao diện nào trong $limit phút, tự tắt trạm." 'warn'
                 $State.Stop = $true
                 break
