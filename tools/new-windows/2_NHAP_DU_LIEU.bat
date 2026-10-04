@@ -19,7 +19,8 @@ exit /b
 #  NHẬP (KHÔI PHỤC) DỮ LIỆU SAU KHI CÀI LẠI WINDOWS
 #  Đọc thư mục "DuLieu_SaoLuu" (tạo bởi 1_XUAT_DU_LIEU.bat) nằm cạnh file .bat này
 #  Khôi phục: Wi-Fi - Máy in (driver, cổng, cấu hình, máy in mặc định) - Claude
-#  Chạy lại nhiều lần cũng được: cái gì đã có thì bỏ qua.
+#  Chạy lại nhiều lần cũng được: Wi-Fi, máy in đã có thì bỏ qua; hội thoại Claude Code và file
+#  Cowork trên máy mới hơn bản sao lưu thì giữ nguyên (không bị bản cũ chép đè).
 # ============================================================================
 $ErrorActionPreference = 'Continue'
 $ProgressPreference    = 'SilentlyContinue'
@@ -43,9 +44,11 @@ function Get-ErrText($code) {
 }
 
 # Chép cả thư mục bằng robocopy. Trả về mã robocopy (<8 = thành công)
-function Copy-Tree([string]$src, [string]$dst, [string[]]$xd = @(), [string[]]$xf = @()) {
+# -KeepNewer: file trên máy mới hơn bản sao lưu thì giữ nguyên (robocopy /XO).
+function Copy-Tree([string]$src, [string]$dst, [string[]]$xd = @(), [string[]]$xf = @(), [switch]$KeepNewer) {
     Ensure-Dir $dst
     $ra = @($src, $dst, '/E', '/COPY:DAT', '/DCOPY:T', '/R:1', '/W:1', '/XJ', '/MT:8', '/NFL', '/NDL', '/NJH', '/NJS', '/NP')
+    if ($KeepNewer) { $ra += '/XO' }
     if ($xd.Count -gt 0) { $ra += '/XD'; $ra += $xd }
     if ($xf.Count -gt 0) { $ra += '/XF'; $ra += $xf }
     $o = & robocopy.exe @ra
@@ -424,7 +427,7 @@ function Import-Claude {
             foreach ($d in @(Get-ChildItem -LiteralPath $pj -Directory -Force)) {
                 $nn = $d.Name
                 if ($remap) { $nn = Remap-Name $d.Name $OldUP $NewUP }
-                if ((Copy-Tree $d.FullName (Join-Path $pjDst $nn)) -ge 8) { $okAll = $false }
+                if ((Copy-Tree $d.FullName (Join-Path $pjDst $nn) -KeepNewer) -ge 8) { $okAll = $false }
             }
             foreach ($f in @(Get-ChildItem -LiteralPath $pj -File -Force)) { Copy-Item -LiteralPath $f.FullName -Destination $pjDst -Force }
         }
@@ -484,7 +487,7 @@ function Import-Claude {
     if ((Test-Path -LiteralPath $cwIn) -and $info -and $info.CoworkPath) {
         $cwDst = ([string]$info.CoworkPath).TrimEnd('\')
         if ($remap) { $cwDst = Remap-Path $cwDst $OldUP $NewUP }
-        if ((Copy-Tree $cwIn $cwDst) -lt 8) { Ok "Thư mục file Cowork: $cwDst" } else { Warn "Chép thư mục Cowork lỗi: $cwDst" }
+        if ((Copy-Tree $cwIn $cwDst -KeepNewer) -lt 8) { Ok "Thư mục file Cowork: $cwDst" } else { Warn "Chép thư mục Cowork lỗi: $cwDst" }
     }
     $Stat.Claude = if ($desktopDone) { 'đã khôi phục' } else { 'đã khôi phục Claude Code (thiếu phần Claude Desktop)' }
 }
