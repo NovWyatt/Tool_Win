@@ -1,6 +1,6 @@
 # Phân tích và hướng nâng cấp
 
-Cập nhật 04/10/2026. Đánh giá 13 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
+Cập nhật 05/10/2026. Đánh giá 14 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
 và lộ trình nâng cấp theo mức ưu tiên.
 
 Danh sách lỗi và hướng nâng cấp đầy đủ của từng công cụ nằm trong `issues` và `upgrades` của `tool.json`,
@@ -21,8 +21,9 @@ Mức ưu tiên:
 - **Bây giờ**: mỗi công cụ một thư mục trong `tools\` có `tool.json`. Trạm Tool (`TramTool.bat`) cho chọn, chạy,
   nhập tham số bằng form, kiểm tra điều kiện cần cài, xem trạng thái máy, mở kết quả và đóng gói gửi khách.
 - **Dùng tốt ngay**: CheckWinFix (phần chẩn đoán), MyExcelFix, Ghi âm sang Word, DWG sang PDF.
-- **Mới**: Máy in mạng LAN và thư mục chia sẻ (mục P0 số 1 của *Công cụ Windows nên thêm*). Chẩn đoán đã chạy thật;
-  các nút sửa mới chạy thử, chưa chạy ở văn phòng có máy in mạng, NAS, máy chia sẻ.
+- **Mới**: Máy in mạng LAN và thư mục chia sẻ; BitLocker và khoá khôi phục (mục P0 số 1, 2 của *Công cụ Windows nên
+  thêm*); *Kết nối Wi-Fi* trong công cụ Wi-Fi. Phần chẩn đoán đã chạy thật; các nút sửa mới chạy thử hoặc chạy trên
+  giả lập, chưa chạy ở văn phòng có máy in mạng, NAS, máy chia sẻ, chưa chạy trên ổ mã hoá BitLocker thật.
 - **Cần sửa trước khi đưa người khác dùng (P0)**: Sửa lỗi Windows, Tắt/bật dịch vụ, Chuyển dữ liệu khi cài lại Windows,
   phần *Cứu dữ liệu* của CheckWinFix.
 - **Không có tác dụng**: Tối ưu đồng hồ hệ thống ghi thiết lập vào registry trong khi Windows đọc từ BCD (`bcdedit`).
@@ -45,6 +46,8 @@ Mức ưu tiên:
 | `0c73dc2`, `840a0ef` | MyExcelFix, mdf2sql | Thêm `HOAN_TAC.bat` (hoàn tác từ trạm) và `CHAY_DONG_LENH.bat` (xem thông tin, chuyển đổi không cần trình duyệt). |
 | `cabde6b` | DWG sang PDF | Giải mã chữ font TCVN3 (`.VnTime`, `.VnArial`...); chuyển lại KT-02, trang KT01-02 hết lỗi chữ (`®-êng ®Êt` → "đường đất"). Đã quét 13 bản vẽ còn lại của bộ SAMSORA: không bản nào dùng TCVN3. |
 | `4a1afe8` | Máy in mạng LAN (mới), Trạm | Công cụ mới `tools\may-in-lan`. Trạm 1.1.1: `.ps1` chạy qua `-Command` trả đúng mã thoát; trước đó `exit 2`, `exit 3` thành 1 nên Lịch sử không phân biệt được thiếu điều kiện, làm được một phần. |
+| `97031b0` | Kiểm tra và sửa lỗi Wi-Fi | `KET_NOI_WIFI.bat` (bản 1.1): sửa lỗi *Can't connect to this network* khi vào mạng mới sau khi máy thức dậy; gọi thẳng API Wi-Fi, mật khẩu gõ trong cửa sổ công cụ và đi từ bộ nhớ vào Windows, không ghi file tạm. |
+| `24b424a` | BitLocker (mới), Chuyển dữ liệu khi cài lại Windows | Công cụ mới `tools\bitlocker`. Bước xuất lưu khoá khôi phục BitLocker (màn hình, nhật ký chỉ có Mã khoá) và driver mạng; bước nhập cài lại driver, mở khoá ổ dữ liệu bằng khoá đã lưu. |
 
 ## Bảng tổng quan
 
@@ -61,7 +64,8 @@ Mức ưu tiên:
 | DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5–35 phút). | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
 | Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn. | P1: tên kết quả giữ đuôi file gốc, lưu tiến độ để chạy tiếp, chỉ chạy lại bằng CPU khi đúng là lỗi card. |
 | Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. | P0: lệnh `doctor` kiểm tra môi trường, không dùng chung cổng 8760. |
-| Chuyển dữ liệu khi cài lại Windows | Kỹ thuật | Sao lưu Wi-Fi kèm mật khẩu, máy in kèm driver, dữ liệu Claude. Bản sao lưu nằm cạnh script, chứa bí mật dạng chữ thường. | P0: chọn nơi lưu ngoài thư mục công cụ, đánh dấu sao lưu đã xong, chạy thử trước. |
+| Chuyển dữ liệu khi cài lại Windows | Kỹ thuật | Sao lưu Wi-Fi kèm mật khẩu, máy in kèm driver, dữ liệu Claude, khoá BitLocker, driver mạng; bước nhập mở khoá ổ BitLocker, cài lại driver. Bản sao lưu nằm cạnh script, chứa bí mật dạng chữ thường. | P0: chọn nơi lưu ngoài thư mục công cụ, đánh dấu sao lưu đã xong, chạy thử trước. |
+| BitLocker và khoá khôi phục | Mọi người | Kiểm tra từng ổ (mã hoá, tạm dừng, bị khoá), khoá khôi phục đã lưu ở đâu, TPM, các lần máy phải nhập khoá; kết luận theo thứ tự nên làm. 6 nút đổi máy có Chạy thử, nhật ký hoàn tác; khoá 48 số không bao giờ vào báo cáo, nhật ký. Chưa chạy trên ổ mã hoá thật, mới thử bằng giả lập. | P1: chạy thật trên máy có BitLocker; sao lưu khoá lên tài khoản Microsoft; lưu gói khoá `.KPG`. |
 | Đăng xuất GitHub | Kỹ thuật | Nhỏ, đúng việc; có thể sót mục đăng nhập lưu theo tài khoản. | P1: lọc `cmdkey /list` theo `github`. |
 
 ## Vấn đề chung
@@ -217,6 +221,14 @@ máy in).
    - Cách làm: `manage-bde -status`, `manage-bde -protectors -get C:` (dự phòng CIM `Win32_EncryptableVolume`),
      `Get-Tpm`; lưu khoá vào `ket_qua\`; trước khi sửa phần cứng, firmware thì `Suspend-BitLocker -MountPoint C: -RebootCount 1`.
    - Nguồn: [BitLocker](https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/).
+   - **Đã làm** (`tools\bitlocker` 1.0, commit `24b424a`): đọc qua CIM `Win32_EncryptableVolume` thay vì tách chữ
+     của `manage-bde` (không phụ thuộc ngôn ngữ; `manage-bde.exe` có sẵn cả trên bản Home). *Kiểm tra* tìm nơi khoá
+     đã lưu qua nhật ký sự kiện BitLocker (tài khoản Microsoft, Entra ID, AD) và file khoá. Nút đổi máy: lưu khoá ra
+     file, USB, giấy; tạm dừng; bật lại; mở khoá (file khoá khớp Mã khoá, hoặc gõ tay) rồi cho tự mở khoá; hoàn tác.
+     Khác đề xuất: có thêm *Giải mã ổ dữ liệu, USB* (hỏi gõ xác nhận; ổ Windows chỉ mở trang cài đặt mã hoá của
+     Windows). Khoá 48 số không bao giờ vào báo cáo, nhật ký; trạm không nhận khoá qua tham số. *Chuyển dữ liệu khi
+     cài lại Windows* lưu khoá khi xuất, mở khoá ổ khi nhập. Đã thử: *Kiểm tra* bằng quyền thường trên máy phát triển
+     (Home, không còn ổ mã hoá), mọi nút trên ổ giả lập; chưa chạy trên ổ mã hoá thật.
 3. **Dọn ổ C an toàn, xem trước rồi mới dọn.** Cần Admin, rủi ro thấp (chỉ xoá thứ tự sinh lại được).
    - Vì sao: ổ C đầy là chuyện thường ngày; *Clean Temp* của Sửa lỗi Windows chỉ dọn TEMP.
    - Báo cáo trước: TEMP, `Windows\Temp`, `SoftwareDistribution\Download`, Delivery Optimization, WinSxS
@@ -285,14 +297,16 @@ máy in).
 
 - **P0 Trạm**: tạo điểm khôi phục trước action thay đổi máy (`Checkpoint-Computer`; Windows chỉ cho một điểm mỗi 24
   giờ trừ khi đặt `SystemRestorePointCreationFrequency=0`). Nhật ký hoàn tác: xuất registry, kiểu khởi động dịch vụ ra
-  JSON (`tools\may-in-lan\lib\NhatKy.ps1` đã làm kiểu này cho dịch vụ, registry, tường lửa, SMB, máy in; có thể tách
-  ra dùng chung). Kiểm tra winget trước vì mọi nút *Cài* dựa vào nó
+  JSON (`tools\may-in-lan\lib\NhatKy.ps1` đã làm kiểu này cho dịch vụ, registry, tường lửa, SMB, máy in;
+  `tools\bitlocker` chép lại cho khoá bảo vệ BitLocker; nên tách ra dùng chung). Kiểm tra winget trước vì mọi nút
+  *Cài* dựa vào nó
   ([winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/): đăng ký lại App Installer, rồi
   `Repair-WinGetPackageManager`). Thêm loại probe `script` chỉ đọc: probe hiện chỉ đọc dịch vụ và registry nên chưa
   hiện được BitLocker hay SMB.
-- **P0 Chuyển dữ liệu khi cài lại Windows**: trước khi xuất, ghi trạng thái BitLocker mọi ổ và lưu khoá; xuất toàn bộ
-  driver bằng `pnputil /export-driver * <thư mục>` (cần driver mạng, Wi-Fi ngay sau khi cài lại), nhập bằng
-  `pnputil /add-driver <thư mục>\*.inf /subdirs /install`.
+- ~~**P0 Chuyển dữ liệu khi cài lại Windows**~~: đã làm (commit `24b424a`). Bước xuất ghi trạng thái BitLocker mọi ổ
+  và lưu khoá, xuất driver bằng `pnputil /export-driver` (mặc định chỉ driver mạng của hãng, lớp NET, vì cần ngay sau
+  khi cài lại; chọn [T] để xuất mọi driver); bước nhập dùng `pnputil /add-driver <thư mục>\*.inf /subdirs /install`
+  và mở khoá ổ bằng khoá đã lưu.
 - **P1 CheckWinFix (chỉ đọc)**:
   - Secure Boot: `UEFICA2023Status` và sự kiện TPM-WMI 1801, 1808. Chứng chỉ Windows Production PCA 2011 hết hạn
     **19/10/2026**; máy vẫn khởi động nhưng không nhận bản vá bảo mật khởi động nữa
@@ -312,8 +326,8 @@ máy in).
 
 1. ~~**Máy in mạng LAN và thư mục chia sẻ**~~: đã làm (`tools\may-in-lan`); còn chạy thử các nút sửa ở một văn phòng
    thật.
-2. **BitLocker**, kèm xuất khoá và driver trong *Chuyển dữ liệu khi cài lại Windows*: tránh mất dữ liệu không cứu
-   được khi sửa phần cứng hoặc cài lại máy.
+2. ~~**BitLocker**, kèm xuất khoá và driver trong *Chuyển dữ liệu khi cài lại Windows*~~: đã làm (`tools\bitlocker`,
+   commit `24b424a`); còn chạy thật trên máy có ổ mã hoá.
 3. **Lan can an toàn của trạm**: điểm khôi phục, nhật ký hoàn tác, kiểm tra winget, giúp mọi bản sửa khác an toàn hơn.
 4. **Dọn ổ C an toàn**: thường gặp, rủi ro thấp, thay cho *Clean Temp*.
 5. **Gói kiểm tra chỉ đọc cho CheckWinFix**: rẻ, nhanh (Secure Boot, kích hoạt, môi trường khôi phục, giấc ngủ).
@@ -329,7 +343,6 @@ Mới có nguồn cộng đồng hoặc chưa thử; kiểm tra trên máy thậ
 - Đường dẫn thư mục dữ liệu Zalo.
 - `RpcAuthnLevelPrivacyEnabled=0` còn tác dụng trên máy chủ in 24H2, 25H2 không (diễn đàn báo còn; Microsoft chưa
   ghi rõ). Công cụ máy in để mục này ở *Nới bảo mật*, hoàn tác được.
-- `manage-bde` trên Windows bản Home.
 - Mã winget `RustDesk.RustDesk`.
 - UltraViewer bản miễn phí có cho dùng thương mại không.
 - Yêu cầu eSigner của thuế điện tử.
