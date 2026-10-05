@@ -27,7 +27,8 @@ try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $Warnings  = New-Object System.Collections.ArrayList
-$Stat      = @{ Wifi = 0; WifiNoKey = 0; Printers = 0; Drivers = 0; Claude = $false; Code = 0; CodeOk = 0; CodeHtml = 0 }
+$Stat      = @{ Wifi = 0; WifiNoKey = 0; Printers = 0; Drivers = 0; Claude = $false; Code = 0; CodeOk = 0; CodeHtml = 0; BdeKeys = 0; BdeData = @(); DriverPkgs = 0 }
+$CopyHint  = 'USB hoặc ổ khác'   # nơi nên chép bản sao lưu; tính lại theo BitLocker ở phần chính
 
 # ---------------------------------------------------------------- tiện ích
 function Head([string]$m) { Write-Host ''; Write-Host ('=' * 70) -ForegroundColor DarkCyan; Write-Host "  $m" -ForegroundColor Cyan; Write-Host ('=' * 70) -ForegroundColor DarkCyan }
@@ -167,7 +168,7 @@ function Get-WifiInfo([string]$xml) {
 
 # ============================================================================ 1. WI-FI
 function Export-Wifi {
-    Head '1/3  WI-FI'
+    Head '1/5  WI-FI'
     $wDir = Join-Path $Out 'WiFi'
     Ensure-Dir $wDir
     $svc = Get-Service -Name WlanSvc -ErrorAction SilentlyContinue
@@ -257,7 +258,7 @@ function Get-WsdIp([string]$portName) {
 }
 
 function Export-Printers {
-    Head '2/3  MÁY IN'
+    Head '2/5  MÁY IN'
     $pDir   = Join-Path $Out 'MayIn'
     $drvDir = Join-Path $pDir 'Drivers'
     $tkDir  = Join-Path $pDir 'CauHinh'
@@ -567,7 +568,7 @@ function Export-CodeConversations([string]$cOut) {
 }
 
 function Export-Claude {
-    Head '3/3  CLAUDE'
+    Head '3/5  CLAUDE'
     $cOut = Join-Path $Out 'Claude'
     Ensure-Dir $cOut
     $UP = $env:USERPROFILE
@@ -652,12 +653,146 @@ function Export-Claude {
         } catch {}
     }
     if ($top.Count -gt 0) {
-        Save-Text (Join-Path $cOut 'thu-muc-du-an.txt') ("CÁC THƯ MỤC DỰ ÁN CLAUDE TRÊN Ổ $($env:SystemDrive) - TỰ CHÉP SANG USB/Ổ D TRƯỚC KHI CÀI WIN,`r`nCÀI XONG CHÉP VỀ ĐÚNG CHỖ CŨ:`r`n`r`n" + ($top -join "`r`n") + "`r`n")
+        Save-Text (Join-Path $cOut 'thu-muc-du-an.txt') ("CÁC THƯ MỤC DỰ ÁN CLAUDE TRÊN Ổ $($env:SystemDrive) - TỰ CHÉP SANG $($CopyHint.ToUpper()) TRƯỚC KHI CÀI WIN,`r`nCÀI XONG CHÉP VỀ ĐÚNG CHỖ CŨ:`r`n`r`n" + ($top -join "`r`n") + "`r`n")
         Warn "$($top.Count) thư mục dự án Claude (Desktop, Documents...) nằm trên ổ $($env:SystemDrive) KHÔNG nằm trong bản sao lưu này - tự chép chúng trước khi cài Win (danh sách: Claude\thu-muc-du-an.txt)."
     }
 
     Save-Json ([pscustomobject]@{ UserProfile = $UP; UserName = $env:USERNAME; CoworkPath = $cowork; CoworkSaved = $coworkSaved; ProjectFolders = @($top); AppDataSources = @($srcs) }) (Join-Path $cOut 'claude-info.json')
     Info 'Lưu ý: cuộc trò chuyện, Projects, skills trên tài khoản claude.ai nằm trên mây - đăng nhập lại là có.'
+}
+
+# ============================================================================ 4. KHOÁ BITLOCKER
+# Khoá khôi phục chỉ ghi vào file trong BitLocker\, KHÔNG in ra màn hình: nhật ký xuất đang ghi lại mọi thứ hiện
+# trên màn hình. File khoá cùng dạng với công cụ BitLocker của Trạm Tool (Mã khoá đứng trước khoá).
+$BdeNs = 'root/cimv2/Security/MicrosoftVolumeEncryption'
+function Invoke-Bde($vol, [string]$method, [hashtable]$arguments = $null) {
+    $p = @{ InputObject = $vol; MethodName = $method; ErrorAction = 'Stop' }
+    if ($arguments) { $p.Arguments = $arguments }
+    $r = Invoke-CimMethod @p
+    if ([int64]$r.ReturnValue -ne 0) { throw ('BitLocker báo lỗi 0x{0:X8}' -f [int64]$r.ReturnValue) }
+    return $r
+}
+# Các ổ BitLocker; $null khi không đọc được (thiếu quyền Administrator).
+function Get-BdeState {
+    try { $vols = @(Get-CimInstance -Namespace $BdeNs -ClassName Win32_EncryptableVolume -ErrorAction Stop) } catch { return $null }
+    $list = foreach ($v in $vols) {
+        $s = [ordered]@{ Vol = $v; Letter = [string]$v.DriveLetter; Type = 1; Locked = $false; Conv = -1; Prot = -1; Ids = @(); Count = 0; Encrypted = $false }
+        if ($null -ne $v.VolumeType) { $s.Type = [int]$v.VolumeType } elseif ($s.Letter -eq $env:SystemDrive) { $s.Type = 0 }
+        try { $s.Locked = ([int](Invoke-Bde $v 'GetLockStatus').LockStatus -eq 1) } catch {}
+        try { $s.Prot = [int](Invoke-Bde $v 'GetProtectionStatus').ProtectionStatus } catch {}
+        if (-not $s.Locked) { try { $s.Conv = [int](Invoke-Bde $v 'GetConversionStatus').ConversionStatus } catch {} }
+        try { $s.Count = @((Invoke-Bde $v 'GetKeyProtectors' @{ KeyProtectorType = [uint32]0 }).VolumeKeyProtectorID | Where-Object { $_ }).Count } catch {}
+        try { $s.Ids = @((Invoke-Bde $v 'GetKeyProtectors' @{ KeyProtectorType = [uint32]3 }).VolumeKeyProtectorID | Where-Object { $_ } | ForEach-Object { '{' + ([string]$_).Trim('{', '}').ToUpperInvariant() + '}' }) } catch {}
+        $s.Encrypted = ($s.Locked -or $s.Conv -gt 0)
+        [pscustomobject]$s
+    }
+    return @($list)
+}
+function Get-BdeName($s) {
+    $t = @{ 0 = 'ổ Windows'; 1 = 'ổ dữ liệu'; 2 = 'ổ rời' }[$s.Type]
+    if ($s.Letter) { return "Ổ $($s.Letter) ($t)" } else { return "Ổ không có chữ ổ ($t)" }
+}
+function Get-BdeVolumeAt([string]$path, $state) {
+    if ($path -notmatch '^([A-Za-z]:)') { return $null }
+    $l = $Matches[1].ToUpperInvariant()
+    return (@($state) | Where-Object { $_.Letter -and $_.Letter.ToUpperInvariant() -eq $l } | Select-Object -First 1)
+}
+
+function Export-BitLocker {
+    Head '4/5  KHOÁ BITLOCKER'
+    $bDir = Join-Path $Out 'BitLocker'
+    $state = Get-BdeState
+    if ($null -eq $state) { Warn 'Không đọc được BitLocker (cần quyền Administrator) - bản sao lưu không có khoá BitLocker.'; return }
+    Ensure-Dir $bDir
+    $now = Get-Date
+    $txt = New-Object System.Collections.ArrayList     # trang-thai.txt: không có khoá
+    $keys = New-Object System.Collections.ArrayList    # file khoá
+    [void]$txt.Add("TRẠNG THÁI BITLOCKER LÚC SAO LƯU (không có khoá, chỉ có Mã khoá để đối chiếu)")
+    [void]$txt.Add(("Máy: {0}   Lúc: {1:dd/MM/yyyy HH:mm}" -f $env:COMPUTERNAME, $now))
+    [void]$txt.Add(('-' * 70))
+    foreach ($s in $state) {
+        $n = Get-BdeName $s
+        $st = if ($s.Locked) { 'ĐANG BỊ KHOÁ' } elseif ($s.Conv -eq 0) { 'không mã hoá' } elseif ($s.Conv -in 2, 4) { 'đang mã hoá' } elseif ($s.Conv -in 3, 5) { 'đang giải mã' } elseif ($s.Prot -eq 1) { 'mã hoá, đang bảo vệ' } elseif ($s.Conv -eq 1) { 'mã hoá, bảo vệ đang tắt (tạm dừng hoặc chờ kích hoạt)' } else { 'không đọc được' }
+        [void]$txt.Add("$n`: $st")
+        foreach ($id in $s.Ids) { [void]$txt.Add(("     Mã khoá: {0} (màn hình khôi phục hiện {1})" -f $id, $id.Substring(1, 8))) }
+        if (-not $s.Encrypted) { continue }
+        if ($s.Type -ne 0 -and $s.Letter) { $Stat.BdeData += $s.Letter }
+        if ($s.Locked) { Warn "$n đang bị khoá: mở khoá (bấm đúp ổ trong This PC) rồi chạy lại để lưu khoá của ổ này."; continue }
+        if (-not $s.Ids.Count) {
+            if ($s.Count -eq 0) { Info "$n đã mã hoá nhưng chưa kích hoạt bảo vệ: không cần khoá khôi phục." }
+            else { Warn "$n mã hoá nhưng không có khoá khôi phục 48 số: chạy công cụ BitLocker > Lưu khoá khôi phục (thêm khoá) trước khi cài lại Win." }
+            continue
+        }
+        foreach ($id in $s.Ids) {
+            try {
+                $k = [string](Invoke-Bde $s.Vol 'GetKeyProtectorNumericalPassword' @{ VolumeKeyProtectorID = $id }).NumericalPassword
+                [void]$keys.Add([pscustomobject]@{ Name = $n; Id = $id; Key = $k })
+                Ok ("{0}: đã lưu khoá có Mã khoá {1}" -f $n, $id.Substring(1, 8))
+            } catch { Fail "Không đọc được khoá $id của $n ($($_.Exception.Message))." }
+        }
+    }
+    Save-Text (Join-Path $bDir 'trang-thai.txt') (($txt -join "`r`n") + "`r`n")
+    if (-not $keys.Count) {
+        if (-not @($state | Where-Object { $_.Encrypted }).Count) { Info 'Không ổ nào mã hoá BitLocker.' }
+        return
+    }
+    $L = New-Object System.Collections.ArrayList
+    [void]$L.Add('KHOÁ KHÔI PHỤC BITLOCKER')
+    [void]$L.Add(('Máy: {0}    Lưu lúc: {1:dd/MM/yyyy HH:mm}    Người lưu: {2}' -f $env:COMPUTERNAME, $now, $env:USERNAME))
+    [void]$L.Add('')
+    [void]$L.Add('Ai có khoá này đọc được dữ liệu trên ổ, kể cả khi tháo ổ sang máy khác. Cất ở nơi KHÁC ổ đó')
+    [void]$L.Add('(USB riêng, điện thoại, giấy in); đừng gửi qua tin nhắn, email.')
+    [void]$L.Add('')
+    foreach ($k in $keys) {
+        [void]$L.Add($k.Name)
+        [void]$L.Add(('  Mã khoá (Key ID):         {0}' -f $k.Id))
+        [void]$L.Add(('  Màn hình khôi phục hiện:  {0}' -f $k.Id.Substring(1, 8)))
+        [void]$L.Add(('  Khoá khôi phục:           {0}' -f $k.Key))
+        [void]$L.Add('')
+    }
+    [void]$L.Add('CÁCH DÙNG')
+    [void]$L.Add('- Ổ dữ liệu bị khoá sau khi cài lại Win: chạy 2_NHAP_DU_LIEU.bat, chọn [1] hoặc [5]; hoặc bấm đúp ổ trong')
+    [void]$L.Add('  This PC > More options > Enter recovery key, gõ 48 chữ số của khoá có Mã khoá khớp.')
+    [void]$L.Add('- Màn hình "BitLocker recovery" khi khởi động: so "Recovery key ID" với Mã khoá ở trên rồi gõ khoá')
+    [void]$L.Add('  (phím số không chạy thì dùng F1-F9 cho 1-9, F10 cho 0).')
+    Save-Text (Join-Path $bDir ('BitLocker_KhoaKhoiPhuc_{0}_{1:yyyyMMdd_HHmmss}.txt' -f $env:COMPUTERNAME, $now)) (($L -join "`r`n") + "`r`n")
+    $Stat.BdeKeys = $keys.Count
+    $keys.Clear(); $L.Clear()
+    Ok "Đã lưu $($Stat.BdeKeys) khoá khôi phục vào BitLocker\ (không hiện khoá ở đây)."
+    $here = Get-BdeVolumeAt $Out $state
+    if ($here -and $here.Encrypted -and $here.Type -ne 0) {
+        Fail "Bản sao lưu nằm trên ổ $($here.Letter) đang mã hoá: cài lại Win xong ổ này bị khoá, khoá trong bản sao lưu cũng không mở được. Chép thư mục BitLocker ra USB hoặc in file khoá ra giấy NGAY."
+    }
+}
+
+# ============================================================================ 5. DRIVER
+# $DriverMode: net (driver mạng: Wi-Fi, mạng dây), all (mọi driver của hãng), none. Hỏi ở phần chính.
+$DriverMode = 'net'
+function Export-Drivers {
+    Head '5/5  DRIVER'
+    if ($DriverMode -eq 'none') { Info 'Đã chọn không sao lưu driver.'; return }
+    $dDir = Join-Path $Out 'Driver'
+    Ensure-Dir $dDir
+    $pnp = @()
+    try { $pnp = @(Get-CimInstance Win32_PnPSignedDriver -ErrorAction Stop | Where-Object { [string]$_.InfName -match '^oem\d+\.inf$' }) } catch {}
+    if ($DriverMode -eq 'all') {
+        Info 'Đang xuất mọi driver của hãng (pnputil), có thể mất vài phút...'
+        & pnputil.exe /export-driver '*' $dDir | Out-Null
+        if ($LASTEXITCODE -ne 0) { Warn "pnputil báo mã $LASTEXITCODE khi xuất driver - có thể thiếu một số driver." }
+    } else {
+        $pnp = @($pnp | Where-Object { [string]$_.DeviceClass -eq 'NET' })
+        if (-not $pnp.Count) { Info 'Không có driver mạng của hãng (máy dùng driver sẵn có của Windows) - bỏ qua.'; return }
+        foreach ($inf in @($pnp | ForEach-Object { [string]$_.InfName } | Select-Object -Unique)) {
+            $sub = Join-Path $dDir ([IO.Path]::GetFileNameWithoutExtension($inf))
+            Ensure-Dir $sub
+            & pnputil.exe /export-driver $inf $sub | Out-Null
+            if ($LASTEXITCODE -ne 0) { Warn "Không xuất được driver $inf (pnputil mã $LASTEXITCODE)." }
+        }
+    }
+    $list = @($pnp | Sort-Object DeviceClass, DeviceName | ForEach-Object { '{0,-12} {1,-12} {2} | {3} {4}' -f $_.InfName, $_.DeviceClass, $_.DeviceName, $_.DriverProviderName, $_.DriverVersion })
+    Save-Text (Join-Path $dDir 'danh-sach.txt') ("DRIVER ĐÃ SAO LƯU (file .inf | loại | thiết bị | hãng, phiên bản)`r`n" + ('-' * 70) + "`r`n" + ($list -join "`r`n") + "`r`n")
+    $Stat.DriverPkgs = @(Get-ChildItem -LiteralPath $dDir -Recurse -Filter '*.inf' -File -ErrorAction SilentlyContinue).Count
+    if ($Stat.DriverPkgs) { Ok ("Driver: {0} gói, {1}" -f $Stat.DriverPkgs, (Fmt-Size (Get-Size $dDir))) } else { Warn 'Không xuất được driver nào.' }
 }
 
 # ============================================================================ CHƯƠNG TRÌNH CHÍNH
@@ -669,19 +804,42 @@ Clear-Host
 Write-Host ''
 Write-Host '  ==================================================================' -ForegroundColor Cyan
 Write-Host '     XUẤT DỮ LIỆU TRƯỚC KHI CÀI LẠI WINDOWS' -ForegroundColor White
-Write-Host '     Wi-Fi (kèm mật khẩu)  -  Máy in  -  Claude' -ForegroundColor White
+Write-Host '     Wi-Fi (kèm mật khẩu)  -  Máy in  -  Claude  -  Khoá BitLocker  -  Driver' -ForegroundColor White
 Write-Host '  ==================================================================' -ForegroundColor Cyan
 Write-Host ''
 Write-Host "  Dữ liệu sẽ được lưu vào:  $Out" -ForegroundColor White
 
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $isAdmin) { Warn 'Không chạy với quyền Administrator - có thể thiếu mật khẩu Wi-Fi / driver máy in.' }
+if (-not $isAdmin) { Warn 'Không chạy với quyền Administrator - có thể thiếu mật khẩu Wi-Fi / driver máy in / khoá BitLocker.' }
+
+# Ổ dữ liệu đang mã hoá BitLocker sẽ bị khoá sau khi cài lại Win: không khuyên chép bản sao lưu sang đó.
+$BdeState = Get-BdeState
+if ($null -ne $BdeState) {
+    $plain = @($BdeState | Where-Object { $_.Type -eq 1 -and $_.Letter -and -not $_.Encrypted } | ForEach-Object { $_.Letter })
+    $CopyHint = if ($plain.Count) { 'USB hoặc ổ ' + ($plain -join ', ') } else { 'USB' }
+    $encData = @($BdeState | Where-Object { $_.Type -eq 1 -and $_.Encrypted })
+    if ($encData.Count) {
+        Write-Host ''
+        Write-Host ("  [!] {0} đang mã hoá BitLocker: cài lại Win xong sẽ BỊ KHOÁ, cần khoá khôi phục mới mở được." -f (@($encData | ForEach-Object { Get-BdeName $_ }) -join ', ')) -ForegroundColor Yellow
+        Write-Host '      Công cụ lưu khoá vào DuLieu_SaoLuu\BitLocker; đừng để bản sao lưu CHỈ nằm trên các ổ đó.' -ForegroundColor Yellow
+    }
+    $here = Get-BdeVolumeAt $Out $BdeState
+    if ($here -and $here.Encrypted -and $here.Type -eq 1) {
+        Write-Host ''
+        Write-Host "  [!] Thư mục sao lưu đang nằm trên ổ $($here.Letter) - ổ này mã hoá BitLocker. Cài lại Win xong ổ $($here.Letter) bị khoá:" -ForegroundColor Red
+        Write-Host '      phải có khoá ở nơi khác (USB, giấy in, https://aka.ms/myrecoverykey) mới lấy lại được bản sao lưu.' -ForegroundColor Red
+        Write-Host '      Nên chạy file .bat này từ USB; hoặc làm xong chép thư mục DuLieu_SaoLuu ra USB.' -ForegroundColor Red
+    } elseif ($here -and $here.Encrypted -and $here.Type -eq 2) {
+        Write-Host ''
+        Write-Host "  [i] USB $($here.Letter) mã hoá BitLocker: nhớ mật khẩu của USB để mở trên Windows mới." -ForegroundColor Gray
+    }
+}
 
 if ($Out.Length -ge 2 -and $Out.Substring(0, 2) -ieq $env:SystemDrive) {
     Write-Host ''
     Write-Host "  [!] CHÚ Ý: thư mục sao lưu đang nằm trên ổ $($env:SystemDrive) - ổ này SẼ BỊ XÓA khi cài lại Win." -ForegroundColor Yellow
-    Write-Host '      Làm xong phải chép cả thư mục DuLieu_SaoLuu + 2 file .bat sang USB hoặc ổ D.' -ForegroundColor Yellow
-    Write-Host '      (Tốt nhất: chép 2 file .bat vào USB/ổ D rồi chạy từ đó.)' -ForegroundColor Yellow
+    Write-Host "      Làm xong phải chép cả thư mục DuLieu_SaoLuu + 2 file .bat sang $CopyHint." -ForegroundColor Yellow
+    Write-Host "      (Tốt nhất: chép 2 file .bat vào $CopyHint rồi chạy từ đó.)" -ForegroundColor Yellow
 }
 
 # Ước lượng dung lượng cần
@@ -702,6 +860,11 @@ if (@(Get-Process -Name 'claude' -ErrorAction SilentlyContinue).Count -gt 0) {
 }
 
 Write-Host ''
+Write-Host '  Sao lưu driver để cài lại khi Windows mới thiếu driver (nhất là Wi-Fi, mạng dây):' -ForegroundColor White
+$a = Read-Host '      [Enter] = driver mạng (nhỏ, nên có)   [T] = mọi driver của hãng (có thể vài GB)   [K] = không'
+$DriverMode = if ($a -match '^\s*[Tt]') { 'all' } elseif ($a -match '^\s*[Kk]') { 'none' } else { 'net' }
+
+Write-Host ''
 [void](Read-Host '  Nhấn Enter để BẮT ĐẦU sao lưu (đóng cửa sổ này nếu muốn hủy)')
 
 if (Test-Path -LiteralPath $Out) {
@@ -715,6 +878,8 @@ try { Start-Transcript -Path (Join-Path $Out 'nhat-ky-xuat.txt') -Force | Out-Nu
 Export-Wifi
 Export-Printers
 Export-Claude
+Export-BitLocker
+Export-Drivers
 
 $osName = ''
 try { $osName = (Get-CimInstance Win32_OperatingSystem).Caption } catch {}
@@ -722,31 +887,50 @@ Save-Json ([pscustomobject]@{
     Version = 1; Date = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'); Computer = $env:COMPUTERNAME
     UserName = $env:USERNAME; UserProfile = $env:USERPROFILE; Windows = $osName
     Wifi = $Stat.Wifi; Printers = $Stat.Printers; Drivers = $Stat.Drivers; Claude = $Stat.Claude
+    BitLockerKeys = $Stat.BdeKeys; BitLockerDataDrives = @($Stat.BdeData); DriverPackages = $Stat.DriverPkgs
 }) (Join-Path $Out 'thong-tin.json')
 
+$bdeGuide = ''
+if ($Stat.BdeKeys -gt 0 -or @($Stat.BdeData).Count -gt 0) {
+    $bdeGuide = "`nKHOÁ BITLOCKER: thư mục BitLocker có khoá khôi phục ($($Stat.BdeKeys) khoá) và trang-thai.txt để đối chiếu Mã khoá.`n"
+    if (@($Stat.BdeData).Count -gt 0) {
+        $bdeGuide += @"
+- Ổ $(@($Stat.BdeData) -join ', ') đang mã hoá: cài lại Win xong sẽ BỊ KHOÁ. Chạy 2_NHAP_DU_LIEU.bat, chọn [1] hoặc [5]
+  để mở bằng khoá đã lưu. Muốn ổ tự mở mỗi lần khởi động: công cụ BitLocker của Trạm Tool (Mở khoá ổ) hoặc
+  chuột phải ổ > Manage BitLocker; không cần mã hoá nữa thì Giải mã.
+- Bản sao lưu nằm trên chính ổ đang mã hoá thì phải có khoá ở nơi khác (USB, giấy in,
+  https://aka.ms/myrecoverykey) mới mở được ổ đó để lấy bản sao lưu.
+
+"@
+    } else {
+        $bdeGuide += "- Chỉ ổ Windows mã hoá: cài lại Win sẽ xoá ổ đó nên không cần khoá nữa; khoá chỉ dùng khi KHÔNG cài lại.`n"
+    }
+}
 $guide = @"
 HƯỚNG DẪN KHÔI PHỤC SAU KHI CÀI LẠI WINDOWS
 ==========================================
 Sao lưu lúc: $(Get-Date -Format 'dd/MM/yyyy HH:mm') - máy: $env:COMPUTERNAME - người dùng: $env:USERNAME
 
 0. TRƯỚC khi cài Win: tự chép các thư mục dự án/tài liệu của bạn trên ổ C (Desktop, Documents...;
-   danh sách thư mục Claude từng làm việc nằm trong Claude\thu-muc-du-an.txt) sang USB/ổ D.
+   danh sách thư mục Claude từng làm việc nằm trong Claude\thu-muc-du-an.txt) sang $CopyHint.
    Cài xong chép về ĐÚNG chỗ cũ để lịch sử phiên Claude mở lại được.
 1. Để thư mục DuLieu_SaoLuu nằm CÙNG CHỖ với file 2_NHAP_DU_LIEU.bat (ví dụ cùng trong USB).
 2. Cài Windows xong, nên đặt tên tài khoản giống cũ ($env:USERNAME) - nếu khác, script tự sửa đường dẫn cho Claude.
-3. Cài driver Wi-Fi (thường Windows tự cài).
+3. Cài driver Wi-Fi (thường Windows tự cài; không có thì chạy 2_NHAP_DU_LIEU.bat chọn [6] để cài driver
+   đã sao lưu trong thư mục Driver).
 4. (Nên làm) Cài Claude Desktop từ https://claude.ai/download -> mở, đăng nhập -> THOÁT HẲN
    (chuột phải biểu tượng Claude ở khay đồng hồ -> Quit).
-5. Nhấp đúp 2_NHAP_DU_LIEU.bat -> bấm Yes -> chọn [1] Khôi phục tất cả.
-   Nếu lúc đó chưa cài Claude: cứ chạy, sau khi cài Claude chạy lại và chọn [4].
+5. Nhấp đúp 2_NHAP_DU_LIEU.bat -> bấm Yes -> chọn [1] Khôi phục tất cả (driver, mở khoá ổ BitLocker,
+   Wi-Fi, máy in, Claude). Nếu lúc đó chưa cài Claude: cứ chạy, sau khi cài Claude chạy lại và chọn [4].
 6. Máy in USB: cắm cáp vào, Windows tự nhận (driver đã được cài sẵn).
-
+$bdeGuide
 HỘI THOẠI TAB CODE CỦA CLAUDE: được khôi phục vào ứng dụng ở bước 5 (chép thư mục dự án về đúng
 chỗ cũ TRƯỚC khi mở Claude). Ngoài ra còn có bản đọc được của từng cuộc hội thoại:
 Claude\HoiThoai-Code\index.html (nhấp đúp mở bằng trình duyệt, không cần cài gì).
 
-BẢO MẬT: thư mục WiFi chứa mật khẩu Wi-Fi dạng chữ thường. Khôi phục xong nên xóa bản sao lưu
-hoặc cất USB cẩn thận. Token đăng nhập Claude KHÔNG được sao lưu (chỉ cần đăng nhập lại).
+BẢO MẬT: thư mục WiFi chứa mật khẩu Wi-Fi dạng chữ thường, thư mục BitLocker chứa khoá mở được ổ đĩa.
+Khôi phục xong nên xóa bản sao lưu hoặc cất USB cẩn thận. Token đăng nhập Claude KHÔNG được sao lưu
+(chỉ cần đăng nhập lại).
 "@
 Save-Text (Join-Path $Out 'HUONG_DAN.txt') ($guide -replace "(?<!`r)`n", "`r`n")
 
@@ -756,6 +940,8 @@ Write-Host ("  Wi-Fi     : {0} mạng" -f $Stat.Wifi) -ForegroundColor White
 Write-Host ("  Máy in    : {0} máy in, {1} driver" -f $Stat.Printers, $Stat.Drivers) -ForegroundColor White
 Write-Host ("  Claude    : {0}" -f $(if ($Stat.Claude) { 'đã sao lưu' } else { 'không có dữ liệu' })) -ForegroundColor White
 if ($Stat.Code -gt 0) { Write-Host ("  Hội thoại Code: {0}/{1} cuộc (bản đọc được: Claude\HoiThoai-Code\index.html)" -f $Stat.CodeOk, $Stat.Code) -ForegroundColor White }
+Write-Host ("  BitLocker : {0}" -f $(if ($Stat.BdeKeys) { "$($Stat.BdeKeys) khoá khôi phục" } else { 'không có khoá cần lưu' })) -ForegroundColor White
+Write-Host ("  Driver    : {0}" -f $(if ($DriverMode -eq 'none') { 'không sao lưu' } else { "$($Stat.DriverPkgs) gói" })) -ForegroundColor White
 Write-Host ("  Dung lượng: {0}" -f (Fmt-Size $total)) -ForegroundColor White
 Write-Host ("  Thư mục   : {0}" -f $Out) -ForegroundColor White
 if ($Warnings.Count -gt 0) {
@@ -766,7 +952,10 @@ if ($Warnings.Count -gt 0) {
 Write-Host ''
 Write-Host '  BƯỚC TIẾP THEO:' -ForegroundColor Cyan
 if ($Out.Length -ge 2 -and $Out.Substring(0, 2) -ieq $env:SystemDrive) {
-    Write-Host "   * CHÉP thư mục DuLieu_SaoLuu + 2 file .bat sang USB/ổ D NGAY (ổ $($env:SystemDrive) sẽ bị xóa)!" -ForegroundColor Red
+    Write-Host "   * CHÉP thư mục DuLieu_SaoLuu + 2 file .bat sang $CopyHint NGAY (ổ $($env:SystemDrive) sẽ bị xóa)!" -ForegroundColor Red
+}
+if (@($Stat.BdeData).Count -gt 0) {
+    Write-Host ("   * Ổ {0} mã hoá BitLocker: giữ thêm một bản thư mục BitLocker ở nơi KHÁC các ổ đó (USB, giấy in)." -f (@($Stat.BdeData) -join ', ')) -ForegroundColor Yellow
 }
 Write-Host '   * Đọc file HUONG_DAN.txt trong thư mục sao lưu.' -ForegroundColor Cyan
 Write-Host '   * Sau khi cài lại Win: chạy 2_NHAP_DU_LIEU.bat (để cạnh thư mục DuLieu_SaoLuu).' -ForegroundColor Cyan

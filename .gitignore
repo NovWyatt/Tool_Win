@@ -32,6 +32,14 @@ MyExcelFix_SaoLuu_*/
 # New_w: bản sao lưu chứa mật khẩu Wi-Fi, dữ liệu Claude
 DuLieu_SaoLuu*/
 
+# BitLocker: khoá khôi phục mở được cả ổ đĩa, báo cáo có tên máy
+BitLocker_KhoaKhoiPhuc_*.txt
+BitLocker Recovery Key*.txt
+*.KPG
+*.BEK
+BaoCao_BitLocker_*.txt
+BitLocker_ket_qua/
+
 # Ghi âm / video
 *.m4a
 *.mp3

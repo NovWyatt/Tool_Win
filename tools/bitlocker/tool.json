@@ -1,0 +1,182 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "bitlocker",
+  "name": "BitLocker và khoá khôi phục",
+  "version": "1.0",
+  "category": "cai-lai-may",
+  "icon": "shield-lock",
+  "audience": "all",
+  "summary": "Xem ổ nào đang mã hoá BitLocker và khoá khôi phục đã lưu ở đâu; lưu khoá ra file, tạm dừng trước khi cập nhật BIOS hay thay phần cứng, mở khoá ổ bị khoá.",
+  "description": "Chạy Kiểm tra trước: công cụ đọc trạng thái BitLocker từng ổ, khoá bảo vệ, Mã khoá (Key ID) và nơi khoá đã được lưu (file khoá, tài khoản Microsoft, Entra ID, AD theo nhật ký), TPM, Secure Boot, các lần máy phải nhập khoá khi khởi động, rồi ghi báo cáo kèm nút nên chạy. Báo cáo không bao giờ chứa khoá. Các nút còn lại in việc sẽ làm và hỏi trước; đánh dấu \"Chạy thử\" để chỉ xem. Khoá khôi phục chỉ ghi vào file khoá ở nơi bạn chọn; khoá gõ tay chỉ gõ trong cửa sổ công cụ, trạm không nhận khoá.",
+  "tags": ["bitlocker", "khoá khôi phục", "recovery key", "mã hoá thiết bị", "device encryption", "mã hoá ổ", "tpm", "secure boot", "cập nhật bios", "thay bo mạch", "ổ bị khoá", "mở khoá ổ", "manage-bde", "0x80310027"],
+  "docs": "HUONG-DAN.md",
+  "actions": [
+    {
+      "id": "kiem-tra",
+      "label": "Kiểm tra",
+      "file": "BitLocker.ps1",
+      "fixedArgs": ["-Mode", "kiem-tra"],
+      "admin": true,
+      "risk": "read-only",
+      "primary": true,
+      "duration": "Dưới 1 phút",
+      "description": "Chỉ đọc. Ghi báo cáo ket_qua\\BaoCao_BitLocker_<tên máy>_<thời gian>.txt có Mã khoá để đối chiếu, không có khoá; cuối báo cáo là việc nên làm theo thứ tự.",
+      "args": [
+        {
+          "id": "thu-muc-khoa", "type": "folder", "flag": "-ThuMucKhoa", "label": "Thư mục có file khoá đã lưu (không bắt buộc)",
+          "help": "Công cụ tự tìm ở thư mục khoá của công cụ, gốc các ổ và USB, Desktop, Documents, Downloads, OneDrive, bản sao lưu \"Chuyển dữ liệu khi cài lại Windows\"."
+        }
+      ]
+    },
+    {
+      "id": "luu-khoa",
+      "label": "Lưu khoá khôi phục ra file",
+      "file": "BitLocker.ps1",
+      "fixedArgs": ["-Mode", "luu-khoa"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Ghi khoá khôi phục 48 số của mọi ổ đang mã hoá vào một file BitLocker_KhoaKhoiPhuc_<tên máy>_<thời gian>.txt, rồi hỏi có chép ra USB, in ra giấy không. Làm trước khi cập nhật BIOS, thay phần cứng, cài lại Windows.",
+      "changes": [
+        "Ghi file khoá vào thư mục đã chọn (mặc định ket_qua\\khoa-bitlocker của công cụ)",
+        "Ổ đã mã hoá mà chưa có khoá khôi phục: thêm khoá khôi phục (hỏi trước, hoàn tác được)"
+      ],
+      "args": [
+        {
+          "id": "noi-luu", "type": "folder", "flag": "-NoiLuu", "label": "Lưu vào thư mục (không bắt buộc)",
+          "help": "Nên chọn USB. Bỏ trống: ket_qua\\khoa-bitlocker trong thư mục công cụ, lưu xong nhớ chép ra ngoài máy."
+        },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "tam-dung",
+      "label": "Tạm dừng BitLocker (trước khi cập nhật BIOS, thay phần cứng)",
+      "file": "BitLocker.ps1",
+      "fixedArgs": ["-Mode", "tam-dung"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Windows không hỏi khoá khôi phục trong số lần khởi động đã chọn, rồi tự bật lại và ghi nhận cấu hình mới. Dùng trước khi cập nhật BIOS/UEFI, đổi Secure Boot hay TPM trong BIOS, thay bo mạch, chuyển ổ sang máy khác.",
+      "confirm": "Trong lúc tạm dừng, ai cầm ổ cũng đọc được dữ liệu. Nên lưu khoá khôi phục trước.",
+      "changes": ["Tạm dừng BitLocker ổ Windows trong số lần khởi động đã chọn (hoàn tác được)"],
+      "args": [
+        {
+          "id": "so-lan", "type": "choice", "flag": "-SoLan", "label": "Tạm dừng trong", "default": "1",
+          "options": [
+            { "value": "1", "label": "1 lần khởi động (đủ cho phần lớn bản cập nhật BIOS)" },
+            { "value": "2", "label": "2 lần khởi động" },
+            { "value": "3", "label": "3 lần khởi động" },
+            { "value": "0", "label": "Đến khi bật lại bằng tay" }
+          ]
+        },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "bat-lai",
+      "label": "Bật lại BitLocker",
+      "file": "BitLocker.ps1",
+      "fixedArgs": ["-Mode", "bat-lai"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Bật lại bảo vệ cho các ổ đang tạm dừng BitLocker. Báo lỗi 0x80310030 thì rút đĩa CD/DVD, USB khởi động ra rồi chạy lại.",
+      "changes": ["Bật lại BitLocker cho các ổ đang tạm dừng"],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "mo-khoa",
+      "label": "Mở khoá ổ bị BitLocker khoá",
+      "file": "BitLocker.ps1",
+      "fixedArgs": ["-Mode", "mo-khoa"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Ổ dữ liệu, ổ cắm từ máy khác, USB bị khoá (thường gặp sau khi cài lại Windows). Công cụ tìm file khoá có Mã khoá khớp với ổ; không thấy thì hỏi bạn gõ khoá 48 số trong cửa sổ công cụ. Mở xong hỏi có cho ổ tự mở khoá mỗi lần vào Windows không.",
+      "changes": ["Mở khoá ổ (đến lần khởi động sau)", "Cho ổ tự mở khoá khi vào Windows nếu bạn đồng ý (hoàn tác được)"],
+      "args": [
+        { "id": "o-dia", "type": "text", "flag": "-ODia", "label": "Chữ ổ (không bắt buộc)", "placeholder": "E", "help": "Bỏ trống: mọi ổ đang bị khoá." },
+        { "id": "thu-muc-khoa", "type": "folder", "flag": "-ThuMucKhoa", "label": "Thư mục có file khoá (không bắt buộc)" },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "giai-ma",
+      "label": "Giải mã ổ dữ liệu, USB (tắt BitLocker)",
+      "file": "BitLocker.ps1",
+      "fixedArgs": ["-Mode", "giai-ma"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "Bắt đầu ngay; giải mã chạy nền, ổ lớn mất vài giờ",
+      "description": "Giữ nguyên dữ liệu, ổ không cần khoá nữa. Ổ phải đang mở khoá. Ổ Windows thì công cụ mở trang cài đặt mã hoá của Windows thay vì tự giải mã.",
+      "confirm": "Sau khi giải mã, ai cầm ổ hoặc USB cũng đọc được dữ liệu, và không hoàn tác được. Cửa sổ công cụ còn hỏi lại (gõ DONG Y).",
+      "changes": ["Giải mã ổ đã chọn"],
+      "args": [
+        { "id": "o-dia", "type": "text", "flag": "-ODia", "label": "Chữ ổ (không bắt buộc)", "placeholder": "E", "help": "Bỏ trống: công cụ liệt kê các ổ để chọn." },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "hoan-tac",
+      "label": "Hoàn tác lần thay đổi trước",
+      "file": "BitLocker.ps1",
+      "fixedArgs": ["-Mode", "hoan-tac"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Liệt kê các lần thay đổi trong ket_qua\\hoan-tac: bật lại BitLocker đã tạm dừng, tắt tự mở khoá đã bật, xoá khoá khôi phục đã thêm (hỏi lại riêng). Giải mã không hoàn tác được.",
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "menu",
+      "label": "Mở menu (như bấm đúp BITLOCKER.bat)",
+      "file": "BITLOCKER.bat",
+      "admin": false,
+      "risk": "asks-before-change",
+      "description": "Menu đủ các mục trên; mục cần quyền Admin tự hỏi UAC trong cửa sổ riêng."
+    }
+  ],
+  "probes": [
+    { "type": "service", "name": "BDESVC", "label": "Dịch vụ BitLocker (BDESVC)", "default": "Manual" },
+    {
+      "type": "registry", "label": "Chặn Windows tự mã hoá thiết bị",
+      "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\BitLocker", "name": "PreventDeviceEncryption",
+      "values": { "1": "Đã chặn", "0": "Không chặn" },
+      "note": "Chưa đặt: Windows được tự bật Mã hoá thiết bị khi cài mới trên máy đủ điều kiện."
+    }
+  ],
+  "outputs": [
+    { "label": "Báo cáo kiểm tra", "dir": "ket_qua", "glob": "BaoCao_BitLocker_%COMPUTERNAME%_*.txt" },
+    {
+      "label": "File khoá khôi phục", "dir": "ket_qua\\khoa-bitlocker", "glob": "BitLocker_KhoaKhoiPhuc_*.txt",
+      "deleteNote": "File này chứa khoá khôi phục: ai có nó mở được ổ. Chỉ xoá khi đã chép ra USB, điện thoại hoặc in ra giấy; nếu đây là bản duy nhất thì lúc Windows hỏi khoá sẽ không mở được ổ. Xoá xong nhớ dọn Thùng rác."
+    },
+    {
+      "label": "Nhật ký để hoàn tác", "dir": "ket_qua\\hoan-tac", "glob": "HoanTac_*.json",
+      "deleteNote": "\"Hoàn tác lần thay đổi trước\" cần file này để bật lại BitLocker đã tạm dừng, tắt tự mở khoá, xoá khoá đã thêm. Xoá rồi thì không hoàn tác được lần đó nữa."
+    }
+  ],
+  "pack": {
+    "name": "BitLocker",
+    "include": ["BITLOCKER.bat", "BitLocker.ps1", "lib/*.ps1", "HUONG-DAN.md"]
+  },
+  "issues": [
+    "Mới chạy trên máy phát triển (Windows 11 Home, không còn ổ mã hoá): Kiểm tra bằng quyền thường, Chạy thử mọi nút, và các nút cần Admin trên ổ giả lập; chưa chạy thật trên máy có BitLocker.",
+    "Biết khoá đã sao lưu lên tài khoản Microsoft, Entra ID, AD nhờ nhật ký sự kiện BitLocker; nhật ký bị xoá hoặc quá 2 năm thì báo \"chưa thấy nơi lưu\" dù khoá vẫn còn trên tài khoản.",
+    "Khoá gõ tay hiện trên màn hình khi gõ (như hộp mở khoá của Windows) để dễ dò từng nhóm số; không lưu, không ghi báo cáo.",
+    "Không tự giải mã ổ Windows: nút Giải mã mở trang cài đặt mã hoá của Windows cho ổ đó.",
+    "Tự mở khoá USB gắn với tài khoản chạy công cụ: UAC hỏi mật khẩu một Admin khác thì USB chỉ tự mở với tài khoản Admin đó.",
+    "Khi UAC hỏi mật khẩu một Admin khác, Desktop, Documents, Downloads trong danh sách tìm file khoá là của tài khoản Admin đó, không phải của người đang dùng máy."
+  ],
+  "upgrades": [
+    "P1 – Sao lưu khoá lên tài khoản Microsoft ngay trong công cụ (BackupRecoveryInformationToMicrosoftAccount) khi người dùng đăng nhập tài khoản Microsoft.",
+    "P1 – Lưu gói khoá (.KPG, manage-bde -KeyPackage) để cứu dữ liệu bằng repair-bde khi phần đầu ổ bị hỏng.",
+    "P2 – Bật BitLocker, Mã hoá thiết bị có hướng dẫn: lưu khoá ra ngoài máy trước rồi mới bật.",
+    "P2 – Chặn Windows tự mã hoá lại sau khi cài mới (PreventDeviceEncryption), hỏi trước, hoàn tác được."
+  ]
+}

@@ -42,7 +42,8 @@ driver...): trạm kiểm tra khi mở trang công cụ và có nút **Cài** ch
 | `tools\dwg2pdf` | Bản vẽ DWG sang PDF | Chuyển .dwg sang PDF đen trắng, mỗi khung bản vẽ một trang, không cần AutoCAD. |
 | `tools\ghi-am-sang-word` | Ghi âm sang Word | Nhận dạng giọng nói tiếng Việt offline trên card NVIDIA, xuất Word có mốc thời gian. |
 | `tools\mdf2sql` | Khôi phục .mdf sang .sql | Đọc file SQL Server .mdf (kể cả tắt đột ngột, thiếu .ldf), xuất .sql cho SQL Server hoặc MySQL. Git submodule. |
-| `tools\new-windows` | Chuyển dữ liệu khi cài lại Windows | Sao lưu và khôi phục Wi-Fi, máy in, dữ liệu Claude. |
+| `tools\new-windows` | Chuyển dữ liệu khi cài lại Windows | Sao lưu và khôi phục Wi-Fi, máy in, khoá BitLocker, driver mạng, dữ liệu Claude. |
+| `tools\bitlocker` | BitLocker và khoá khôi phục | Kiểm tra ổ mã hoá, khoá khôi phục đã lưu ở đâu; lưu khoá ra file, USB; tạm dừng trước khi cập nhật BIOS; mở khoá, giải mã ổ dữ liệu; có hoàn tác. |
 | `tools\github-logout` | Đăng xuất GitHub | Xoá thông tin đăng nhập GitHub mà Git lưu trong Windows. |
 
 Mọi công cụ vẫn chạy được khi bấm đúp script trong thư mục của nó; trạm chỉ là nơi mở cho tiện.
