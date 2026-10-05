@@ -2,21 +2,86 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "wifi-fix",
   "name": "Kiểm tra và sửa lỗi Wi-Fi",
-  "version": "1.0",
+  "version": "1.1",
   "category": "sua-loi",
   "icon": "wifi",
   "audience": "all",
-  "summary": "Xem card Wi-Fi và mạng xung quanh, thử kết nối Internet/DNS; đặt lại IP, DNS, Winsock, TCP/IP; khởi động lại card Wi-Fi.",
-  "tags": ["wifi", "mạng", "internet", "dns", "winsock", "sửa lỗi"],
+  "summary": "Sửa lỗi \"Can't connect to this network\" khi vào mạng Wi-Fi mới; xem vì sao Wi-Fi không kết nối, khởi động lại card, cập nhật driver; đặt lại IP, DNS, Winsock.",
+  "description": "Lỗi hay gặp sau khi máy thức dậy từ chế độ ngủ: Windows tự kết nối bị treo, bấm vào mạng mới thì vào được rồi bị ngắt ngay (\"Can't connect to this network\"), nhưng đang có mạng sẵn rồi chuyển sang thì được. \"Kết nối Wi-Fi\" tạm dừng tự kết nối trong lúc kết nối, khởi động lại card nếu đang kẹt, rồi bật lại; mật khẩu gõ trong cửa sổ công cụ, không đi qua trạm. \"Xem vì sao\" đọc nhật ký Wi-Fi 7 ngày (chỉ đọc). Sửa tận gốc: cập nhật driver Wi-Fi.",
+  "tags": ["wifi", "wi-fi", "mạng", "internet", "dns", "winsock", "can't connect to this network", "không kết nối được", "driver", "intel", "sửa lỗi"],
   "actions": [
     {
+      "id": "ket-noi",
+      "label": "Kết nối Wi-Fi (sửa lỗi Can't connect to this network)",
+      "file": "KetNoiWifi.ps1",
+      "fixedArgs": ["-Mode", "ket-noi"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "primary": true,
+      "duration": "Dưới 1 phút",
+      "description": "Chọn mạng trong danh sách; mạng mới thì gõ mật khẩu trong cửa sổ công cụ (không hiện chữ, trạm không nhận). Sai mật khẩu thì hỏi gõ lại.",
+      "changes": [
+        "Khởi động lại card Wi-Fi khi chưa vào được mạng nào (mất mạng vài giây)",
+        "Lưu mạng Wi-Fi mới vào Windows, tự kết nối lần sau",
+        "Tạm tắt tự kết nối Wi-Fi trong lúc kết nối, xong thì bật lại"
+      ],
+      "args": [
+        {
+          "id": "ten-mang", "type": "text", "flag": "-TenMang", "label": "Tên mạng Wi-Fi (không bắt buộc)", "placeholder": "Khanh Hoi",
+          "help": "Bỏ trống: công cụ hiện danh sách mạng quanh đây để chọn."
+        },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "chan-doan",
+      "label": "Xem vì sao không kết nối được",
+      "file": "KetNoiWifi.ps1",
+      "fixedArgs": ["-Mode", "chan-doan"],
+      "admin": false,
+      "risk": "read-only",
+      "duration": "Dưới 10 giây",
+      "description": "Chỉ đọc: card và driver, tự kết nối có bật không, nhật ký Wi-Fi 7 ngày (tự kết nối bị treo, vào được rồi bị ngắt ngay, lỗi khi máy thức dậy, sai mật khẩu). Ghi báo cáo ket_qua\\BaoCao_WiFi_<tên máy>_<thời gian>.txt."
+    },
+    {
+      "id": "khoi-dong-lai",
+      "label": "Khởi động lại Wi-Fi",
+      "file": "KetNoiWifi.ps1",
+      "fixedArgs": ["-Mode", "khoi-dong-lai"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Tắt rồi bật card Wi-Fi để driver khởi tạo lại; bật lại tự kết nối và dịch vụ WLAN AutoConfig nếu đang tắt.",
+      "changes": ["Tắt rồi bật card Wi-Fi (mất mạng vài giây)", "Bật tự kết nối Wi-Fi, dịch vụ WLAN AutoConfig nếu đang tắt"],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "cap-nhat-driver",
+      "label": "Cập nhật driver Wi-Fi (sửa tận gốc)",
+      "file": "KetNoiWifi.ps1",
+      "fixedArgs": ["-Mode", "cap-nhat-driver"],
+      "admin": false,
+      "risk": "read-only",
+      "duration": "Dưới 10 giây",
+      "description": "Card Intel: mở trang tải driver Wi-Fi của Intel. Card hãng khác: mở Windows Update > Optional updates. Bạn tự tải và cài."
+    },
+    {
       "id": "menu",
-      "label": "Mở menu Wi-Fi",
+      "label": "Mở menu Kết nối Wi-Fi (như bấm đúp KET_NOI_WIFI.bat)",
+      "file": "KET_NOI_WIFI.bat",
+      "admin": false,
+      "risk": "asks-before-change",
+      "description": "Menu đủ các mục trên; mục cần quyền Admin tự hỏi UAC trong cửa sổ riêng."
+    },
+    {
+      "id": "menu-cu",
+      "label": "Menu cũ: đặt lại IP, DNS, Winsock",
       "file": "fixwf.bat",
       "type": "console",
       "admin": true,
       "risk": "asks-before-change",
-      "primary": true,
       "duration": "Dưới 1 phút",
       "description": "Mục 1 chỉ kiểm tra (card, mạng xung quanh, ping). Mục 2 và 3 thay đổi cấu hình mạng.",
       "changes": [
@@ -25,15 +90,26 @@
       ]
     }
   ],
+  "probes": [
+    { "type": "service", "name": "WlanSvc", "label": "Dịch vụ Wi-Fi (WLAN AutoConfig)", "default": "Automatic" }
+  ],
+  "outputs": [
+    { "label": "Báo cáo Wi-Fi", "dir": "ket_qua", "glob": "BaoCao_WiFi_%COMPUTERNAME%_*.txt" }
+  ],
+  "pack": {
+    "name": "KetNoiWifi",
+    "include": ["KET_NOI_WIFI.bat", "KetNoiWifi.ps1", "fixwf.bat"]
+  },
   "issues": [
-    "Kiểm tra quyền Admin bằng 'net session' cần dịch vụ Server; dịch vụ này bị tắt thì báo nhầm là chưa có quyền.",
-    "Mục 2 không nhắc phải khởi động lại sau khi đặt lại Winsock/TCP-IP; ipconfig /release ngắt mạng mọi card, không chỉ Wi-Fi.",
-    "Tìm card bằng chữ 'Wi-Fi'/'Wireless' trong output netsh: card đã đổi tên hoặc Windows ngôn ngữ khác thì không thấy; nhiều card thì lấy card cuối.",
-    "Ping google.com thất bại bị báo là 'lỗi DNS' kể cả khi chỉ là mất Internet."
+    "\"Kết nối Wi-Fi\" mới chạy thử (chưa có quyền Admin) trên máy phát triển; phần đọc danh sách mạng, lưu mạng, kết nối chưa chạy thật.",
+    "Không tự tạo được hồ sơ cho mạng doanh nghiệp (tài khoản, chứng chỉ) và WEP: công cụ báo và chỉ sang Settings.",
+    "Menu cũ (fixwf.bat): kiểm tra quyền Admin bằng 'net session' cần dịch vụ Server; tìm card bằng chữ 'Wi-Fi'/'Wireless' nên hụt khi card đổi tên hoặc Windows khác ngôn ngữ; ping google.com hỏng bị báo là lỗi DNS.",
+    "Menu cũ mục 2 không nhắc phải khởi động lại sau khi đặt lại Winsock/TCP-IP; ipconfig /release ngắt mạng mọi card, không chỉ Wi-Fi."
   ],
   "upgrades": [
-    "P1 – Tự nâng quyền (fltmc + RunAs) thay vì bắt chạy lại.",
-    "P1 – Tìm card Wi-Fi bằng Get-NetAdapter (NdisPhysicalMedium 802.11) và khởi động lại bằng Restart-NetAdapter.",
-    "P2 – Thêm chẩn đoán driver, chế độ tiết kiệm điện của card, 'netsh wlan show wlanreport' và xuất báo cáo .txt."
+    "P1 – Tự sửa sau khi máy thức dậy: tác vụ theo sự kiện Kernel-Power 507, thấy tự kết nối treo quá 20 giây thì khởi động lại card.",
+    "P1 – Chuyển các mục của menu cũ (đặt lại IP, DNS, Winsock) vào KetNoiWifi.ps1 với Get-NetAdapter, nhắc khởi động lại.",
+    "P2 – Đặt lại proxy và hosts (netsh winhttp reset proxy) khi có mạng mà trình duyệt không vào được.",
+    "P2 – Gắn 'netsh wlan show wlanreport' (cần quyền Admin) vào báo cáo chẩn đoán."
   ]
 }
