@@ -200,6 +200,8 @@ function Get-ToolProbes {
     $out = @()
     foreach ($p in $Tool.probes) {
         $type = [string](Get-Prop $p 'type' '')
+        # badge: false: mục thông tin (vd phiên bản phần mềm): hiện giá trị trần, không gắn nhãn Đã đổi/Mặc định.
+        $info = (Get-Prop $p 'badge' $true) -eq $false
         $row = [ordered]@{ label = [string](Get-Prop $p 'label' ''); value = ''; state = 'unknown'; detail = [string](Get-Prop $p 'note' '') }
         try {
             if ($type -eq 'service') {
@@ -221,10 +223,12 @@ function Get-ToolProbes {
                 $values = Get-Prop $p 'values' $null
                 $key = if ($null -eq $raw) { '' } else { [string]$raw }
                 $label = Get-Prop $values $key $null
-                $row.value = if ($label) { $label } elseif ($null -eq $raw) { 'Chưa đặt (mặc định Windows)' } else { "Giá trị: $raw" }
+                # empty: chữ hiện khi chưa có giá trị (vd "Chưa cài Office") thay cho câu mặc định.
+                $row.value = if ($label) { $label } elseif ($null -eq $raw) { [string](Get-Prop $p 'empty' 'Chưa đặt (mặc định Windows)') } elseif ($info) { $key } else { "Giá trị: $raw" }
                 $row.state = if ($null -eq $raw) { 'default' } else { 'changed' }
             } else { $row.value = "Không biết kiểu '$type'" }
         } catch { $row.value = 'Lỗi khi đọc'; $row.detail = $_.Exception.Message }
+        if ($info -and $row.state -ne 'unknown') { $row.state = 'info' }
         $out += $row
     }
     return $out   # trả từng phần tử; nơi gọi bọc @() (trả ", mảng" sẽ thành mảng lồng trong JSON)

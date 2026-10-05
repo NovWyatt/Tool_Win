@@ -239,6 +239,9 @@
         },
         "path": { "description": "registry: khoá dạng HKLM:\\...", "type": "string", "pattern": "^(HKLM|HKCU|HKCR|HKU|HKCC):\\\\" },
         "values": { "description": "registry: bảng giá trị → chữ hiển thị.", "type": "object", "additionalProperties": { "type": "string" } },
+        "empty": { "description": "registry: chữ hiện khi chưa có giá trị (mặc định 'Chưa đặt (mặc định Windows)').", "type": "string" },
+        "badge": { "description": "false: mục thông tin, hiện giá trị trần (không có 'Giá trị:'), không gắn nhãn Đã đổi/Mặc định.", "type": "boolean", "default": true },
+        "snapshot": { "description": "false: chỉ hiển thị; trạm không ghi lại trước khi chạy và không trả lại mục này (vd registry của phần mềm công cụ gỡ, cài).", "type": "boolean", "default": true },
         "note": { "description": "Dòng giải thích nhỏ dưới giá trị.", "type": "string" }
       }
     },

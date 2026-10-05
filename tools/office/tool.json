@@ -1,0 +1,212 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "office",
+  "name": "Gỡ sạch và cài Office theo mẫu",
+  "version": "1.0",
+  "category": "van-phong",
+  "icon": "apps",
+  "audience": "tech",
+  "summary": "Gỡ sạch mọi bản Office (Click-to-Run, MSI, Microsoft Store, phần sót, khoá cũ) rồi cài Office theo bộ cài mẫu của bạn (Office Deployment Tool), kiểm tra ứng dụng và kích hoạt.",
+  "description": "Chạy Kiểm tra trước: công cụ đọc Office đang cài, giấy phép, bộ cài mẫu (setup.exe, file cấu hình, thư mục Office\\Data) và báo mẫu có cài được không cần Internet, cài xong có tự kích hoạt được không. \"Gỡ sạch Office cũ rồi cài theo mẫu\" kiểm tra mẫu trước khi gỡ (mẫu hỏng thì không gỡ gì), sao lưu mẫu Word, macro, chữ ký, gỡ bằng ODT của mẫu, dọn phần sót, rồi cài bằng chính file cấu hình của mẫu. Mẫu tìm theo thứ tự: ô Thư mục bộ cài mẫu, tools\\office\\mau, rồi \"<ổ>:\\Program Files\\Microsoft Office\". Khoá sản phẩm trong file cấu hình không bao giờ hiện ra, vào báo cáo hay bị chép đi đâu; chỉ kích hoạt theo cách của Microsoft (khoá của bạn, máy chủ KMS của tổ chức).",
+  "tags": ["office", "gỡ office", "cài office", "cài lại office", "office 2019", "office 2021", "office 2024", "microsoft 365", "office deployment tool", "odt", "click-to-run", "configuration.xml", "setup.exe /configure", "kích hoạt office", "word", "excel", "powerpoint", "normal.dotm", "getHelpCmd", "sara", "offscrub"],
+  "docs": "HUONG-DAN.md",
+  "actions": [
+    {
+      "id": "kiem-tra",
+      "label": "Kiểm tra",
+      "file": "Office.ps1",
+      "fixedArgs": ["-Mode", "kiem-tra"],
+      "admin": false,
+      "risk": "read-only",
+      "primary": true,
+      "duration": "Dưới 1 phút",
+      "description": "Chỉ đọc. Ghi báo cáo ket_qua\\BaoCao_Office_<tên máy>_<thời gian>.txt: Office đang cài và hạn hỗ trợ, giấy phép (không có khoá), bộ cài mẫu và lỗi của mẫu, ứng dụng đang mở, dữ liệu sẽ sao lưu; cuối báo cáo là việc nên làm.",
+      "args": [
+        {
+          "id": "mau", "type": "folder", "flag": "-Mau", "label": "Thư mục bộ cài mẫu (không bắt buộc)",
+          "help": "Thư mục có setup.exe, file cấu hình .xml và thư mục Office. Bỏ trống: tools\\office\\mau, rồi <ổ>:\\Program Files\\Microsoft Office."
+        },
+        { "id": "cau-hinh", "type": "text", "flag": "-CauHinh", "label": "File cấu hình (không bắt buộc)", "placeholder": "Configuration.xml", "help": "Bỏ trống: Configuration.xml, hoặc file cấu hình duy nhất trong mẫu." }
+      ]
+    },
+    {
+      "id": "go-va-cai",
+      "label": "Gỡ sạch Office cũ rồi cài theo mẫu",
+      "file": "Office.ps1",
+      "fixedArgs": ["-Mode", "go-va-cai"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "20-60 phút (gỡ 5-15 phút, cài 10-30 phút)",
+      "description": "Kiểm tra mẫu trước: thiếu setup.exe có chữ ký Microsoft, file cấu hình lỗi, thiếu bộ cài mà không có mạng thì dừng, chưa gỡ gì. Rồi sao lưu, đóng ứng dụng Office (hỏi trước), gỡ, dọn phần sót và khoá cũ, cài theo mẫu, kiểm tra ứng dụng, kích hoạt. Windows cần khởi động lại giữa chừng thì công cụ dừng và nhắc chạy \"Chỉ cài Office theo mẫu\" sau khi khởi động lại.",
+      "confirm": "Office trên máy bị gỡ hẳn rồi cài lại theo mẫu. Mẫu Word, macro, chữ ký được sao lưu trước. Cửa sổ công cụ còn hỏi lại (gõ DONG Y).",
+      "changes": [
+        "Gỡ mọi bản Office: Click-to-Run, cài bằng MSI, từ Microsoft Store",
+        "Xoá dịch vụ, tác vụ hẹn giờ, thư mục, registry còn sót của Click-to-Run",
+        "Gỡ khoá sản phẩm, giấy phép, tài khoản đã đăng nhập Office",
+        "Cài Office theo file cấu hình của mẫu",
+        "Ghi bản sao lưu vào ket_qua\\sao-luu"
+      ],
+      "args": [
+        { "id": "mau", "type": "folder", "flag": "-Mau", "label": "Thư mục bộ cài mẫu (không bắt buộc)", "help": "Bỏ trống: tools\\office\\mau, rồi <ổ>:\\Program Files\\Microsoft Office." },
+        { "id": "cau-hinh", "type": "text", "flag": "-CauHinh", "label": "File cấu hình (không bắt buộc)", "placeholder": "Configuration.xml" },
+        { "id": "quet-sau", "type": "bool", "flag": "-QuetSau", "label": "Quét sâu bằng công cụ gỡ Office của Microsoft", "help": "Cần mạng, lâu hơn 5-20 phút. Dùng khi lần gỡ trước còn sót hoặc Office hỏng nặng. Có thể gỡ cả Access Database Engine." },
+        { "id": "xoa-thiet-lap", "type": "bool", "flag": "-XoaThietLap", "label": "Xoá cả thiết lập Office của người dùng", "help": "Sao lưu ra Office.reg trước. Xoá cả hồ sơ Outlook: tài khoản thư phải thêm lại." },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "go-sach",
+      "label": "Chỉ gỡ sạch Office",
+      "file": "Office.ps1",
+      "fixedArgs": ["-Mode", "go-sach"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "5-30 phút",
+      "description": "Như nút trên nhưng không cài lại. Có bộ cài mẫu thì gỡ Click-to-Run bằng ODT của mẫu (chạy ngầm); không có thì mở trình gỡ của Office (bấm Uninstall). Giữ lại Access Database Engine (quét sâu có thể gỡ nó, công cụ báo trước).",
+      "confirm": "Office trên máy bị gỡ hẳn, không hoàn tác được. Mẫu Word, macro, chữ ký được sao lưu trước. Cửa sổ công cụ còn hỏi lại (gõ DONG Y).",
+      "changes": [
+        "Gỡ mọi bản Office: Click-to-Run, cài bằng MSI, từ Microsoft Store",
+        "Xoá dịch vụ, tác vụ hẹn giờ, thư mục, registry còn sót của Click-to-Run",
+        "Gỡ khoá sản phẩm, giấy phép, tài khoản đã đăng nhập Office",
+        "Ghi bản sao lưu vào ket_qua\\sao-luu"
+      ],
+      "args": [
+        { "id": "mau", "type": "folder", "flag": "-Mau", "label": "Thư mục bộ cài mẫu (không bắt buộc)", "help": "Chỉ dùng setup.exe của mẫu để gỡ cho sạch, không cài." },
+        { "id": "quet-sau", "type": "bool", "flag": "-QuetSau", "label": "Quét sâu bằng công cụ gỡ Office của Microsoft", "help": "Cần mạng, lâu hơn 5-20 phút. Có thể gỡ cả Access Database Engine." },
+        { "id": "xoa-thiet-lap", "type": "bool", "flag": "-XoaThietLap", "label": "Xoá cả thiết lập Office của người dùng", "help": "Sao lưu ra Office.reg trước. Xoá cả hồ sơ Outlook." },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "cai-dat",
+      "label": "Chỉ cài Office theo mẫu",
+      "file": "Office.ps1",
+      "fixedArgs": ["-Mode", "cai-dat"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "10-30 phút",
+      "description": "Cho máy chưa có Office, hoặc sau khi gỡ xong và khởi động lại. Máy đang có Office khác mẫu thì công cụ không cài thêm (dễ lẫn hai bản) mà chỉ cách gỡ trước. File cấu hình chạy tại chỗ trong thư mục mẫu.",
+      "changes": ["Cài Office theo file cấu hình của mẫu"],
+      "args": [
+        { "id": "mau", "type": "folder", "flag": "-Mau", "label": "Thư mục bộ cài mẫu (không bắt buộc)", "help": "Bỏ trống: tools\\office\\mau, rồi <ổ>:\\Program Files\\Microsoft Office." },
+        { "id": "cau-hinh", "type": "text", "flag": "-CauHinh", "label": "File cấu hình (không bắt buộc)", "placeholder": "Configuration.xml" },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "kich-hoat",
+      "label": "Kích hoạt Office (kích hoạt lại, nhập khoá của bạn)",
+      "file": "Office.ps1",
+      "fixedArgs": ["-Mode", "kich-hoat"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Xem trạng thái kích hoạt từng sản phẩm Office, kích hoạt lại bằng khoá đã cài (MAK, bán lẻ qua Internet; khoá KMS chung qua máy chủ KMS của tổ chức), hoặc nhập khoá Office của bạn. Khoá chỉ gõ trong cửa sổ công cụ, không hiện khi gõ; trạm không nhận khoá.",
+      "changes": ["Cài khoá Office bạn nhập vào Windows và kích hoạt (khi bạn chọn)"],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem trạng thái, không đổi máy" }
+      ]
+    },
+    {
+      "id": "tra-lai",
+      "label": "Trả lại mẫu Word, macro, chữ ký đã sao lưu",
+      "file": "Office.ps1",
+      "fixedArgs": ["-Mode", "tra-lai"],
+      "admin": false,
+      "risk": "asks-before-change",
+      "duration": "Dưới 1 phút",
+      "description": "Chọn một bản sao lưu trong ket_qua\\sao-luu rồi chép lại Normal.dotm, Building Blocks, từ điển riêng, PERSONAL.XLSB, add-in, ribbon đã chỉnh, chữ ký Outlook. Dữ liệu hiện tại được sao lưu trước khi chép đè; thiết lập registry (nếu có) hỏi riêng.",
+      "args": [
+        { "id": "sao-luu", "type": "text", "flag": "-SaoLuu", "label": "Tên bản sao lưu (không bắt buộc)", "placeholder": "SaoLuu_TENMAY_20261005_090000", "help": "Bỏ trống: chọn trong danh sách ở cửa sổ công cụ." },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "menu",
+      "label": "Mở menu (như bấm đúp OFFICE.bat)",
+      "file": "OFFICE.bat",
+      "admin": false,
+      "risk": "asks-before-change",
+      "description": "Menu đủ các mục trên; mục cần quyền Admin tự hỏi UAC trong cửa sổ riêng."
+    }
+  ],
+  "probes": [
+    {
+      "type": "registry", "label": "Office Click-to-Run đang cài",
+      "path": "HKLM:\\SOFTWARE\\Microsoft\\Office\\ClickToRun\\Configuration", "name": "ProductReleaseIds",
+      "values": {
+        "ProPlus2019Volume": "Office Professional Plus 2019 (bản Volume)",
+        "ProPlus2021Volume": "Office LTSC Professional Plus 2021",
+        "ProPlus2024Volume": "Office LTSC Professional Plus 2024",
+        "Standard2019Volume": "Office Standard 2019 (bản Volume)",
+        "Standard2021Volume": "Office LTSC Standard 2021",
+        "Standard2024Volume": "Office LTSC Standard 2024",
+        "O365ProPlusRetail": "Microsoft 365 Apps for enterprise",
+        "O365BusinessRetail": "Microsoft 365 Apps for business",
+        "O365HomePremRetail": "Microsoft 365 Personal/Family",
+        "ProPlusRetail": "Office Professional Plus 2016",
+        "HomeBusinessRetail": "Office Home & Business 2016",
+        "HomeStudentRetail": "Office Home & Student 2016",
+        "HomeBusiness2019Retail": "Office Home & Business 2019",
+        "HomeBusiness2021Retail": "Office Home & Business 2021",
+        "HomeBusiness2024Retail": "Office Home & Business 2024",
+        "HomeStudent2019Retail": "Office Home & Student 2019",
+        "HomeStudent2021Retail": "Office Home & Student 2021"
+      },
+      "empty": "Chưa cài Office Click-to-Run", "badge": false, "snapshot": false
+    },
+    {
+      "type": "registry", "label": "Phiên bản Office",
+      "path": "HKLM:\\SOFTWARE\\Microsoft\\Office\\ClickToRun\\Configuration", "name": "VersionToReport",
+      "empty": "Không có", "badge": false, "snapshot": false
+    },
+    {
+      "type": "registry", "label": "Kênh cài đặt",
+      "path": "HKLM:\\SOFTWARE\\Microsoft\\Office\\ClickToRun\\Configuration", "name": "CDNBaseUrl",
+      "values": {
+        "http://officecdn.microsoft.com/pr/492350f6-3a01-4f97-b9c0-c7c6ddf67d60": "Current (Microsoft 365, cập nhật hằng tháng)",
+        "http://officecdn.microsoft.com/pr/64256afe-f5d9-4f86-8936-8840a6a4f5be": "Current Preview",
+        "http://officecdn.microsoft.com/pr/5440fd1f-7ecb-4221-8110-145efaa6372f": "Beta",
+        "http://officecdn.microsoft.com/pr/55336b82-a18d-4dd6-b5f6-9e5095c314a6": "Monthly Enterprise",
+        "http://officecdn.microsoft.com/pr/7ffbc6bf-bc32-4f92-8982-f9dd17fd3114": "Semi-Annual Enterprise",
+        "http://officecdn.microsoft.com/pr/b8f9b850-328d-4355-9145-c59439a0c4cf": "Semi-Annual Enterprise Preview",
+        "http://officecdn.microsoft.com/pr/f2e724c1-748f-4b47-8fb8-8e0d210e9208": "PerpetualVL2019 (Office 2019 bản Volume)"
+      },
+      "empty": "Không có", "badge": false, "snapshot": false
+    },
+    {
+      "type": "registry", "label": "Bản 32/64 bit",
+      "path": "HKLM:\\SOFTWARE\\Microsoft\\Office\\ClickToRun\\Configuration", "name": "Platform",
+      "values": { "x64": "64 bit", "x86": "32 bit" },
+      "empty": "Không có", "badge": false, "snapshot": false
+    },
+    { "type": "service", "name": "ClickToRunSvc", "label": "Dịch vụ Office Click-to-Run", "default": "Automatic", "snapshot": false }
+  ],
+  "outputs": [
+    { "label": "Báo cáo kiểm tra", "dir": "ket_qua", "glob": "BaoCao_Office_%COMPUTERNAME%_*.txt" },
+    { "label": "Nhật ký gỡ, cài", "dir": "ket_qua", "glob": "NhatKy_Office_%COMPUTERNAME%_*.txt" },
+    {
+      "label": "Sao lưu mẫu Word, macro, chữ ký", "dir": "ket_qua\\sao-luu", "glob": "SaoLuu_*", "type": "folder",
+      "deleteNote": "\"Trả lại mẫu Word, macro, chữ ký đã sao lưu\" cần thư mục này; xoá rồi thì không trả lại được bản này nữa. Thư mục có thể có thiết lập Office (Office.reg) kèm tên tài khoản, email."
+    },
+    { "label": "Nhật ký của Office Deployment Tool khi gỡ", "dir": "ket_qua\\nhat-ky-odt", "glob": "*.log" }
+  ],
+  "pack": {
+    "name": "Office",
+    "include": ["OFFICE.bat", "Office.ps1", "lib/*.ps1", "HUONG-DAN.md"]
+  },
+  "issues": [
+    "Mới chạy trên máy phát triển (Windows 11 Home, Office Professional Plus 2019 bản Volume): Kiểm tra thật, Chạy thử mọi nút, các bước gỡ, cài, kích hoạt thử bằng giả lập; chưa gỡ hay cài Office thật.",
+    "Không có bộ cài mẫu thì gỡ Click-to-Run bằng trình gỡ của Office: cửa sổ của Microsoft hiện ra, phải bấm Uninstall.",
+    "Office cài bằng MSI (2016 trở về trước) gỡ bằng trình gỡ của chính nó, có cửa sổ, làm theo hướng dẫn trong đó.",
+    "Kênh PerpetualVL2021, PerpetualVL2024 chỉ nhận ra qua mã sản phẩm (chưa đối chiếu được GUID của hai kênh này).",
+    "Quét sâu tải công cụ của Microsoft mỗi lần chạy (mỗi bản chỉ dùng được 90 ngày), cần Internet. Công cụ đó tự quyết gỡ gì, có thể gỡ cả Access Database Engine; mẫu có <RemoveMSI> cũng vậy. Công cụ báo trước và báo sau nếu mất.",
+    "Khi UAC hỏi mật khẩu một Admin khác, công cụ bỏ qua phần của từng người dùng (sao lưu mẫu, giấy phép tài khoản, thiết lập) vì không phải tài khoản đang dùng máy."
+  ],
+  "upgrades": [
+    "P1 – Tạo, cập nhật mẫu ngay trong công cụ: tải ODT mới, chọn Office LTSC 2024 hoặc Microsoft 365, tải bộ cài về mẫu (setup.exe /download).",
+    "P1 – Sửa Office (Quick Repair, Online Repair) trước khi phải gỡ hẳn.",
+    "P2 – Đổi kênh, bật tắt cập nhật Office.",
+    "P2 – Gói ngôn ngữ, bộ soát chính tả tiếng Việt."
+  ]
+}

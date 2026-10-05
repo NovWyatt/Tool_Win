@@ -262,8 +262,10 @@ function Format-RegistryState {
 }
 
 function Get-ProbeItemState {
-    # Trạng thái hiện tại của một mục trong probes; $null nếu kiểu không hỗ trợ ghi lại.
+    # Trạng thái hiện tại của một mục trong probes; $null nếu kiểu không hỗ trợ ghi lại hoặc probe đặt
+    # "snapshot": false (chỉ để hiển thị: trả lại mục đó sẽ hại máy, vd registry của phần mềm vừa gỡ).
     param($Probe)
+    if ((Get-Prop $Probe 'snapshot' $true) -eq $false) { return $null }
     $type = [string](Get-Prop $Probe 'type' '')
     $label = [string](Get-Prop $Probe 'label' '')
     if ($type -eq 'service') {

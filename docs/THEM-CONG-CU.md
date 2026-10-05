@@ -175,14 +175,16 @@ Với công cụ thay đổi thiết lập Windows, khai báo `probes` để tra
 ```
 
 `service` so kiểu khởi động với `default` để đánh dấu *Đã đổi* / *Mặc định*. `registry` dùng `values` để đổi giá trị
-thô thành chữ dễ hiểu.
+thô thành chữ dễ hiểu, `empty` cho chữ hiện khi chưa có giá trị. `"badge": false` cho mục chỉ để xem thông tin (vd phiên
+bản phần mềm): hiện giá trị trần, không gắn nhãn *Đã đổi* / *Mặc định*.
 
 Trước mỗi lần chạy action không phải `read-only` (trừ khi chọn chạy thử), trạm ghi trạng thái các mục `service` và
 `registry` dưới `HKLM:\` vào `hub\data\snapshots\TrangThai_<lần chạy>.json`. Khi cửa sổ công cụ đóng, Lịch sử hiện số
 mục đã khác; *Xem thay đổi* so từng mục với hiện tại và *Trả lại* mở `hub\safety\TraLaiTrangThai.ps1` bằng quyền Admin
 để đặt lại kiểu khởi động (`sc.exe config`) và giá trị registry (đúng kiểu cũ; trước đó chưa có thì xoá). Registry
 `HKCU` không ghi lại vì tài khoản Admin nâng quyền có thể khác tài khoản đang dùng trạm. Nên khai báo trong `probes`
-mọi dịch vụ, giá trị registry công cụ có thể đổi, kể cả khi công cụ đã có nhật ký hoàn tác riêng.
+mọi dịch vụ, giá trị registry công cụ có thể đổi, kể cả khi công cụ đã có nhật ký hoàn tác riêng. Mục mà trả lại sẽ
+hại máy (registry, dịch vụ của phần mềm mà công cụ gỡ hoặc cài, như `tools\office`) thì đặt `"snapshot": false`.
 
 ## Kết quả (`outputs`)
 

@@ -83,7 +83,8 @@ function collectValues(specs) {
 }
 
 // Mục trạng thái (dịch vụ, registry HKLM) công cụ khai báo: trạm ghi lại trước khi chạy action đổi máy.
-const snapItems = (t) => (t.probes || []).filter((p) => p.type === 'service' || (p.type === 'registry' && /^HKLM:\\/i.test(p.path || '')));
+const snapItems = (t) => (t.probes || []).filter((p) => p.snapshot !== false
+  && (p.type === 'service' || (p.type === 'registry' && /^HKLM:\\/i.test(p.path || ''))));
 
 // Lan can an toàn: điểm khôi phục hệ thống (action đổi máy có quyền Admin) và ghi trạng thái trước khi chạy.
 // Chọn chạy thử thì máy chủ không làm cả hai, nên ô điểm khôi phục mờ đi.

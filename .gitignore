@@ -40,6 +40,13 @@ BitLocker Recovery Key*.txt
 BaoCao_BitLocker_*.txt
 BitLocker_ket_qua/
 
+# Office: bộ cài mẫu (file cấu hình có khoá sản phẩm), báo cáo, nhật ký có tên máy
+tools/office/mau/
+tools/office/*.xml
+BaoCao_Office_*.txt
+NhatKy_Office_*.txt
+Office_ket_qua/
+
 # Ghi âm / video
 *.m4a
 *.mp3
