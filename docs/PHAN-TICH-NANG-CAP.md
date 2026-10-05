@@ -24,6 +24,9 @@ Mức ưu tiên:
 - **Mới**: Máy in mạng LAN và thư mục chia sẻ; BitLocker và khoá khôi phục (mục P0 số 1, 2 của *Công cụ Windows nên
   thêm*); *Kết nối Wi-Fi* trong công cụ Wi-Fi. Phần chẩn đoán đã chạy thật; các nút sửa mới chạy thử hoặc chạy trên
   giả lập, chưa chạy ở văn phòng có máy in mạng, NAS, máy chia sẻ, chưa chạy trên ổ mã hoá BitLocker thật.
+- **Lan can an toàn (Trạm 1.2.0)**: điểm khôi phục hệ thống trước công cụ đổi máy bằng quyền Admin, ghi dịch vụ và
+  registry trước khi chạy để xem thay đổi và trả lại, kiểm tra và sửa winget. Đã thử bằng giả lập, chưa tạo điểm khôi
+  phục thật (máy phát triển đang tắt Bảo vệ hệ thống).
 - **Cần sửa trước khi đưa người khác dùng (P0)**: Sửa lỗi Windows, Tắt/bật dịch vụ, Chuyển dữ liệu khi cài lại Windows,
   phần *Cứu dữ liệu* của CheckWinFix.
 - **Không có tác dụng**: Tối ưu đồng hồ hệ thống ghi thiết lập vào registry trong khi Windows đọc từ BCD (`bcdedit`).
@@ -48,6 +51,7 @@ Mức ưu tiên:
 | `4a1afe8` | Máy in mạng LAN (mới), Trạm | Công cụ mới `tools\may-in-lan`. Trạm 1.1.1: `.ps1` chạy qua `-Command` trả đúng mã thoát; trước đó `exit 2`, `exit 3` thành 1 nên Lịch sử không phân biệt được thiếu điều kiện, làm được một phần. |
 | `97031b0` | Kiểm tra và sửa lỗi Wi-Fi | `KET_NOI_WIFI.bat` (bản 1.1): sửa lỗi *Can't connect to this network* khi vào mạng mới sau khi máy thức dậy; gọi thẳng API Wi-Fi, mật khẩu gõ trong cửa sổ công cụ và đi từ bộ nhớ vào Windows, không ghi file tạm. |
 | `24b424a` | BitLocker (mới), Chuyển dữ liệu khi cài lại Windows | Công cụ mới `tools\bitlocker`. Bước xuất lưu khoá khôi phục BitLocker (màn hình, nhật ký chỉ có Mã khoá) và driver mạng; bước nhập cài lại driver, mở khoá ổ dữ liệu bằng khoá đã lưu. |
+| `fba9675` | Trạm | Trạm 1.2.0, lan can an toàn: điểm khôi phục trước action đổi máy bằng quyền Admin, ghi trạng thái dịch vụ và registry trước khi chạy (xem thay đổi, trả lại), kiểm tra winget trước nút *Cài* và nút *Sửa winget*. |
 
 ## Bảng tổng quan
 
@@ -173,14 +177,46 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
   *mã 3* (làm được một phần). Khi giữ cửa sổ (`keepOpen`) vẫn như cũ.
 - Biểu tượng `print` cho công cụ máy in.
 
+**Bản 1.2.0 (05/10/2026): lan can an toàn**
+
+- **Điểm khôi phục hệ thống** trước action đổi máy bằng quyền Admin (`restorePoint` trong `tool.json`, mặc định khi
+  `admin` và `modifies-system`). Hộp xác nhận có ô chọn (đánh dấu sẵn theo *Cài đặt*, mờ đi khi chọn chạy thử).
+  `hub\safety\TaoDiemKhoiPhuc.ps1` chạy ngay trong cửa sổ Admin của công cụ nên chỉ hỏi UAC một lần. Windows lặng lẽ
+  bỏ qua nếu đã có điểm trong 24 giờ, nên script tạm đặt `SystemRestorePointCreationFrequency=0` rồi trả lại, và xác
+  nhận bằng số thứ tự điểm trước, sau. Bảo vệ hệ thống tắt thì hỏi bật (chỉ ổ Windows, giữ dung lượng tối đa mặc định),
+  chạy tiếp không có điểm, hay huỷ; lỗi khi tạo thì hỏi chạy tiếp hay huỷ. Không có lựa chọn mặc định. Huỷ trả mã
+  1223: công cụ không chạy, Lịch sử ghi *Đã huỷ*. Lịch sử hiện *Điểm khôi phục lúc ...* hoặc lý do không tạo.
+- **Ghi trạng thái trước khi chạy**: dịch vụ và registry `HKLM` khai báo trong `probes` ghi ra
+  `hub\data\snapshots\` ngay trước mỗi lần chạy có đổi máy (trừ chạy thử). Khi cửa sổ đóng, Lịch sử hiện số mục đã
+  khác; *Xem thay đổi* so từng mục, *Trả lại* chạy `hub\safety\TraLaiTrangThai.ps1` (Admin) đặt lại kiểu khởi động và
+  giá trị registry đúng kiểu cũ. Không tự gỡ dịch vụ mới cài thêm.
+- **winget**: *Máy này* kiểm tra lệnh chạy được và có nguồn chính `winget` (không gọi mạng, giữ kết quả 5 phút). Nút
+  *Cài* kiểm tra trước khi mở cửa sổ. *Sửa winget* (`hub\fixes\Sua-Winget.ps1`, quyền thường vì App Installer đăng
+  ký theo tài khoản) làm từng bước, bước nào cũng hỏi: đăng ký lại App Installer, `winget source update`,
+  `source reset --force` (cửa sổ Admin riêng), `Repair-WinGetPackageManager`, cuối cùng mở trang Store.
+- *Máy này* có thẻ *Bảo vệ hệ thống* với nút bật (`hub\safety\BatBaoVeHeThong.ps1`, tạo luôn điểm đầu tiên) và nút mở
+  *Khôi phục hệ thống*; *Cần chú ý* báo khi Bảo vệ hệ thống tắt hoặc winget hỏng.
+- Đã thử: 59 ca đơn vị (định dạng mã lỗi, ghi và trả registry đủ 6 kiểu qua JSON, dịch vụ bằng `sc.exe` giả lập),
+  40 kịch bản cho các script `hub\safety` và *Sửa winget* với hàm giả lập (gồm ghép với `.bat`, `.ps1` như trạm gọi:
+  huỷ thì công cụ không chạy, chạy tiếp thì giữ đúng mã thoát), trạm thử và ảnh chụp giao diện. Chưa tạo điểm khôi phục
+  thật, chưa trả lại dịch vụ thật.
+
+Ghi chú:
+
+- Windows 11 24H2 trở đi (KB5060842) giữ điểm khôi phục tối đa 60 ngày. Tính năng *Point-in-time restore* mới của
+  Windows 11 dùng chung chỗ của Volume Shadow Copy, nên trạm không đổi dung lượng tối đa của Bảo vệ hệ thống.
+- Nhật ký hoàn tác riêng của từng công cụ (`tools\may-in-lan\lib\NhatKy.ps1`, bản chép trong `tools\bitlocker`) vẫn
+  giữ: hai bản đã thử kỹ và ghi được thứ trạm chưa ghi (tường lửa, SMB, máy in, khoá bảo vệ BitLocker). Gộp thành thư
+  viện chung để sau, khi có công cụ thứ ba cần.
+
 Hướng thiết kế: giao diện kiểu *Cài đặt* của Windows 11 (Fluent 2), trầm, rõ, một màu nhấn, sáng tối như nhau. Áp dụng
 các quy tắc của [taste-skill](https://github.com/Leonxlnx/taste-skill) (MIT) hợp với ứng dụng công cụ: đủ trạng thái
 đang tải, trống, lỗi; một hệ bo góc; chữ số thẳng cột; không gạch dài trong chữ giao diện. Tham khảo cách làm của
 PowerToys Command Palette, Raycast, Linear (ô Ctrl+K), UniGetUI (bảng tác vụ đang chạy, lịch sử), GitHub Desktop
 (trạng thái trống có việc tiếp theo), hướng dẫn UAC và InfoBar của Microsoft.
 
-**Hướng tiếp**: các mục *Trạm* trong lộ trình ở trên (JSON kết quả, tiến độ, cập nhật công cụ) và mục *Trạm* trong
-phần *Công cụ Windows nên thêm* dưới đây (điểm khôi phục, nhật ký hoàn tác, kiểm tra winget).
+**Hướng tiếp**: các mục *Trạm* trong lộ trình ở trên (JSON kết quả, tiến độ, cập nhật công cụ); loại probe `script`
+chỉ đọc (BitLocker, SMB); thư viện nhật ký hoàn tác chung.
 
 ## Công cụ Windows nên thêm
 
@@ -295,14 +331,10 @@ máy in).
 
 ### Bổ sung cho trạm và công cụ đang có
 
-- **P0 Trạm**: tạo điểm khôi phục trước action thay đổi máy (`Checkpoint-Computer`; Windows chỉ cho một điểm mỗi 24
-  giờ trừ khi đặt `SystemRestorePointCreationFrequency=0`). Nhật ký hoàn tác: xuất registry, kiểu khởi động dịch vụ ra
-  JSON (`tools\may-in-lan\lib\NhatKy.ps1` đã làm kiểu này cho dịch vụ, registry, tường lửa, SMB, máy in;
-  `tools\bitlocker` chép lại cho khoá bảo vệ BitLocker; nên tách ra dùng chung). Kiểm tra winget trước vì mọi nút
-  *Cài* dựa vào nó
-  ([winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/): đăng ký lại App Installer, rồi
-  `Repair-WinGetPackageManager`). Thêm loại probe `script` chỉ đọc: probe hiện chỉ đọc dịch vụ và registry nên chưa
-  hiện được BitLocker hay SMB.
+- ~~**P0 Trạm**: điểm khôi phục, ghi trạng thái để hoàn tác, kiểm tra winget~~: đã làm (Trạm 1.2.0, commit
+  `fba9675`, xem mục *Trạm Tool*). Còn: thư viện nhật ký hoàn tác chung (`tools\may-in-lan\lib\NhatKy.ps1` ghi được
+  tường lửa, SMB, máy in; `tools\bitlocker` chép lại cho khoá bảo vệ), loại probe `script` chỉ đọc để hiện BitLocker,
+  SMB.
 - ~~**P0 Chuyển dữ liệu khi cài lại Windows**~~: đã làm (commit `24b424a`). Bước xuất ghi trạng thái BitLocker mọi ổ
   và lưu khoá, xuất driver bằng `pnputil /export-driver` (mặc định chỉ driver mạng của hãng, lớp NET, vì cần ngay sau
   khi cài lại; chọn [T] để xuất mọi driver); bước nhập dùng `pnputil /add-driver <thư mục>\*.inf /subdirs /install`
@@ -328,7 +360,8 @@ máy in).
    thật.
 2. ~~**BitLocker**, kèm xuất khoá và driver trong *Chuyển dữ liệu khi cài lại Windows*~~: đã làm (`tools\bitlocker`,
    commit `24b424a`); còn chạy thật trên máy có ổ mã hoá.
-3. **Lan can an toàn của trạm**: điểm khôi phục, nhật ký hoàn tác, kiểm tra winget, giúp mọi bản sửa khác an toàn hơn.
+3. ~~**Lan can an toàn của trạm**: điểm khôi phục, nhật ký hoàn tác, kiểm tra winget~~: đã làm (Trạm 1.2.0, commit
+   `fba9675`); còn tạo điểm khôi phục, trả lại dịch vụ thật trên một máy có bật Bảo vệ hệ thống.
 4. **Dọn ổ C an toàn**: thường gặp, rủi ro thấp, thay cho *Clean Temp*.
 5. **Gói kiểm tra chỉ đọc cho CheckWinFix**: rẻ, nhanh (Secure Boot, kích hoạt, môi trường khôi phục, giấc ngủ).
 
