@@ -97,9 +97,20 @@ function ConvertTo-HubAction {
             options     = $options
             min         = (Get-Prop $a 'min' $null)
             max         = (Get-Prop $a 'max' $null)
+            # Tham số "Chạy thử": khi được chọn, trạm không tạo điểm khôi phục, không ghi trạng thái. Mặc định nhận
+            # theo quy ước tham số bool có id 'chay-thu'.
+            dryRun      = [bool](Get-Prop $a 'dryRun' ($argType -eq 'bool' -and $argId -eq 'chay-thu'))
         }
         $n++
     }
+
+    # Điểm khôi phục hệ thống chỉ tạo được trong cửa sổ Admin mà trạm mở (.bat, .cmd, .ps1). Mặc định: có với
+    # action đổi máy (modifies-system); tool.json đặt restorePoint true/false để bật, tắt riêng.
+    $admin = [bool](Get-Prop $Raw 'admin' $false)
+    $rpRaw = Get-Prop $Raw 'restorePoint' $null
+    $canRp = $admin -and $type -eq 'console' -and ([IO.Path]::GetExtension($file).ToLowerInvariant() -in '.bat', '.cmd', '.ps1')
+    if ($rpRaw -eq $true -and -not $canRp) { [void]$Problems.Add("Action '$id': restorePoint chỉ dùng được cho action console .bat, .cmd, .ps1 có admin: true.") }
+    $restorePoint = $canRp -and $(if ($null -ne $rpRaw) { [bool]$rpRaw } else { $risk -eq 'modifies-system' })
 
     return [ordered]@{
         id           = $id
@@ -108,9 +119,10 @@ function ConvertTo-HubAction {
         file         = $file
         url          = [string](Get-Prop $Raw 'url' '')
         type         = $type
-        admin        = [bool](Get-Prop $Raw 'admin' $false)
+        admin        = $admin
         selfElevates = [bool](Get-Prop $Raw 'selfElevates' $false)
         risk         = $risk
+        restorePoint = $restorePoint
         primary      = [bool](Get-Prop $Raw 'primary' $false)
         duration     = [string](Get-Prop $Raw 'duration' '')
         keepOpen     = [bool](Get-Prop $Raw 'keepOpen' $false)

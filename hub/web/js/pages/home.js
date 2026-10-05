@@ -33,6 +33,12 @@ function attentionItems() {
     if (sb.enabled && sb.ca2023 && sb.ca2023 !== 'Updated') {
       out.push({ ic: 'shield-error', tone: 'warning', text: 'Secure Boot chưa nhận chứng chỉ 2023 của Microsoft (chứng chỉ cũ hết hạn 19/10/2026). Máy vẫn khởi động bình thường; cập nhật Windows và BIOS để nhận bản vá khởi động sau này.', act: 'Xem máy', to: '#/system' });
     }
+    if (s.restore && s.restore.enabled === false) {
+      out.push({ ic: 'shield-error', tone: 'info', text: `Bảo vệ hệ thống đang tắt: trạm chưa tạo được điểm khôi phục trước khi chạy công cụ sửa máy. ${s.restore.policyOff || s.restore.vssDisabled || s.restore.configLocked ? s.restore.detail : 'Bật ở trang Máy này.'}`, act: 'Xem máy', to: '#/system' });
+    }
+    if (s.winget && typeof s.winget === 'object' && !s.winget.ok) {
+      out.push({ ic: 'download', tone: 'warning', text: `winget chưa dùng được: ${s.winget.problem} Các nút Cài cần winget.`, act: 'Sửa', to: '#/system' });
+    }
   }
   const seen = new Set();
   const vis = new Set(visibleTools().map((t) => t.id));

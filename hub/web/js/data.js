@@ -29,7 +29,7 @@ export async function loadSystem(fresh = false) {
   if (!fresh && S.system && !S.system.error && Date.now() - S.systemAt < 300000) return;
   await shared(`system${fresh ? '-fresh' : ''}`, async () => {
     try {
-      S.system = await api('/api/system');
+      S.system = await api(`/api/system${fresh ? '?fresh=1' : ''}`);
       S.systemAt = Date.now();
     } catch (e) { S.system = { error: e.message }; }
     update();

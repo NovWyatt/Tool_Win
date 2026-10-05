@@ -50,7 +50,7 @@
       "items": { "$ref": "#/definitions/require" }
     },
     "probes": {
-      "description": "Trạng thái hiện tại trên máy mà công cụ thay đổi (dịch vụ, registry). Chỉ đọc.",
+      "description": "Trạng thái hiện tại trên máy mà công cụ thay đổi (dịch vụ, registry). Chỉ đọc. Trước mỗi lần chạy có đổi máy, trạm ghi lại các dịch vụ và registry HKLM ở đây để so và trả lại được.",
       "type": "array",
       "items": { "$ref": "#/definitions/probe" }
     },
@@ -108,6 +108,10 @@
         "primary": { "description": "Nút chính (hiện to nhất, chạy khi bấm Chạy ở danh sách).", "type": "boolean", "default": false },
         "duration": { "description": "Thời gian chạy ước lượng, vd 'Dưới 1 phút'.", "type": "string" },
         "keepOpen": { "description": "Giữ cửa sổ sau khi script xong (thêm pause) để người dùng đọc kết quả.", "type": "boolean", "default": false },
+        "restorePoint": {
+          "description": "Tạo điểm khôi phục hệ thống trong cửa sổ Admin trước khi chạy (người dùng bỏ chọn được ở hộp xác nhận). Chỉ dùng cho action console .bat/.cmd/.ps1 có admin: true. Thiếu thì mặc định true khi admin và risk là modifies-system.",
+          "type": "boolean"
+        },
         "confirm": { "description": "Câu cảnh báo riêng hiện trong hộp xác nhận trước khi chạy.", "type": "string" },
         "changes": { "description": "Liệt kê thay đổi lên máy; hiện trong hộp xác nhận.", "type": "array", "items": { "type": "string" } },
         "fixedArgs": {
@@ -165,7 +169,11 @@
           }
         },
         "min": { "type": "number" },
-        "max": { "type": "number" }
+        "max": { "type": "number" },
+        "dryRun": {
+          "description": "bool: công tắc này là chế độ chạy thử (không đổi máy); bật thì trạm không tạo điểm khôi phục, không ghi trạng thái. Thiếu thì mặc định true khi id là chay-thu.",
+          "type": "boolean"
+        }
       },
       "allOf": [
         { "if": { "properties": { "type": { "const": "bool" } } }, "then": { "required": ["flag"] } },

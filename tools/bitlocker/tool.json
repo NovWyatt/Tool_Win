@@ -110,6 +110,7 @@
       "fixedArgs": ["-Mode", "giai-ma"],
       "admin": true,
       "risk": "modifies-system",
+      "restorePoint": false,
       "duration": "Bắt đầu ngay; giải mã chạy nền, ổ lớn mất vài giờ",
       "description": "Giữ nguyên dữ liệu, ổ không cần khoá nữa. Ổ phải đang mở khoá. Ổ Windows thì công cụ mở trang cài đặt mã hoá của Windows thay vì tự giải mã.",
       "confirm": "Sau khi giải mã, ai cầm ổ hoặc USB cũng đọc được dữ liệu, và không hoàn tác được. Cửa sổ công cụ còn hỏi lại (gõ DONG Y).",

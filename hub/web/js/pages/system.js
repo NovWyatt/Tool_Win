@@ -1,19 +1,57 @@
 // Trạm Tool - trang Máy này: tóm tắt nhanh (chỉ đọc) và yêu cầu của các công cụ.
 import { html, nothing } from '../../vendor/lit-html/lit-html.js';
-import { icon, enc } from '../core.js';
+import { api, icon, enc } from '../core.js';
 import { S, go, visibleTools } from '../state.js';
 import { section, pageHead, emptyState, badge, skeleton } from '../parts.js';
 import { toast } from '../ui.js';
 import { loadSystem, loadDepsAll } from '../data.js';
+import { refreshJobs, watchJob } from '../jobs.js';
 
 export function systemLoad() {
   loadSystem();
   loadDepsAll();
 }
 
-function stat(ic, label, value, note = '', warn = false) {
+function stat(ic, label, value, note = '', warn = false, act = nothing) {
   return html`<div class="card stat${warn ? ' warn' : ''}"><span class="label">${icon(ic, 'ic-16')}${label}</span>
-    <span class="value">${value}</span>${note ? html`<span class="note">${note}</span>` : nothing}</div>`;
+    <span class="value">${value}</span>${note ? html`<span class="note">${note}</span>` : nothing}${act !== nothing ? html`<span class="act">${act}</span>` : nothing}</div>`;
+}
+
+// Mở cửa sổ sửa (script của trạm); cửa sổ Admin thì Windows hỏi UAC.
+async function launchFix(path, opening, done) {
+  const note = toast('info', opening, { ms: 0 });
+  try {
+    const r = await api(path, { method: 'POST' });
+    if (r.ok) { watchJob(r.jobId); note.update('success', done, { ms: 6000 }); }
+    else if (r.cancelled) note.update('info', 'Đã huỷ: bạn chọn "Không" ở hộp thoại quyền Admin.');
+    else note.update('error', r.message || 'Không mở được cửa sổ sửa.', { ms: 12000 });
+    refreshJobs();
+  } catch (e) { note.update('error', e.message, { ms: 12000 }); }
+}
+
+export async function openRestoreUi() {
+  try { await api('/api/restore-ui', { method: 'POST' }); toast('info', 'Đã mở Khôi phục hệ thống của Windows (cần quyền Admin).', { ms: 5000 }); } catch (e) { toast('error', e.message); }
+}
+
+function restoreStat(r) {
+  if (!r) return nothing;
+  if (r.enabled) {
+    return stat('shield-check', 'Bảo vệ hệ thống', 'Đang bật', 'Trạm tạo điểm khôi phục trước khi chạy công cụ đổi máy.', false,
+      html`<fluent-button size="small" @click=${openRestoreUi}>Mở Khôi phục hệ thống</fluent-button>`);
+  }
+  if (r.enabled === false) {
+    const canFix = !r.policyOff && !r.vssDisabled && !r.configLocked;
+    return stat('shield-error', 'Bảo vệ hệ thống', 'Đang tắt', canFix ? 'Chưa có điểm khôi phục để quay lại nếu công cụ làm hỏng máy.' : r.detail, true,
+      canFix ? html`<fluent-button size="small" @click=${() => launchFix('/api/restore/enable', 'Đang mở cửa sổ bật Bảo vệ hệ thống. Windows sẽ hỏi quyền Admin.', 'Đã mở cửa sổ bật Bảo vệ hệ thống. Xong bấm Đọc lại.')}>Bật Bảo vệ hệ thống</fluent-button>` : nothing);
+  }
+  return stat('shield', 'Bảo vệ hệ thống', 'Không đọc được', r.detail || '');
+}
+
+function wingetStat(w) {
+  if (!w || typeof w !== 'object') return stat('download', 'winget', 'Không rõ', 'Dùng để cài phần mềm còn thiếu');
+  if (w.ok) return stat('download', 'winget', `Dùng được, ${w.version}`, 'Dùng để cài phần mềm còn thiếu (nút Cài).');
+  return stat('download', 'winget', 'Chưa dùng được', `${w.problem} Các nút Cài cần winget.`, true,
+    html`<fluent-button size="small" @click=${() => launchFix('/api/winget/fix', 'Đang mở cửa sổ sửa winget...', 'Đã mở cửa sổ sửa winget. Xong bấm Đọc lại.')}>Sửa winget</fluent-button>`);
 }
 
 function secureBootStat(sb) {
@@ -38,7 +76,8 @@ function stats(s) {
     ${stat('flash', 'Card đồ hoạ', (s.gpus || []).join(', ') || 'Không rõ')}
     ${secureBootStat(s.secureBoot)}
     ${stat('code', 'Python', s.python || 'Chưa có', s.pythonPath || 'Cần cho công cụ ghi âm, mdf2sql, DWG sang PDF', !s.python)}
-    ${stat('download', 'winget', s.winget ? 'Có sẵn' : 'Chưa có', 'Dùng để cài phần mềm còn thiếu', !s.winget)}
+    ${restoreStat(s.restore)}
+    ${wingetStat(s.winget)}
     ${stat('person', 'Tài khoản', s.user, s.isAdmin ? 'Trạm đang chạy với quyền Admin' : 'Công cụ cần Admin sẽ hỏi UAC khi chạy')}
     ${(s.disks || []).map((d) => stat('hard-drive', `Ổ ${d.drive} ${d.label || ''}`.trim(), `Còn ${d.free} / ${d.size}`, `${d.freePct}% trống`, d.freePct < 12))}
     ${(s.physical || []).map((p) => stat('server', p.name || 'Ổ vật lý', p.health === 'Healthy' ? 'Khoẻ' : p.health || 'Không rõ', `${p.media || ''} ${p.size || ''}`.trim(), p.health && p.health !== 'Healthy'))}`;

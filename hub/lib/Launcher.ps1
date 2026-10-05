@@ -94,27 +94,52 @@ function Resolve-ActionArguments {
     return , $argv.ToArray()
 }
 
+function Test-DryRunSelected {
+    # Người dùng có chọn tham số "Chạy thử" (dryRun) của action không.
+    param($Action, $Values)
+    foreach ($spec in @($Action.args)) {
+        if (-not $spec.dryRun -or $spec.type -ne 'bool') { continue }
+        $v = Get-Prop $Values $spec.id $null
+        if ($v -eq $true -or [string]$v -eq 'true') { return $true }
+    }
+    return $false
+}
+
 function Get-LaunchCommand {
     # Trả về exe + chuỗi tham số. Khi chạy RunAs, Windows bỏ qua WorkingDirectory nên tự cd vào thư mục.
     # $Arguments: mảng @{ Value; IsFlag } (từ Resolve-ActionArguments) hoặc chuỗi (coi là giá trị).
-    param([string]$File, [object[]]$Arguments, [bool]$KeepOpen)
+    # $RestorePoint: @{ Script; Tool; Action; RunTime; Log } thì chạy script tạo điểm khôi phục trong cùng cửa sổ
+    # (cùng lần hỏi UAC) trước công cụ. Script trả 1223 khi người dùng chọn huỷ: công cụ không chạy.
+    param([string]$File, [object[]]$Arguments, [bool]$KeepOpen, $RestorePoint = $null)
     $workDir = Split-Path $File -Parent
     $ext = [IO.Path]::GetExtension($File).ToLowerInvariant()
     $items = @(@($Arguments) | Where-Object { $null -ne $_ } | ForEach-Object {
             if ($_ -is [string]) { [pscustomobject]@{ Value = $_; IsFlag = $false } } else { $_ }
         } | Where-Object { [string]$_.Value -ne '' })
     $argText = ($items | ForEach-Object { '"' + $_.Value + '"' }) -join ' '
+    if ($RestorePoint) {
+        foreach ($k in 'Script', 'Tool', 'Action', 'RunTime', 'Log') { Assert-SafeArgument -Value ([string]$RestorePoint[$k]) -Label "Điểm khôi phục ($k)" }
+    }
     switch ($ext) {
         { $_ -in '.bat', '.cmd' } {
             $inner = 'cd /d "' + $workDir + '" && "' + $File + '"'
             if ($argText) { $inner += ' ' + $argText }
             if ($KeepOpen) { $inner += ' & echo. & echo [Tram Tool] Cong cu da chay xong. Bam phim bat ky de dong. & pause >nul' }
+            if ($RestorePoint) {
+                # Script điểm khôi phục chỉ trả 0 (chạy tiếp) hoặc 1223 (huỷ): mã khác 0 thì cả khối sau không chạy.
+                $inner = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "' + $RestorePoint.Script + '" -Tool "' + $RestorePoint.Tool +
+                '" -Action "' + $RestorePoint.Action + '" -RunTime "' + $RestorePoint.RunTime + '" -Log "' + $RestorePoint.Log + '" && (' + $inner + ' )'
+            }
             return @{ Exe = $env:ComSpec; Args = '/s /c "' + $inner + '"'; WorkDir = $workDir }
         }
         '.ps1' {
             $q = { param($s) "'" + ($s -replace "'", "''") + "'" }
             $psArgs = ($items | ForEach-Object { if ($_.IsFlag) { $_.Value } else { & $q $_.Value } }) -join ' '
             $cmd = 'Set-Location -LiteralPath ' + (& $q $workDir) + '; & ' + (& $q $File) + ' ' + $psArgs
+            if ($RestorePoint) {
+                $cmd = '& ' + (& $q $RestorePoint.Script) + ' -Tool ' + (& $q $RestorePoint.Tool) + ' -Action ' + (& $q $RestorePoint.Action) +
+                ' -RunTime ' + (& $q $RestorePoint.RunTime) + ' -Log ' + (& $q $RestorePoint.Log) + '; if ($LASTEXITCODE -eq 1223) { exit 1223 }; ' + $cmd
+            }
             # -Command chỉ trả 0/1: "exit 3" trong script thành 1. Tự chuyển mã thoát của script ra ngoài để trạm
             # phân biệt được lỗi (1), thiếu điều kiện (2), làm được một phần (3). Không làm khi giữ cửa sổ (-NoExit).
             if (-not $KeepOpen) { $cmd += '; if ($?) { exit 0 }; if ($LASTEXITCODE) { exit $LASTEXITCODE }; exit 1' }
@@ -131,9 +156,12 @@ function Start-ToolAction {
         [Parameter(Mandatory)]$Action,
         [object[]]$Arguments = @(),
         [Parameter(Mandatory)][string]$HistoryPath,
-        $Values = $null   # giá trị form người dùng nhập, lưu lại để lần sau điền sẵn
+        $Values = $null,   # giá trị form người dùng nhập, lưu lại để lần sau điền sẵn
+        # Lan can: @{ RestorePoint = bool; Snapshot = bool; ScriptDir; Log; SnapshotDir } (xem AnToan.ps1)
+        $Safety = $null
     )
     $result = [ordered]@{ ok = $false; cancelled = $false; message = ''; pid = $null; elevated = [bool]$Action.admin; jobId = $null }
+    $snapPath = ''
     $argValues = @(@($Arguments) | Where-Object { $null -ne $_ } | ForEach-Object { if ($_ -is [string]) { $_ } else { [string]$_.Value } })
     $entry = [ordered]@{
         time = Get-IsoTime; toolId = $Tool.id; toolName = $Tool.name; actionId = $Action.id; actionLabel = $Action.label
@@ -154,7 +182,19 @@ function Start-ToolAction {
                 Start-Process -FilePath $file
                 $result.ok = $true; $result.message = 'Đã mở.'
             } else {
-                $cmd = Get-LaunchCommand -File $file -Arguments $Arguments -KeepOpen $Action.keepOpen
+                $rp = $null
+                if ($Safety -and $Safety.RestorePoint -and $Action.restorePoint) {
+                    $rp = @{ Script = (Join-Path $Safety.ScriptDir 'TaoDiemKhoiPhuc.ps1'); Tool = [string]$Tool.id; Action = [string]$Action.id; RunTime = $entry.time; Log = $Safety.Log }
+                    $entry.restorePoint = $true
+                }
+                if ($Safety -and $Safety.Snapshot) {
+                    # Ghi trạng thái các mục công cụ khai báo (probes) để sau so và trả lại được.
+                    try {
+                        $snap = New-RunSnapshot -Tool $Tool -Action $Action -RunTime $entry.time -Dir $Safety.SnapshotDir
+                        if ($snap) { $entry.snapshot = $snap; $snapPath = Join-Path $Safety.SnapshotDir $snap }
+                    } catch { Write-HubLog "Không ghi được trạng thái trước khi chạy: $($_.Exception.Message)" 'warn' }
+                }
+                $cmd = Get-LaunchCommand -File $file -Arguments $Arguments -KeepOpen $Action.keepOpen -RestorePoint $rp
                 $sp = @{ FilePath = $cmd.Exe; WorkingDirectory = $cmd.WorkDir; PassThru = $true }
                 if ($cmd.Args) { $sp.ArgumentList = $cmd.Args }
                 if ($Action.admin) { $sp.Verb = 'RunAs' }
@@ -162,7 +202,7 @@ function Start-ToolAction {
                 if ($proc) {
                     $result.pid = $proc.Id
                     # Script tự nâng quyền sẽ mở bản Admin rồi thoát ngay, nên không theo dõi được cửa sổ thật.
-                    if (-not ($Action.selfElevates -and -not $Action.admin)) { $result.jobId = Register-ToolJob -Entry $entry -Process $proc }
+                    if (-not ($Action.selfElevates -and -not $Action.admin)) { $result.jobId = Register-ToolJob -Entry $entry -Process $proc -Snapshot $snapPath }
                 }
                 if (-not $Action.admin) { Invoke-BringToFront -Process $proc }
                 $result.ok = $true
@@ -177,6 +217,11 @@ function Start-ToolAction {
     } catch {
         $result.message = $_.Exception.Message
     }
+    if (-not $result.ok -and $snapPath) {
+        # Công cụ không chạy: bỏ ảnh trạng thái vừa ghi.
+        Remove-Item -LiteralPath $snapPath -Force -ErrorAction SilentlyContinue
+        $entry.Remove('snapshot'); $entry.Remove('restorePoint')
+    }
     $entry.ok = $result.ok; $entry.cancelled = $result.cancelled; $entry.message = $result.message; $entry.pid = $result.pid
     try { Add-JsonLine -Path $HistoryPath -InputObject $entry } catch { Write-HubLog "Không ghi được lịch sử: $($_.Exception.Message)" 'warn' }
     return $result
@@ -189,23 +234,25 @@ $script:Jobs = [ordered]@{}   # id -> thông tin gửi cho giao diện
 $script:JobProcs = @{}        # id -> @{ Process; Start; Ended } (giữ trong máy chủ)
 
 function Register-ToolJob {
-    param([Parameter(Mandatory)]$Entry, [Parameter(Mandatory)][System.Diagnostics.Process]$Process)
+    param([Parameter(Mandatory)]$Entry, [Parameter(Mandatory)][System.Diagnostics.Process]$Process, [string]$Snapshot = '')
     $id = [guid]::NewGuid().ToString('N').Substring(0, 12)
     $script:Jobs[$id] = [ordered]@{
         id = $id; time = $Entry.time; toolId = $Entry.toolId; toolName = $Entry.toolName; actionId = $Entry.actionId
         actionLabel = $Entry.actionLabel; elevated = $Entry.elevated; pid = $Process.Id
         state = 'running'; exitCode = $null; endedAt = $null; durationSec = 0
     }
-    $script:JobProcs[$id] = @{ Process = $Process; Start = Get-Date; Ended = $null }
+    $script:JobProcs[$id] = @{ Process = $Process; Start = Get-Date; Ended = $null; Snapshot = $Snapshot }
     return $id
 }
 
 function Get-JobState {
-    # done: mã thoát 0; closed: người dùng đóng cửa sổ (0xC000013A); failed: mã khác 0; ended: không đọc được mã.
+    # done: mã thoát 0; closed: người dùng đóng cửa sổ (0xC000013A); cancelled: chọn huỷ trước khi công cụ chạy
+    # (1223, vd ở bước tạo điểm khôi phục); failed: mã khác 0; ended: không đọc được mã.
     param($ExitCode)
     if ($null -eq $ExitCode) { return 'ended' }
     if ($ExitCode -eq 0) { return 'done' }
     if ($ExitCode -eq -1073741510) { return 'closed' }
+    if ($ExitCode -eq 1223) { return 'cancelled' }
     return 'failed'
 }
 
@@ -232,6 +279,10 @@ function Update-ToolJobs {
         $info.Ended = $now
         try { $p.Dispose() } catch { }
         $rec = [ordered]@{ type = 'end'; time = $job.time; endedAt = $job.endedAt; exitCode = $code; state = $job.state; durationSec = $job.durationSec }
+        if ($info.Snapshot -and (Test-Path -LiteralPath $info.Snapshot)) {
+            # Số mục (dịch vụ, registry) đã khác so với lúc trước khi chạy.
+            try { $rec.changed = @(Compare-RunSnapshot -Path $info.Snapshot | Where-Object { $_.changed }).Count } catch { }
+        }
         try { Add-JsonLine -Path $HistoryPath -InputObject $rec } catch { Write-HubLog "Không ghi được kết quả chạy: $($_.Exception.Message)" 'warn' }
     }
 }
@@ -266,9 +317,17 @@ function Show-ToolJobWindow {
 function Get-RunHistory {
     # Mỗi lần chạy là một dòng; dòng { type: 'end' } bổ sung kết quả khi cửa sổ công cụ đóng.
     # state: running | done | closed | failed | ended | unknown (trạm tắt trước khi cửa sổ đóng) | cancelled | error
-    param([string]$HistoryPath, [int]$Limit = 150)
+    # $RestoreLogPath: kết quả tạo điểm khôi phục (hub\safety\TaoDiemKhoiPhuc.ps1 ghi, mỗi dòng một lần chạy).
+    param([string]$HistoryPath, [int]$Limit = 150, [string]$RestoreLogPath = '')
     if (-not (Test-Path -LiteralPath $HistoryPath)) { return @() }
     $lines = @(Get-Content -LiteralPath $HistoryPath -Encoding UTF8 -Tail ($Limit * 2))
+    $rps = @{}
+    if ($RestoreLogPath -and (Test-Path -LiteralPath $RestoreLogPath)) {
+        foreach ($line in @(Get-Content -LiteralPath $RestoreLogPath -Encoding UTF8 -Tail ($Limit * 2))) {
+            if (-not $line.Trim()) { continue }
+            try { $o = $line | ConvertFrom-Json; $rps[[string]$o.time] = $o } catch { }
+        }
+    }
     $ends = @{}
     $runs = New-Object System.Collections.ArrayList
     foreach ($line in $lines) {
@@ -289,10 +348,13 @@ function Get-RunHistory {
         elseif ([bool](Get-Prop $r 'cancelled' $false) -or [string]$r.message -match 'UAC') { 'cancelled' }
         else { 'error' }
         $r | Add-Member -NotePropertyName state -NotePropertyValue $state -Force
+        if ($rps.ContainsKey($key)) { $r | Add-Member -NotePropertyName rp -NotePropertyValue $rps[$key] -Force }
         if ($e) {
             $r | Add-Member -NotePropertyName exitCode -NotePropertyValue $e.exitCode -Force
             $r | Add-Member -NotePropertyName durationSec -NotePropertyValue $e.durationSec -Force
             $r | Add-Member -NotePropertyName endedAt -NotePropertyValue $e.endedAt -Force
+            $changed = Get-Prop $e 'changed' $null
+            if ($null -ne $changed) { $r | Add-Member -NotePropertyName changed -NotePropertyValue $changed -Force }
         } elseif ($running.ContainsKey($key)) {
             $r | Add-Member -NotePropertyName durationSec -NotePropertyValue $running[$key].durationSec -Force
         }

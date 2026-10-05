@@ -80,6 +80,7 @@
       "admin": true,
       "selfElevates": true,
       "risk": "modifies-system",
+      "restorePoint": false,
       "duration": "Vài phút đến vài giờ, tuỳ dung lượng và mức hỏng của ổ",
       "description": "Viết riêng cho ca máy giữ xe dùng ITS-Pro trên SQL Server khi ổ D: hỏng: dừng SQL Server, chép D:\\ITS bằng robocopy sang nơi lưu (mặc định C:\\CUU_DU_LIEU_ITS_<giờ>), bật lại dịch vụ, đối chiếu MD5. Phải gõ Y để bắt đầu.",
       "confirm": "Chỉ chạy khi đã xác định ổ D: hỏng phần cứng. Phần mềm giữ xe ngừng trong lúc chép. Nên chọn nơi lưu là USB hoặc ổ khác ổ vật lý đang hỏng (C: và D: có thể cùng một ổ).",

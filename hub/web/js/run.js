@@ -21,6 +21,9 @@ function pickText(spec) {
   return v.length > 1 ? `${v.length} mục: ${v.join('; ')}` : v[0];
 }
 
+// Công tắc đang bật: theo giá trị đã có (lần trước, hoặc đọc lại khi vẽ lại form), không có thì theo mặc định.
+const boolOn = (spec, prev) => (prev && prev[spec.id] != null ? prev[spec.id] === true || prev[spec.id] === 'true' : spec.default === true);
+
 function field(spec, prev) {
   const id = `arg-${spec.id}`;
   const req = spec.required ? html`<span class="req" aria-hidden="true">*</span>` : nothing;
@@ -40,8 +43,9 @@ function field(spec, prev) {
       </div>${help}${err}</div>`;
   }
   if (spec.type === 'bool') {
-    const on = has ? prev[spec.id] === true || prev[spec.id] === 'true' : spec.default === true;
-    return html`<div class="field"><label class="check"><input type="checkbox" id=${id} ?checked=${on}><span>${spec.label}</span></label>${help}${err}</div>`;
+    // Công tắc chạy thử: vẽ lại để ô điểm khôi phục theo kịp.
+    return html`<div class="field"><label class="check"><input type="checkbox" id=${id} ?checked=${boolOn(spec, prev)}
+      @change=${spec.dryRun ? () => redrawForm() : nothing}><span>${spec.label}</span></label>${help}${err}</div>`;
   }
   if (spec.type === 'choice') {
     const cur = def == null ? (spec.options[0] || {}).value : String(def);
@@ -78,17 +82,37 @@ function collectValues(specs) {
   return { values };
 }
 
-let current = null; // { t, a, prev } của form đang mở, để vẽ lại khi chọn file
-function formBody({ t, a, prev }) {
+// Mục trạng thái (dịch vụ, registry HKLM) công cụ khai báo: trạm ghi lại trước khi chạy action đổi máy.
+const snapItems = (t) => (t.probes || []).filter((p) => p.type === 'service' || (p.type === 'registry' && /^HKLM:\\/i.test(p.path || '')));
+
+// Lan can an toàn: điểm khôi phục hệ thống (action đổi máy có quyền Admin) và ghi trạng thái trước khi chạy.
+// Chọn chạy thử thì máy chủ không làm cả hai, nên ô điểm khôi phục mờ đi.
+function safetyBlock({ t, a, prev, rp }) {
+  const snap = a.risk !== 'read-only' ? snapItems(t).length : 0;
+  const dryOn = (a.args || []).some((s) => s.dryRun && boolOn(s, prev));
+  if (!a.restorePoint && (!snap || dryOn)) return nothing;
+  return html`<div class="safety">
+    ${a.restorePoint ? html`<label class="check${dryOn ? ' off' : ''}"><input type="checkbox" id="opt-rp" ?checked=${rp && !dryOn} ?disabled=${dryOn}>
+        <span>Tạo điểm khôi phục hệ thống trước khi chạy</span></label>
+      <div class="hint">${dryOn ? 'Đang chọn chạy thử, máy không bị thay đổi nên không tạo điểm khôi phục.'
+        : 'Máy lỗi sau khi chạy thì dùng Khôi phục hệ thống của Windows để quay lại điểm này. Thường mất từ nửa phút đến vài phút.'}</div>` : nothing}
+    ${snap && !dryOn ? html`<p class="muted small note">${icon('history', 'ic-16')}<span>Trạm ghi lại ${snap} mục (dịch vụ, registry) trước khi chạy, để xem thay đổi và trả lại được ở trang Lịch sử.</span></p>` : nothing}
+  </div>`;
+}
+
+let current = null; // { t, a, prev, rp, filled } của form đang mở, để vẽ lại khi chọn file hoặc bật chạy thử
+function formBody(cur) {
+  const { a, prev } = cur;
   const specs = a.args || [];
   const risky = a.risk === 'modifies-system' || !!a.confirm;
   const changes = a.changes || [];
   return html`
     ${a.description ? html`<p class=${specs.length ? 'muted' : ''}>${a.description}</p>` : nothing}
-    ${prev && specs.length ? html`<p class="muted small">${icon('history', 'ic-16')} Đã điền sẵn giá trị của lần chạy trước.</p>` : nothing}
+    ${cur.filled && specs.length ? html`<p class="muted small">${icon('history', 'ic-16')} Đã điền sẵn giá trị của lần chạy trước.</p>` : nothing}
     ${specs.length ? html`<div class="form">${specs.map((s) => field(s, prev))}</div>` : nothing}
     ${risky && a.confirm ? html`<div class="warnbox">${icon('warning', 'ic-16')}<span>${a.confirm}</span></div>` : nothing}
     ${risky && changes.length ? html`<p class="dlg-sub">Công cụ có thể thay đổi:</p><ul>${changes.map((c) => html`<li>${c}</li>`)}</ul>` : nothing}
+    ${safetyBlock(cur)}
     ${a.admin ? html`<p class="muted note">${icon('shield', 'ic-16')} Windows sẽ hỏi quyền Admin (UAC). Bấm "Có" để tiếp tục.</p>` : nothing}`;
 }
 
@@ -103,6 +127,8 @@ function redrawForm() {
     snap[s.id] = s.type === 'bool' ? el.checked : el.value;
   }
   current.prev = snap;
+  const rpEl = document.getElementById('opt-rp');
+  if (rpEl && !rpEl.disabled) current.rp = rpEl.checked;
   const body = document.getElementById('dlg-body');
   if (body) render(html`${formBody(current)}<div class="form-error" id="dlg-error" role="alert" hidden></div>`, body);
 }
@@ -129,7 +155,8 @@ export async function runAction(toolId, actionId, { values: given = null } = {})
   const specs = a.args || [];
   const risky = a.risk === 'modifies-system' || !!a.confirm;
   let values = {};
-  if (specs.length || risky) {
+  let rpChoice = null; // null: theo Cài đặt của trạm
+  if (specs.length || risky || a.restorePoint) {
     const prev = given || lastValues(toolId, actionId);
     form.toolId = toolId;
     form.actionId = actionId;
@@ -137,7 +164,7 @@ export async function runAction(toolId, actionId, { values: given = null } = {})
     for (const s of specs) {
       if ((s.type === 'file' || s.type === 'folder') && prev && Array.isArray(prev[s.id])) form.picks[s.id] = prev[s.id].slice();
     }
-    current = { t, a, prev };
+    current = { t, a, prev, rp: S.settings.restorePoint !== false, filled: !!prev };
     let collected = null;
     const ok = await openDialog({
       title: specs.length ? a.label : `Chạy "${a.label}"?`,
@@ -151,6 +178,8 @@ export async function runAction(toolId, actionId, { values: given = null } = {})
         const r = collectValues(specs);
         if (r.error) return r;
         collected = r.values;
+        const rpEl = document.getElementById('opt-rp');
+        if (rpEl) rpChoice = rpEl.checked;
         return null;
       },
     });
@@ -161,7 +190,9 @@ export async function runAction(toolId, actionId, { values: given = null } = {})
   // Máy chủ trả lời sau khi cửa sổ công cụ hiện lên (hoặc sau khi bạn trả lời hộp thoại UAC): báo ngay là đang mở.
   const note = toast('info', a.admin ? `Đang mở ${t.name}. Windows sẽ hỏi quyền Admin, bấm "Có" để tiếp tục.` : `Đang mở ${t.name}...`, { ms: 0 });
   try {
-    const r = await api('/api/run', { method: 'POST', body: { toolId, actionId, values } });
+    const body = { toolId, actionId, values };
+    if (rpChoice !== null) body.restorePoint = rpChoice;
+    const r = await api('/api/run', { method: 'POST', body });
     if (r.ok) {
       watchJob(r.jobId);
       note.update('success', r.jobId ? `Đã mở ${t.name}. Theo dõi ở thanh Đang chạy phía dưới.` : r.message, { ms: 5000 });

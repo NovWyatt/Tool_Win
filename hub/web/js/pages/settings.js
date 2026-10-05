@@ -39,6 +39,9 @@ export function settingsPage() {
         html`<div class="seg" role="group" aria-label="Giao diện">${seg('system', 'Theo Windows')}${seg('light', 'Sáng')}${seg('dark', 'Tối')}</div>`)}
       ${setting('people', 'Chế độ đơn giản', 'Ẩn công cụ kỹ thuật và phần phân tích, hợp cho nhân viên văn phòng dùng.',
         html`<fluent-switch .checked=${st.simple} @change=${(e) => { if (!!e.target.checked !== st.simple) save({ simple: !!e.target.checked }); }}></fluent-switch>`)}
+      <div class="group-title">An toàn</div>
+      ${setting('shield-check', 'Điểm khôi phục trước khi đổi máy', 'Tạo điểm khôi phục hệ thống (System Restore) trước khi chạy công cụ thay đổi máy bằng quyền Admin. Vẫn bỏ chọn được ở từng lần chạy.',
+        html`<fluent-switch .checked=${st.restorePoint !== false} @change=${(e) => { if (!!e.target.checked !== (st.restorePoint !== false)) save({ restorePoint: !!e.target.checked }); }}></fluent-switch>`)}
       <div class="group-title">Máy chủ của trạm</div>
       ${setting('globe', 'Trình duyệt mở trạm', 'Áp dụng từ lần mở sau.',
         html`<select class="inp narrow" aria-label="Trình duyệt mở trạm" @change=${(e) => save({ browser: e.target.value })}>

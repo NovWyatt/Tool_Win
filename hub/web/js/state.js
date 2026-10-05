@@ -7,7 +7,7 @@ export const S = {
   tools: [],
   byId: new Map(),
   // Lưu ở máy chủ (hub\data\settings.json)
-  settings: { browser: 'auto', autoExitMinutes: 10, pins: [], theme: local.get('themeCache', 'system'), simple: false },
+  settings: { browser: 'auto', autoExitMinutes: 10, pins: [], theme: local.get('themeCache', 'system'), simple: false, restorePoint: true },
   deps: {},
   depsLoaded: false,
   history: null, // null = chưa tải

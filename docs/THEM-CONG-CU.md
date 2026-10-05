@@ -76,10 +76,17 @@ Lỗi trạm phát hiện khi đọc (thiếu file, sai mức rủi ro, flag sai
 | `primary` | Nút chính. Không khai báo thì nút đầu tiên là nút chính. |
 | `duration` | Thời gian ước lượng, vd `Dưới 1 phút`. |
 | `keepOpen` | Giữ cửa sổ sau khi script xong để người dùng đọc kết quả. |
+| `restorePoint` | Tạo điểm khôi phục hệ thống trong cửa sổ Admin của công cụ trước khi chạy. Mặc định `true` khi `admin` là `true` và `risk` là `modifies-system`; đặt `false` khi điểm khôi phục không có ích hoặc có hại (vd giải mã BitLocker, cứu dữ liệu từ ổ đang hỏng). Chỉ dùng được cho action `console` `.bat`/`.cmd`/`.ps1` có `admin: true`. |
 | `fixedArgs` | Tham số cố định truyền trước tham số người dùng nhập, vd `["convert"]`. |
 | `args` | Ô nhập trong form trước khi chạy, xem mục dưới. |
 
 Nên chọn `risk` thật sát: nhãn màu và hộp xác nhận giúp người dùng văn phòng biết nút nào an toàn để bấm.
+
+Điểm khôi phục: hộp xác nhận có ô *Tạo điểm khôi phục hệ thống trước khi chạy* (đánh dấu sẵn theo *Cài đặt* của trạm).
+Trạm chạy `hub\safety\TaoDiemKhoiPhuc.ps1` ngay trong cửa sổ Admin của công cụ, nên chỉ hỏi UAC một lần. Bảo vệ hệ
+thống đang tắt thì script hỏi bật, chạy tiếp không có điểm, hay huỷ; lỗi khi tạo thì hỏi chạy tiếp hay huỷ, không có
+lựa chọn mặc định. Chọn huỷ thì script trả mã `1223`, công cụ không chạy, Lịch sử ghi *Đã huỷ*. Script công cụ không
+cần làm gì thêm.
 
 ## Tham số người dùng nhập (`args`)
 
@@ -99,6 +106,8 @@ Khi nút có `args`, bấm **Chạy** sẽ mở form. Trình duyệt chỉ gửi
 - `required: true` bắt nhập trước khi chạy; `default` là giá trị điền sẵn.
 - Giá trị không được chứa `%` hoặc `"` (cmd không truyền an toàn được); ô chữ không được chứa `!` hoặc `^`.
   Trạm báo lỗi ngay trên form.
+- `dryRun: true` trên một ô `bool` đánh dấu đó là chế độ chạy thử: khi được chọn, trạm không tạo điểm khôi phục và không
+  ghi trạng thái. Ô `bool` có `id` là `chay-thu` tự được coi là chạy thử.
 
 Script nhận tham số như khi gọi từ dòng lệnh:
 
@@ -168,6 +177,13 @@ Với công cụ thay đổi thiết lập Windows, khai báo `probes` để tra
 `service` so kiểu khởi động với `default` để đánh dấu *Đã đổi* / *Mặc định*. `registry` dùng `values` để đổi giá trị
 thô thành chữ dễ hiểu.
 
+Trước mỗi lần chạy action không phải `read-only` (trừ khi chọn chạy thử), trạm ghi trạng thái các mục `service` và
+`registry` dưới `HKLM:\` vào `hub\data\snapshots\TrangThai_<lần chạy>.json`. Khi cửa sổ công cụ đóng, Lịch sử hiện số
+mục đã khác; *Xem thay đổi* so từng mục với hiện tại và *Trả lại* mở `hub\safety\TraLaiTrangThai.ps1` bằng quyền Admin
+để đặt lại kiểu khởi động (`sc.exe config`) và giá trị registry (đúng kiểu cũ; trước đó chưa có thì xoá). Registry
+`HKCU` không ghi lại vì tài khoản Admin nâng quyền có thể khác tài khoản đang dùng trạm. Nên khai báo trong `probes`
+mọi dịch vụ, giá trị registry công cụ có thể đổi, kể cả khi công cụ đã có nhật ký hoàn tác riêng.
+
 ## Kết quả (`outputs`)
 
 ```json
@@ -214,9 +230,10 @@ Nên liệt kê tên file cụ thể để gói không lẫn báo cáo, dữ li�
 - Kiểm tra mã lỗi của từng lệnh trước khi in "thành công"; thoát với mã khác 0 khi thất bại.
 - Mã thoát: `0` xong, `1` lỗi, `2` thiếu điều kiện (quyền Admin, phần mềm, thiết bị), `3` làm được một phần. Trạm
   ghi mã vào Lịch sử (khác 0 hiện *Báo lỗi, mã N*). Từ Trạm 1.1.1, `.ps1` gọi `exit N` thì trạm nhận đúng `N`;
-  trước đó mọi mã khác 0 thành 1.
-- Script thay đổi máy nên có chế độ chạy thử (công tắc `-ChayThu` trong `args`): in việc sẽ làm rồi thoát, không
-  đổi gì. Một script nhiều chế độ thì mỗi chế độ một action, chọn bằng `fixedArgs` (vd `["-Mode", "chan-doan"]`),
+  trước đó mọi mã khác 0 thành 1. Mã `1223` (người dùng huỷ) Lịch sử hiện *Đã huỷ*: dùng khi người dùng chọn không
+  làm nữa trước khi đổi gì.
+- Script thay đổi máy nên có chế độ chạy thử (công tắc `-ChayThu` trong `args`, `id` là `chay-thu`): in việc sẽ làm
+  rồi thoát, không đổi gì. Một script nhiều chế độ thì mỗi chế độ một action, chọn bằng `fixedArgs` (vd `["-Mode", "chan-doan"]`),
   như `tools\may-in-lan`.
 - Script phải chạy được cả khi bấm đúp ngoài trạm: trạm chỉ là nơi mở, không thay thế script.
 - Kết quả và dữ liệu của khách để trong thư mục con `ket_qua\` hoặc `du-lieu\` (git bỏ qua). Mẫu tên báo cáo mới

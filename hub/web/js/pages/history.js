@@ -4,8 +4,10 @@ import { api, icon, enc, clock, groupByDay } from '../core.js';
 import { S, go, update } from '../state.js';
 import { section, pageHead, emptyState, skeleton, runStateBadge, badge } from '../parts.js';
 import { runAction } from '../run.js';
-import { toast, confirmDialog } from '../ui.js';
+import { toast, confirmDialog, openDialog } from '../ui.js';
 import { loadHistory } from '../data.js';
+import { refreshJobs, watchJob } from '../jobs.js';
+import { openRestoreUi } from './system.js';
 
 let filter = 'all'; // all | problems
 
@@ -57,6 +59,75 @@ function valuesText(a, h) {
   }).join(', ');
 }
 
+// Lý do không tạo được điểm khôi phục (hub\safety\TaoDiemKhoiPhuc.ps1 ghi vào restore-points.jsonl).
+const RP_REASON = {
+  disabled: 'Bảo vệ hệ thống đang tắt',
+  policy: 'chính sách nhóm tắt Bảo vệ hệ thống',
+  vss: 'dịch vụ Volume Shadow Copy bị vô hiệu hoá',
+  cancelled: 'bạn chọn huỷ nên công cụ không chạy',
+  'not-admin': 'cửa sổ không có quyền Admin',
+  error: 'Windows báo lỗi',
+};
+
+function rpLine(h) {
+  if (!h.restorePoint) return nothing;
+  const rp = h.rp;
+  if (!rp) {
+    return h.state === 'running' ? html`<div class="row-note">${icon('shield', 'ic-16')}<span>Đang tạo điểm khôi phục trong cửa sổ công cụ...</span></div>`
+      : html`<div class="row-note">${icon('shield', 'ic-16')}<span>Chưa thấy kết quả tạo điểm khôi phục (cửa sổ đóng trước khi tạo xong?).</span></div>`;
+  }
+  if (rp.created) {
+    return html`<div class="row-note ok">${icon('shield-check', 'ic-16')}<span>Điểm khôi phục lúc ${clock(rp.pointAt || rp.at)}.</span>
+      <button class="link" @click=${openRestoreUi}>Mở Khôi phục hệ thống</button></div>`;
+  }
+  const why = RP_REASON[rp.reason] || 'không rõ lý do';
+  return html`<div class="row-note warn">${icon('shield-error', 'ic-16')}<span>Không tạo điểm khôi phục: ${why}${rp.message ? ` (${rp.message})` : ''}.</span></div>`;
+}
+
+function snapLine(h) {
+  if (!h.snapshot) return nothing;
+  const n = h.changed;
+  const text = n == null ? 'Đã ghi trạng thái trước khi chạy.' : n ? `${n} mục đã khác so với trước khi chạy.` : 'Không mục nào đã ghi bị thay đổi.';
+  return html`<div class="row-note">${icon('history', 'ic-16')}<span>${text}</span>
+    <button class="link" @click=${() => showChanges(h)}>Xem thay đổi</button></div>`;
+}
+
+// Đường dẫn registry dài: cho xuống dòng sau dấu \ thay vì giữa chữ.
+const breakPath = (s) => String(s || '').replace(/\\/g, '\\​');
+
+// So trạng thái lúc trước khi chạy với hiện tại; mục đã khác thì trả lại được (cửa sổ Admin, hub\safety\TraLaiTrangThai.ps1).
+async function showChanges(h) {
+  let r;
+  try { r = await api(`/api/snapshot?time=${encodeURIComponent(h.time)}`); } catch (e) { toast('error', e.message); return; }
+  const items = r.items || [];
+  const changed = items.filter((x) => x.changed);
+  const restorable = changed.filter((x) => x.restorable);
+  const body = html`<p>So trạng thái lúc ${clock(h.time)}, ngay trước khi chạy "${r.actionLabel}", với bây giờ.</p>
+    <div class="card diff">${items.map((x) => html`<div class="kv">
+      <span class="k">${x.label}<small class="mono">${breakPath(x.target)}</small></span>
+      <span class="v">${x.changed ? html`${x.before} → ${x.after}` : html`<span class="muted">${x.after}</span>`}${x.note ? html`<small>${x.note}</small>` : nothing}</span>
+      <span>${x.changed ? badge('warning', 'Đã đổi') : badge('subtle', 'Như cũ')}</span></div>`)}</div>
+    ${restorable.length ? html`<p class="muted note">${icon('shield', 'ic-16')}<span>Trả lại cần quyền Admin: Windows sẽ hỏi UAC, cửa sổ trả lại ghi rõ từng mục.</span></p>` : nothing}`;
+  const v = await openDialog({
+    title: changed.length ? `${changed.length} mục đã khác trước khi chạy` : 'Không mục nào thay đổi',
+    body,
+    wide: true,
+    buttons: restorable.length
+      ? [{ label: `Trả lại ${restorable.length} mục như trước`, appearance: 'primary', icon: 'arrow-repeat', value: 'restore' }, { label: 'Đóng', value: false }]
+      : [{ label: 'Đóng', appearance: 'primary', value: false }],
+  });
+  if (v !== 'restore') return;
+  const note = toast('info', 'Đang mở cửa sổ trả lại trạng thái. Windows sẽ hỏi quyền Admin, bấm "Có" để tiếp tục.', { ms: 0 });
+  try {
+    const res = await api('/api/snapshot/restore', { method: 'POST', body: { time: h.time } });
+    if (res.ok) { watchJob(res.jobId); note.update('success', 'Đã mở cửa sổ trả lại trạng thái. Xem kết quả trong cửa sổ đó.', { ms: 6000 }); }
+    else if (res.cancelled) note.update('info', 'Đã huỷ: bạn chọn "Không" ở hộp thoại quyền Admin.');
+    else note.update('error', res.message || 'Không mở được cửa sổ trả lại trạng thái.', { ms: 12000 });
+    refreshJobs();
+    loadHistory();
+  } catch (e) { note.update('error', e.message, { ms: 12000 }); }
+}
+
 function historyRow(h) {
   const t = S.byId.get(h.toolId);
   const a = t && (t.actions || []).find((x) => x.id === h.actionId);
@@ -70,6 +141,7 @@ function historyRow(h) {
       ${vals ? html`<div class="row-args" title=${vals}>${vals}</div>`
         : args.length ? html`<div class="row-args mono" title=${args.join('\n')}>${args.join('   ')}</div>` : nothing}
       ${h.state === 'error' && h.message ? html`<div class="row-args">${h.message}</div>` : nothing}
+      ${rpLine(h)}${snapLine(h)}
     </div>
     <div class="row-side">
       ${a && a.exists && h.state !== 'running' ? html`<fluent-button appearance="outline" title=${h.values ? 'Chạy lại với tham số của lần này' : 'Chạy lại'}

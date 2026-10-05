@@ -17,10 +17,12 @@ Bấm đúp **`TramTool.bat`**.
 Trong trạm:
 
 - **Ctrl+K** (hoặc `/`): tìm và chạy nhanh công cụ, việc, trang, kết quả. Gõ `>` để chỉ hiện việc chạy được.
-- **Tổng quan**: mục *Cần chú ý* (thiếu thư viện, ổ gần đầy, máy bật quá lâu, lần chạy báo lỗi, Secure Boot), công cụ
-  đã ghim, việc dùng gần đây.
+- **Tổng quan**: mục *Cần chú ý* (thiếu thư viện, ổ gần đầy, máy bật quá lâu, lần chạy báo lỗi, Secure Boot, Bảo vệ
+  hệ thống đang tắt, winget hỏng), công cụ đã ghim, việc dùng gần đây.
 - Thanh **Đang chạy** ở cuối trang theo dõi cửa sổ công cụ mở từ trạm; **Lịch sử chạy** ghi kết quả (xong, báo lỗi kèm
-  mã, đã đóng cửa sổ), thời gian chạy, và chạy lại với tham số cũ.
+  mã, đã đóng cửa sổ), thời gian chạy, điểm khôi phục đã tạo, các mục đã đổi so với trước khi chạy, và chạy lại với
+  tham số cũ.
+- **Máy này**: thông tin máy, Bảo vệ hệ thống (bật được ngay tại đây), winget (có nút *Sửa winget*).
 - **Kết quả gần đây**: mở file, mở thư mục, chọn nhiều để xoá. Xoá là chuyển vào Thùng rác; bản sao lưu có cảnh báo
   phải đánh dấu đã đọc mới xoá được.
 
@@ -61,12 +63,14 @@ Thả thư mục công cụ vào `tools\`, bấm *Làm mới* trong trạm. Vi�
 TramTool.bat              mở trạm
 hub\
   TramTool.ps1            máy chủ HTTP cục bộ và API
-  lib\                    Catalog (đọc tool.json), Launcher (chạy công cụ), Checks (điều kiện, kết quả, thông tin máy)
+  lib\                    Catalog (đọc tool.json), Launcher (chạy công cụ), Checks (điều kiện, kết quả, thông tin máy),
+                          AnToan (điểm khôi phục, ghi trạng thái trước khi chạy, kiểm tra winget)
+  safety\                 script lan can chạy bằng quyền Admin: tạo điểm khôi phục, trả lại trạng thái, bật Bảo vệ hệ thống
   web\                    giao diện; thư viện ngoài nằm sẵn trong web\vendor\ (chạy không cần mạng)
   schema\                 tool.schema.json
-  fixes\                  script cài đặt dùng chung (SQL Server LocalDB...)
+  fixes\                  script cài đặt, sửa dùng chung (SQL Server LocalDB, winget...)
   dev\                    Normalize-Encoding.ps1
-  data\                   lịch sử chạy, cài đặt, mã phiên (máy nào giữ máy đó, không commit)
+  data\                   lịch sử chạy, cài đặt, mã phiên, trạng thái trước khi chạy (máy nào giữ máy đó, không commit)
 tools\<id>\               mỗi công cụ một thư mục, có tool.json
 docs\                     phân tích nâng cấp, hướng dẫn thêm công cụ
 ```
@@ -78,7 +82,12 @@ docs\                     phân tích nâng cấp, hướng dẫn thêm công c�
 - Trạm chỉ chạy các action khai báo trong `tool.json`, với file nằm trong thư mục công cụ. Giá trị người dùng nhập được
   kiểm tra kiểu và ký tự trước khi truyền vào script.
 - Action thay đổi máy hiện hộp xác nhận liệt kê thay đổi; action cần Admin đi qua hộp thoại UAC của Windows.
-- Trạm không tự cài gì: nút *Cài* mở cửa sổ cài đặt để người dùng thấy và đồng ý.
+- Trước action thay đổi máy bằng quyền Admin, trạm tạo điểm khôi phục hệ thống ngay trong cửa sổ công cụ (bỏ chọn được
+  ở hộp xác nhận, tắt hẳn trong *Cài đặt*). Không tạo được thì hỏi chạy tiếp hay huỷ, không tự quyết.
+- Trạm ghi kiểu khởi động dịch vụ và giá trị registry HKLM công cụ khai báo (`probes`) ngay trước khi chạy; trang
+  *Lịch sử* so với hiện tại và trả lại được mục đã đổi (cửa sổ Admin ghi rõ từng mục).
+- Trạm không tự cài gì: nút *Cài* mở cửa sổ cài đặt để người dùng thấy và đồng ý; trước đó trạm kiểm tra winget còn
+  dùng được.
 - Xoá kết quả chỉ nhận đúng file, thư mục đang được liệt kê là kết quả của công cụ, và chỉ chuyển vào Thùng rác.
 
 ## Dữ liệu khách

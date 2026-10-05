@@ -184,6 +184,10 @@ function Start-RequirementFix {
     if ($winget -notmatch '^[A-Za-z0-9._-]+$') { throw 'Mã gói winget không hợp lệ.' }
     $extra = [string](Get-Prop $Fix 'args' '')
     if ($extra -match '[;&|`$]') { throw 'Tham số winget không hợp lệ.' }
+    # Mọi nút Cài dựa vào winget: kiểm tra trước, đừng mở cửa sổ chỉ để báo lỗi.
+    $w = Get-WingetStatus
+    $script:CheckCache['winget'] = @{ At = Get-Date; Value = $w }
+    if (-not $w.ok) { throw "winget chưa dùng được: $($w.problem) Vào trang Máy này, bấm ""Sửa winget"" rồi thử lại." }
     $msg = 'Xong. Quay lại Trạm Tool và bấm "Kiểm tra lại". Có thể đóng cửa sổ này.'
     $cmd = "`$host.UI.RawUI.WindowTitle = 'Tram Tool - cai $winget'; winget install --id $winget --exact --accept-package-agreements --accept-source-agreements $extra; Write-Host ''; Write-Host '$msg' -ForegroundColor Green"
     $p = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-NoExit', '-ExecutionPolicy', 'Bypass', '-Command', $cmd) -PassThru
@@ -379,7 +383,9 @@ function Get-SystemSummary {
             gpus       = @(Get-CimInstance Win32_VideoController | ForEach-Object { [string]$_.Name })
             python     = $(if ($py) { "Python $($py.version)" } else { '' })
             pythonPath = $(if ($py) { $py.path } else { '' })
-            winget     = [bool](Get-Command winget.exe -ErrorAction SilentlyContinue)
+            # winget chạy 2 lệnh (khoảng nửa giây) nên giữ 5 phút; bấm Đọc lại thì đọc mới.
+            winget     = (Get-Cached -Key 'winget' -Seconds 300 -Compute { Get-WingetStatus })
+            restore    = (Get-RestoreStatus)
             secureBoot = $sb
         }
     }

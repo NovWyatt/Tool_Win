@@ -13,7 +13,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$HubVersion = '1.1.1'
+$HubVersion = '1.2.0'
 $HubDir = $PSScriptRoot
 $RootDir = Split-Path $HubDir -Parent
 if (-not $ToolsDir) { $ToolsDir = Join-Path $RootDir 'tools' }
@@ -22,9 +22,14 @@ if (-not $DataDir) { $DataDir = Join-Path $HubDir 'data' }
 $RuntimeFile = Join-Path $DataDir 'runtime.json'
 $HistoryFile = Join-Path $DataDir 'history.jsonl'
 $SettingsFile = Join-Path $DataDir 'settings.json'
+# Lan can an toàn: script chạy trong cửa sổ Admin, ảnh trạng thái trước khi chạy, kết quả tạo điểm khôi phục.
+$SafetyDir = Join-Path $HubDir 'safety'
+$SnapshotDir = Join-Path $DataDir 'snapshots'
+$RestoreLogFile = Join-Path $DataDir 'restore-points.jsonl'
 
 . (Join-Path $HubDir 'lib\Common.ps1')
 . (Join-Path $HubDir 'lib\Catalog.ps1')
+. (Join-Path $HubDir 'lib\AnToan.ps1')
 . (Join-Path $HubDir 'lib\Launcher.ps1')
 . (Join-Path $HubDir 'lib\Checks.ps1')
 
@@ -36,7 +41,8 @@ if (-not (Test-Path -LiteralPath $DataDir)) { New-Item -ItemType Directory -Path
 function Get-HubSettings {
     # Ghim, giao diện sáng/tối và chế độ đơn giản lưu ở máy chủ: localStorage của trình duyệt gắn với cổng,
     # mà cổng có thể đổi (47800-47820) nên lưu ở trình duyệt sẽ mất.
-    $s = [ordered]@{ browser = 'auto'; autoExitMinutes = 10; pins = @(); theme = 'system'; simple = $false }
+    # restorePoint: tạo điểm khôi phục hệ thống trước action đổi máy (người dùng vẫn bỏ chọn được từng lần chạy).
+    $s = [ordered]@{ browser = 'auto'; autoExitMinutes = 10; pins = @(); theme = 'system'; simple = $false; restorePoint = $true }
     if (Test-Path -LiteralPath $SettingsFile) {
         try {
             $saved = Read-JsonFile $SettingsFile
@@ -45,6 +51,7 @@ function Get-HubSettings {
     }
     $s.pins = @(@($s.pins) | Where-Object { $_ } | ForEach-Object { [string]$_ })   # 1 phần tử đọc từ JSON thành chuỗi
     $s.simple = [bool]$s.simple
+    $s.restorePoint = [bool]$s.restorePoint
     return $s
 }
 
@@ -274,7 +281,10 @@ function Invoke-Api {
             }
         }
         'POST /api/reload' { Update-Catalog; return @{ ok = $true; count = $State.Catalog.Count } }
-        'GET /api/system' { return (Get-SystemSummary) }
+        'GET /api/system' {
+            if ($q['fresh'] -eq '1') { $script:CheckCache.Remove('system'); $script:CheckCache.Remove('winget') }
+            return (Get-SystemSummary)
+        }
         'GET /api/deps' {
             $tool = Get-ToolById $q['id']
             return @{ id = $tool.id; items = @(Get-ToolRequirements -Tool $tool -Fresh:($q['fresh'] -eq '1')) }
@@ -298,17 +308,64 @@ function Invoke-Api {
             return @{ id = $tool.id; name = $tool.docs; markdown = [IO.File]::ReadAllText($p, [Text.Encoding]::UTF8) }
         }
         'GET /api/doc' { return @{ name = $q['name']; markdown = (Get-RepoDoc $q['name']) } }
-        'GET /api/history' { Update-ToolJobs -HistoryPath $HistoryFile; return @{ items = @(Get-RunHistory -HistoryPath $HistoryFile) } }
+        'GET /api/history' { Update-ToolJobs -HistoryPath $HistoryFile; return @{ items = @(Get-RunHistory -HistoryPath $HistoryFile -RestoreLogPath $RestoreLogFile) } }
         'POST /api/history/delete' {
             $b = Read-Body $Ctx
-            if ([bool](Get-Prop $b 'all' $false)) { $n = Remove-RunHistory -HistoryPath $HistoryFile -All }
-            else {
+            if ([bool](Get-Prop $b 'all' $false)) {
+                $n = Remove-RunHistory -HistoryPath $HistoryFile -All
+                Get-ChildItem -LiteralPath $SnapshotDir -Filter 'TrangThai_*.json' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+                Remove-Item -LiteralPath $RestoreLogFile -Force -ErrorAction SilentlyContinue
+            } else {
                 $times = @(@(Get-Prop $b 'times' @()) | ForEach-Object { [string]$_ } | Where-Object { $_ })
                 if (-not $times.Count) { throw 'Chưa chọn lần chạy nào để xoá.' }
                 $n = Remove-RunHistory -HistoryPath $HistoryFile -Times $times
+                foreach ($t in $times) { Remove-Item -LiteralPath (Join-Path $SnapshotDir (Get-SnapshotFileName $t)) -Force -ErrorAction SilentlyContinue }
             }
             Write-HubLog "Xoá lịch sử: $n lần chạy"
             return @{ removed = $n }
+        }
+        'GET /api/snapshot' {
+            # So trạng thái ghi lúc trước khi chạy (dịch vụ, registry công cụ khai báo) với hiện tại.
+            $time = [string]$q['time']
+            $path = Join-Path $SnapshotDir (Get-SnapshotFileName $time)
+            if (-not $time -or -not (Test-Path -LiteralPath $path)) { throw 'Lần chạy này không có trạng thái đã ghi (hoặc đã xoá).' }
+            $snap = Read-JsonFile $path
+            return [ordered]@{ time = $time; toolName = [string]$snap.toolName; actionLabel = [string]$snap.actionLabel; items = @(Compare-RunSnapshot -Path $path) }
+        }
+        'POST /api/snapshot/restore' {
+            # Mở cửa sổ Admin trả các mục về trạng thái trước khi chạy (hub\safety\TraLaiTrangThai.ps1).
+            $b = Read-Body $Ctx
+            $time = [string](Get-Prop $b 'time' '')
+            $name = Get-SnapshotFileName $time
+            $path = Join-Path $SnapshotDir $name
+            if (-not $time -or -not (Test-SnapshotFileName $name) -or -not (Test-Path -LiteralPath $path)) { throw 'Lần chạy này không có trạng thái đã ghi (hoặc đã xoá).' }
+            $snap = Read-JsonFile $path
+            $tool = $State.Catalog | Where-Object { $_.id -eq [string]$snap.toolId } | Select-Object -First 1
+            $fixTool = [ordered]@{ id = [string]$snap.toolId; name = $(if ($tool) { $tool.name } else { [string]$snap.toolName }); dir = $SafetyDir }
+            $fixAction = [ordered]@{ id = 'tra-lai-trang-thai'; label = "Trả lại trạng thái trước lần chạy $([string]$snap.actionLabel)"; type = 'console'; file = 'TraLaiTrangThai.ps1'; admin = $true; keepOpen = $false }
+            Write-HubLog "Trả lại trạng thái: $($fixTool.name) > $($snap.actionLabel) (Admin)"
+            $argv = @([pscustomobject]@{ Value = '-Snapshot'; IsFlag = $true }, [pscustomobject]@{ Value = $path; IsFlag = $false })
+            return (Start-ToolAction -Tool $fixTool -Action $fixAction -Arguments $argv -HistoryPath $HistoryFile)
+        }
+        'POST /api/restore-ui' {
+            # Khôi phục hệ thống của Windows (rstrui.exe tự hỏi quyền Admin).
+            Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\rstrui.exe')
+            return @{ ok = $true }
+        }
+        'POST /api/restore/enable' {
+            # Cửa sổ Admin bật Bảo vệ hệ thống cho ổ Windows rồi tạo điểm khôi phục đầu tiên.
+            $script:CheckCache.Remove('system')
+            $fixTool = [ordered]@{ id = 'tram-tool'; name = 'Trạm Tool'; dir = $SafetyDir }
+            $fixAction = [ordered]@{ id = 'bat-bao-ve-he-thong'; label = 'Bật Bảo vệ hệ thống'; type = 'console'; file = 'BatBaoVeHeThong.ps1'; admin = $true; keepOpen = $false }
+            Write-HubLog 'Bật Bảo vệ hệ thống (Admin)'
+            return (Start-ToolAction -Tool $fixTool -Action $fixAction -HistoryPath $HistoryFile)
+        }
+        'POST /api/winget/fix' {
+            Clear-CheckCache
+            $fixTool = [ordered]@{ id = 'tram-tool'; name = 'Trạm Tool'; dir = (Join-Path $HubDir 'fixes') }
+            $fixAction = [ordered]@{ id = 'sua-winget'; label = 'Sửa winget'; type = 'console'; file = 'Sua-Winget.ps1'; admin = $false; keepOpen = $false }
+            Write-HubLog 'Sửa winget'
+            return (Start-ToolAction -Tool $fixTool -Action $fixAction -HistoryPath $HistoryFile)
         }
         'GET /api/jobs' { Update-ToolJobs -HistoryPath $HistoryFile; return @{ items = @(Get-ToolJobs); now = (Get-IsoTime) } }
         'POST /api/jobs/dismiss' {
@@ -323,8 +380,16 @@ function Invoke-Api {
             $action = Get-ActionById -Tool $tool -Id ([string](Get-Prop $b 'actionId' ''))
             $values = Get-Prop $b 'values' $null
             $argv = Resolve-ActionArguments -Action $action -Values $values
-            Write-HubLog "Chạy: $($tool.name) > $($action.label)$(if ($action.admin) { ' (Admin)' })"
-            return (Start-ToolAction -Tool $tool -Action $action -Arguments $argv -HistoryPath $HistoryFile -Values $values)
+            # Lan can: điểm khôi phục theo lựa chọn ở hộp xác nhận (mặc định theo Cài đặt); ghi trạng thái trước khi
+            # chạy với mọi action đổi máy. Chạy thử thì không làm cả hai.
+            $dry = Test-DryRunSelected -Action $action -Values $values
+            $safety = @{
+                RestorePoint = ($action.restorePoint -and -not $dry -and [bool](Get-Prop $b 'restorePoint' $State.Settings.restorePoint))
+                Snapshot     = ($action.risk -ne 'read-only' -and -not $dry)
+                ScriptDir    = $SafetyDir; Log = $RestoreLogFile; SnapshotDir = $SnapshotDir
+            }
+            Write-HubLog "Chạy: $($tool.name) > $($action.label)$(if ($action.admin) { ' (Admin)' })$(if ($safety.RestorePoint) { ', tạo điểm khôi phục' })"
+            return (Start-ToolAction -Tool $tool -Action $action -Arguments $argv -HistoryPath $HistoryFile -Values $values -Safety $safety)
         }
         'POST /api/pick' {
             $b = Read-Body $Ctx
@@ -454,6 +519,7 @@ function Invoke-Api {
             }
             $s.browser = $browser; $s.autoExitMinutes = $minutes; $s.theme = $theme; $s.pins = $pins
             $s.simple = [bool](Get-Prop $b 'simple' $s.simple)
+            $s.restorePoint = [bool](Get-Prop $b 'restorePoint' $s.restorePoint)
             Write-JsonFile -Path $SettingsFile -InputObject $s
             return $s
         }
