@@ -1,6 +1,6 @@
 # Phân tích và hướng nâng cấp
 
-Cập nhật 05/10/2026. Đánh giá 14 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
+Cập nhật 05/10/2026. Đánh giá 15 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
 và lộ trình nâng cấp theo mức ưu tiên.
 
 Danh sách lỗi và hướng nâng cấp đầy đủ của từng công cụ nằm trong `issues` và `upgrades` của `tool.json`,
@@ -22,8 +22,9 @@ Mức ưu tiên:
   nhập tham số bằng form, kiểm tra điều kiện cần cài, xem trạng thái máy, mở kết quả và đóng gói gửi khách.
 - **Dùng tốt ngay**: CheckWinFix (phần chẩn đoán), MyExcelFix, Ghi âm sang Word, DWG sang PDF.
 - **Mới**: Máy in mạng LAN và thư mục chia sẻ; BitLocker và khoá khôi phục (mục P0 số 1, 2 của *Công cụ Windows nên
-  thêm*); *Kết nối Wi-Fi* trong công cụ Wi-Fi. Phần chẩn đoán đã chạy thật; các nút sửa mới chạy thử hoặc chạy trên
-  giả lập, chưa chạy ở văn phòng có máy in mạng, NAS, máy chia sẻ, chưa chạy trên ổ mã hoá BitLocker thật.
+  thêm*); *Kết nối Wi-Fi* trong công cụ Wi-Fi; Gỡ sạch và cài Office theo mẫu. Phần chẩn đoán đã chạy thật; các nút
+  sửa mới chạy thử hoặc chạy trên giả lập, chưa chạy ở văn phòng có máy in mạng, NAS, máy chia sẻ, chưa chạy trên ổ
+  mã hoá BitLocker thật, chưa gỡ hay cài Office thật.
 - **Lan can an toàn (Trạm 1.2.0)**: điểm khôi phục hệ thống trước công cụ đổi máy bằng quyền Admin, ghi dịch vụ và
   registry trước khi chạy để xem thay đổi và trả lại, kiểm tra và sửa winget. Đã thử bằng giả lập, chưa tạo điểm khôi
   phục thật (máy phát triển đang tắt Bảo vệ hệ thống).
@@ -52,6 +53,7 @@ Mức ưu tiên:
 | `97031b0` | Kiểm tra và sửa lỗi Wi-Fi | `KET_NOI_WIFI.bat` (bản 1.1): sửa lỗi *Can't connect to this network* khi vào mạng mới sau khi máy thức dậy; gọi thẳng API Wi-Fi, mật khẩu gõ trong cửa sổ công cụ và đi từ bộ nhớ vào Windows, không ghi file tạm. |
 | `24b424a` | BitLocker (mới), Chuyển dữ liệu khi cài lại Windows | Công cụ mới `tools\bitlocker`. Bước xuất lưu khoá khôi phục BitLocker (màn hình, nhật ký chỉ có Mã khoá) và driver mạng; bước nhập cài lại driver, mở khoá ổ dữ liệu bằng khoá đã lưu. |
 | `fba9675` | Trạm | Trạm 1.2.0, lan can an toàn: điểm khôi phục trước action đổi máy bằng quyền Admin, ghi trạng thái dịch vụ và registry trước khi chạy (xem thay đổi, trả lại), kiểm tra winget trước nút *Cài* và nút *Sửa winget*. |
+| `d3cb987` | Gỡ sạch và cài Office theo mẫu (mới), Trạm | Công cụ mới `tools\office`: kiểm tra bộ cài mẫu (ODT) trước khi gỡ, gỡ mọi bản Office và phần sót, cài bằng file cấu hình của mẫu ngay tại chỗ, kích hoạt chỉ theo cách của Microsoft; khoá trong mẫu không bao giờ in ra. Trạm: probe `empty`, `badge`, `snapshot`. |
 
 ## Bảng tổng quan
 
@@ -64,6 +66,7 @@ Mức ưu tiên:
 | Máy in mạng LAN và thư mục chia sẻ | Mọi người | Chẩn đoán 11 nhóm, chỉ nút sửa theo mã lỗi; 8 nút sửa in việc sẽ làm, hỏi trước, có Chạy thử, ghi nhật ký hoàn tác; nới bảo mật tách riêng, hỏi 2 lần; không bật SMB1. Mới kiểm chứng trên máy phát triển. | P1: chạy các nút sửa ở văn phòng thật; Local Port `\\MÁY\máy-in` thay cho nới RPC; dò máy in trong mạng. |
 | Tắt/bật dịch vụ nền | Kỹ thuật | Báo *thành công* cả khi `sc config` bị từ chối; coi *đã dừng* là *đã tắt*. Tắt Optimize Drives làm mất TRIM cho SSD. | P0: tự nâng quyền, xét kiểu khởi động, lưu trạng thái gốc để khôi phục đúng. |
 | Tối ưu đồng hồ hệ thống | Kỹ thuật | Không có tác dụng (ghi sai chỗ). | P0: bỏ khỏi trạm, hoặc viết lại bằng `bcdedit` và đo trước/sau. |
+| Gỡ sạch và cài Office theo mẫu | Kỹ thuật | Kiểm tra Office, giấy phép, bộ cài mẫu (ODT) trước; gỡ mọi bản Office rồi cài theo mẫu, mẫu hỏng thì không gỡ gì; sao lưu mẫu Word, macro, chữ ký; khoá trong mẫu không bao giờ in ra, kích hoạt chỉ theo cách của Microsoft. Kiểm tra và Chạy thử đã chạy thật; gỡ, cài, kích hoạt mới thử bằng giả lập. | P1: gỡ, cài thật trên một máy thử; tạo mẫu mới (LTSC 2024, Microsoft 365) ngay trong công cụ; Quick Repair trước khi phải gỡ. |
 | MyExcelFix | Mọi người | Chẩn đoán kỹ theo từng tài khoản Windows, có sao lưu và hoàn tác, mã nguồn chia module và build ra một file `.bat`. | P0: không treo khi thiếu cửa sổ dòng lệnh, hoàn tác không đè file đã sửa sau đó, mã thoát. |
 | DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5–35 phút). | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
 | Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn. | P1: tên kết quả giữ đuôi file gốc, lưu tiến độ để chạy tiếp, chỉ chạy lại bằng CPU khi đúng là lỗi card. |
@@ -196,6 +199,9 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
   `source reset --force` (cửa sổ Admin riêng), `Repair-WinGetPackageManager`, cuối cùng mở trang Store.
 - *Máy này* có thẻ *Bảo vệ hệ thống* với nút bật (`hub\safety\BatBaoVeHeThong.ps1`, tạo luôn điểm đầu tiên) và nút mở
   *Khôi phục hệ thống*; *Cần chú ý* báo khi Bảo vệ hệ thống tắt hoặc winget hỏng.
+- `probes` có thêm `empty` (registry: chữ hiện khi chưa có giá trị), `"badge": false` (mục chỉ để xem, không gắn nhãn
+  *Đã đổi*), `"snapshot": false` (không ghi lại, không trả lại: registry, dịch vụ của phần mềm mà công cụ gỡ hoặc cài,
+  như Office; trả lại những mục đó sẽ làm hỏng máy).
 - Đã thử: 59 ca đơn vị (định dạng mã lỗi, ghi và trả registry đủ 6 kiểu qua JSON, dịch vụ bằng `sc.exe` giả lập),
   40 kịch bản cho các script `hub\safety` và *Sửa winget* với hàm giả lập (gồm ghép với `.bat`, `.ps1` như trạm gọi:
   huỷ thì công cụ không chạy, chạy tiếp thì giữ đúng mã thoát), trạm thử và ảnh chụp giao diện. Chưa tạo điểm khôi phục
@@ -221,9 +227,9 @@ chỉ đọc (BitLocker, SMB); thư viện nhật ký hoàn tác chung.
 ## Công cụ Windows nên thêm
 
 Nghiên cứu ngày 04/10/2026, chủ yếu từ tài liệu của Microsoft và trang chính thức của từng phần mềm. Đã làm mục 1
-(`tools\may-in-lan`); các mục khác chọn mục nào thì làm mục đó. Không lặp lại những thứ đã có hoặc đã nằm trong lộ
-trình (SFC, DISM, chkdsk, đặt lại Windows Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-Fi,
-máy in).
+(`tools\may-in-lan`), mục 2 (`tools\bitlocker`) và phần gỡ, cài của mục 5 (`tools\office`); các mục khác chọn mục
+nào thì làm mục đó. Không lặp lại những thứ đã có hoặc đã nằm trong lộ trình (SFC, DISM, chkdsk, đặt lại Windows
+Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-Fi, máy in).
 
 ### Công cụ mới
 
@@ -288,6 +294,7 @@ máy in).
      danh sách, ngày ngắn), hoặc chỉ trong Excel bằng
      [Use system separators](https://support.microsoft.com/office/c093b545-71cb-4903-b205-aebb9837bd1e).
 5. **Sửa Office.** Cần Admin; Quick Repair rủi ro thấp, Online Repair rủi ro vừa (cài lại cả bộ).
+   - Gỡ sạch, cài theo bộ cài mẫu, kích hoạt bằng khoá của người dùng: đã làm (`tools\office`). Còn các mục dưới.
    - Đọc Platform, ClientCulture trong `ClickToRun\Configuration`; Quick Repair bằng
      `OfficeClickToRun.exe scenario=Repair platform=<Platform> culture=<ClientCulture> RepairType=QuickRepair`;
      cập nhật bằng `OfficeC2RClient.exe /update user`.
@@ -372,6 +379,8 @@ Sau đó là **Gói tiếng Việt**.
 Mới có nguồn cộng đồng hoặc chưa thử; kiểm tra trên máy thật trước khi đưa vào công cụ:
 
 - Tham số sửa Office Click-to-Run.
+- GUID kênh PerpetualVL2021, PerpetualVL2024 trong `CDNBaseUrl` (công cụ Office đang nhận ra hai kênh này qua mã sản
+  phẩm), dòng kết quả `NN: ...` của GetHelpCmd khi chạy thật (công cụ Office đọc theo tài liệu).
 - Cách dựng lại chỉ mục tìm kiếm, bộ nhớ đệm biểu tượng, `wsreset -i`.
 - Đường dẫn thư mục dữ liệu Zalo.
 - `RpcAuthnLevelPrivacyEnabled=0` còn tác dụng trên máy chủ in 24H2, 25H2 không (diễn đàn báo còn; Microsoft chưa
