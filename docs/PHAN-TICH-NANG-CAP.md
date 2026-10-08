@@ -1,6 +1,6 @@
 # Phân tích và hướng nâng cấp
 
-Cập nhật 05/10/2026. Đánh giá 15 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
+Cập nhật 09/10/2026. Đánh giá 17 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
 và lộ trình nâng cấp theo mức ưu tiên.
 
 Danh sách lỗi và hướng nâng cấp đầy đủ của từng công cụ nằm trong `issues` và `upgrades` của `tool.json`,
@@ -22,9 +22,10 @@ Mức ưu tiên:
   nhập tham số bằng form, kiểm tra điều kiện cần cài, xem trạng thái máy, mở kết quả và đóng gói gửi khách.
 - **Dùng tốt ngay**: CheckWinFix (phần chẩn đoán), MyExcelFix, Ghi âm sang Word, DWG sang PDF.
 - **Mới**: Máy in mạng LAN và thư mục chia sẻ; BitLocker và khoá khôi phục (mục P0 số 1, 2 của *Công cụ Windows nên
-  thêm*); *Kết nối Wi-Fi* trong công cụ Wi-Fi; Gỡ sạch và cài Office theo mẫu. Phần chẩn đoán đã chạy thật; các nút
-  sửa mới chạy thử hoặc chạy trên giả lập, chưa chạy ở văn phòng có máy in mạng, NAS, máy chia sẻ, chưa chạy trên ổ
-  mã hoá BitLocker thật, chưa gỡ hay cài Office thật.
+  thêm*); *Kết nối Wi-Fi* trong công cụ Wi-Fi; Gỡ sạch và cài Office theo mẫu; Dọn ổ C an toàn; File thẻ xe .nt cho
+  phần mềm giữ xe. Phần chẩn đoán đã chạy thật; các nút sửa mới chạy thử hoặc chạy trên giả lập, chưa chạy ở văn
+  phòng có máy in mạng, NAS, máy chia sẻ, chưa chạy trên ổ mã hoá BitLocker thật, chưa gỡ hay cài Office thật, chưa
+  dọn ổ C thật, chưa nạp file thẻ do công cụ ghi vào phần mềm giữ xe.
 - **Lan can an toàn (Trạm 1.2.0)**: điểm khôi phục hệ thống trước công cụ đổi máy bằng quyền Admin, ghi dịch vụ và
   registry trước khi chạy để xem thay đổi và trả lại, kiểm tra và sửa winget. Đã thử bằng giả lập, chưa tạo điểm khôi
   phục thật (máy phát triển đang tắt Bảo vệ hệ thống).
@@ -54,6 +55,8 @@ Mức ưu tiên:
 | `24b424a` | BitLocker (mới), Chuyển dữ liệu khi cài lại Windows | Công cụ mới `tools\bitlocker`. Bước xuất lưu khoá khôi phục BitLocker (màn hình, nhật ký chỉ có Mã khoá) và driver mạng; bước nhập cài lại driver, mở khoá ổ dữ liệu bằng khoá đã lưu. |
 | `fba9675` | Trạm | Trạm 1.2.0, lan can an toàn: điểm khôi phục trước action đổi máy bằng quyền Admin, ghi trạng thái dịch vụ và registry trước khi chạy (xem thay đổi, trả lại), kiểm tra winget trước nút *Cài* và nút *Sửa winget*. |
 | `d3cb987` | Gỡ sạch và cài Office theo mẫu (mới), Trạm | Công cụ mới `tools\office`: kiểm tra bộ cài mẫu (ODT) trước khi gỡ, gỡ mọi bản Office và phần sót, cài bằng file cấu hình của mẫu ngay tại chỗ, kích hoạt chỉ theo cách của Microsoft; khoá trong mẫu không bao giờ in ra. Trạm: probe `empty`, `badge`, `snapshot`. |
+| `92da98a` | Dọn ổ C an toàn (mới), Sửa lỗi Windows | Công cụ mới `tools\don-o-c`: báo ổ C đầy vì đâu, dọn file tạm cũ, bộ nhớ đệm trình duyệt (khi đã tắt), file tải về của Windows Update, Delivery Optimization, WinSxS (không `/ResetBase`); in danh sách, gõ C mới xoá, danh sách thư mục được phép, không đi theo junction. *Clean Temp* của Sửa lỗi Windows chỉ sang công cụ này. |
+| `9af2d8e` | File thẻ xe .nt (mới) | Công cụ mới `tools\the-xe-nt`: đọc file thẻ đúng cách phần mềm giữ xe ITS Pro đọc (Jet OLEDB 4.0), sửa file của bên bán có CardID dạng số bị mất số 0, tạo file .nt từ danh sách Excel; ghi CardID dạng chữ đủ 10 số, đọc lại so từng thẻ, kèm file thử 1 thẻ; không cần Excel. |
 
 ## Bảng tổng quan
 
@@ -67,6 +70,8 @@ Mức ưu tiên:
 | Tắt/bật dịch vụ nền | Kỹ thuật | Báo *thành công* cả khi `sc config` bị từ chối; coi *đã dừng* là *đã tắt*. Tắt Optimize Drives làm mất TRIM cho SSD. | P0: tự nâng quyền, xét kiểu khởi động, lưu trạng thái gốc để khôi phục đúng. |
 | Tối ưu đồng hồ hệ thống | Kỹ thuật | Không có tác dụng (ghi sai chỗ). | P0: bỏ khỏi trạm, hoặc viết lại bằng `bcdedit` và đo trước/sau. |
 | Gỡ sạch và cài Office theo mẫu | Kỹ thuật | Kiểm tra Office, giấy phép, bộ cài mẫu (ODT) trước; gỡ mọi bản Office rồi cài theo mẫu, mẫu hỏng thì không gỡ gì; sao lưu mẫu Word, macro, chữ ký; khoá trong mẫu không bao giờ in ra, kích hoạt chỉ theo cách của Microsoft. Kiểm tra và Chạy thử đã chạy thật; gỡ, cài, kích hoạt mới thử bằng giả lập. | P1: gỡ, cài thật trên một máy thử; tạo mẫu mới (LTSC 2024, Microsoft 365) ngay trong công cụ; Quick Repair trước khi phải gỡ. |
+| Dọn ổ C an toàn | Mọi người | Xem ổ C đầy vì đâu (rác dọn được và thứ chiếm chỗ bạn tự quyết: thùng rác, Windows.old, file ngủ đông, Zalo, Downloads); dọn file tạm cũ hơn N ngày, bộ nhớ đệm trình duyệt khi đã tắt, file tải về của Windows Update, Delivery Optimization, WinSxS. Xem trước, gõ C mới xoá; danh sách thư mục được phép. Xem và Chạy thử đã chạy thật; phần xoá mới thử trong thư mục cát. | P1: dọn thật trên một máy; dọn Teams, bộ cài cập nhật Zalo; liệt kê thư mục lớn nhất. |
+| File thẻ xe .nt | Mọi người | Xem file thẻ như phần mềm giữ xe đọc, sửa CardID mất số 0, tạo file .nt từ danh sách; bản sửa lô 3257-3426 khớp từng thẻ với bản sửa tay. Không cần Excel. | P1: nạp thử file do công cụ ghi vào phần mềm thật; so với danh sách thẻ đang có trong phần mềm trước khi nạp. |
 | MyExcelFix | Mọi người | Chẩn đoán kỹ theo từng tài khoản Windows, có sao lưu và hoàn tác, mã nguồn chia module và build ra một file `.bat`. | P0: không treo khi thiếu cửa sổ dòng lệnh, hoàn tác không đè file đã sửa sau đó, mã thoát. |
 | DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5–35 phút). | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
 | Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn. | P1: tên kết quả giữ đuôi file gốc, lưu tiến độ để chạy tiếp, chỉ chạy lại bằng CPU khi đúng là lỗi card. |
@@ -227,9 +232,9 @@ chỉ đọc (BitLocker, SMB); thư viện nhật ký hoàn tác chung.
 ## Công cụ Windows nên thêm
 
 Nghiên cứu ngày 04/10/2026, chủ yếu từ tài liệu của Microsoft và trang chính thức của từng phần mềm. Đã làm mục 1
-(`tools\may-in-lan`), mục 2 (`tools\bitlocker`) và phần gỡ, cài của mục 5 (`tools\office`); các mục khác chọn mục
-nào thì làm mục đó. Không lặp lại những thứ đã có hoặc đã nằm trong lộ trình (SFC, DISM, chkdsk, đặt lại Windows
-Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-Fi, máy in).
+(`tools\may-in-lan`), mục 2 (`tools\bitlocker`), mục 3 (`tools\don-o-c`) và phần gỡ, cài của mục 5
+(`tools\office`); các mục khác chọn mục nào thì làm mục đó. Không lặp lại những thứ đã có hoặc đã nằm trong lộ trình
+(SFC, DISM, chkdsk, đặt lại Windows Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-Fi, máy in).
 
 ### Công cụ mới
 
@@ -281,6 +286,13 @@ Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-Fi, máy 
      Storage Sense (`ms-settings:storagesense`); tuỳ chọn BleachBit `--preview` rồi `--clean`.
    - Nguồn: [dọn WinSxS](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/clean-up-the-winsxs-folder),
      [bộ nhớ đệm Teams](https://learn.microsoft.com/en-us/troubleshoot/microsoftteams/teams-administration/clear-teams-cache).
+   - **Đã làm** (`tools\don-o-c` 1.0, commit `92da98a`): 4 nút (xem, dọn rác của bạn không cần Admin, dọn rác của
+     Windows, WinSxS) và nút mở Storage Sense. Thư mục dọn tính từ đường dẫn chuẩn của Windows, kiểm tra với danh sách
+     được phép trước mỗi lần xoá; file chỉ xoá khi cả ngày sửa lẫn ngày tạo cũ hơn N ngày; bộ nhớ đệm trình duyệt chỉ
+     các thư mục Cache, Code Cache, GPUCache, Dawn*, ShaderCache (không đụng Service Worker, mật khẩu, lịch sử). Khác
+     đề xuất: `SoftwareDistribution\Download` dọn theo tuổi file và bỏ qua khi Windows đang cài hoặc chờ khởi động lại,
+     không dừng dịch vụ; Teams, Zalo, Windows.old, thùng rác chỉ báo dung lượng và cách xử lý; chưa có BleachBit. Đã
+     thử: 92 phép thử trong thư mục cát, *Xem* và *Chạy thử* thật bằng quyền thường; chưa dọn thật.
 
 **P1**
 
@@ -369,7 +381,7 @@ Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-Fi, máy 
    commit `24b424a`); còn chạy thật trên máy có ổ mã hoá.
 3. ~~**Lan can an toàn của trạm**: điểm khôi phục, nhật ký hoàn tác, kiểm tra winget~~: đã làm (Trạm 1.2.0, commit
    `fba9675`); còn tạo điểm khôi phục, trả lại dịch vụ thật trên một máy có bật Bảo vệ hệ thống.
-4. **Dọn ổ C an toàn**: thường gặp, rủi ro thấp, thay cho *Clean Temp*.
+4. ~~**Dọn ổ C an toàn**~~: đã làm (`tools\don-o-c`, commit `92da98a`); còn dọn thật trên một máy.
 5. **Gói kiểm tra chỉ đọc cho CheckWinFix**: rẻ, nhanh (Secure Boot, kích hoạt, môi trường khôi phục, giấc ngủ).
 
 Sau đó là **Gói tiếng Việt**.
@@ -382,7 +394,10 @@ Mới có nguồn cộng đồng hoặc chưa thử; kiểm tra trên máy thậ
 - GUID kênh PerpetualVL2021, PerpetualVL2024 trong `CDNBaseUrl` (công cụ Office đang nhận ra hai kênh này qua mã sản
   phẩm), dòng kết quả `NN: ...` của GetHelpCmd khi chạy thật (công cụ Office đọc theo tài liệu).
 - Cách dựng lại chỉ mục tìm kiếm, bộ nhớ đệm biểu tượng, `wsreset -i`.
-- Đường dẫn thư mục dữ liệu Zalo.
+- Đường dẫn dữ liệu Zalo: thấy `%APPDATA%\ZaloData`, `%LOCALAPPDATA%\zalo-updater`, `%LOCALAPPDATA%\Programs\Zalo`
+  trên máy phát triển, chưa có tài liệu của Zalo. Công cụ Dọn ổ C chỉ báo dung lượng, không xoá.
+- Phần mềm giữ xe ITS Pro nạp file .nt do công cụ thẻ xe ghi (ghi bằng Jet từ file mẫu trống): đã đọc lại bằng đúng
+  cách phần mềm đọc, chưa nạp vào phần mềm thật.
 - `RpcAuthnLevelPrivacyEnabled=0` còn tác dụng trên máy chủ in 24H2, 25H2 không (diễn đàn báo còn; Microsoft chưa
   ghi rõ). Công cụ máy in để mục này ở *Nới bảo mật*, hoàn tác được.
 - Mã winget `RustDesk.RustDesk`.
