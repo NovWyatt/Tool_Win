@@ -1,0 +1,128 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "don-o-c",
+  "name": "Dọn ổ C an toàn",
+  "version": "1.0",
+  "category": "toi-uu",
+  "icon": "broom",
+  "audience": "all",
+  "summary": "Xem ổ C đầy vì đâu, rồi dọn file tạm, bộ nhớ đệm trình duyệt, file tải về của Windows Update. Xem trước rồi mới xoá, chỉ xoá thứ Windows và ứng dụng tự tạo lại.",
+  "description": "Chạy \"Xem ổ C đang đầy vì đâu\" trước: công cụ đo từng loại rác dọn được, và những thứ chiếm nhiều chỗ mà bạn tự quyết (thùng rác, Windows.old, file ngủ đông, Zalo, Downloads...). Các nút dọn luôn in danh sách sẽ xoá kèm dung lượng, hỏi lại (gõ C) rồi mới xoá; file tạm chỉ xoá khi cũ hơn số ngày bạn chọn (mặc định 7), file đang dùng thì để lại. Không bao giờ xoá thùng rác, Windows.old, dữ liệu cá nhân, mật khẩu, lịch sử, cookie trình duyệt. Thay cho mục Clean Temp của Fix Win (xoá hết %TEMP% kể cả file đang dùng).",
+  "tags": ["dọn rác", "dọn ổ c", "ổ c đầy", "đầy ổ", "giải phóng dung lượng", "temp", "%temp%", "file tạm", "cache", "bộ nhớ đệm", "chrome", "edge", "brave", "cốc cốc", "firefox", "softwaredistribution", "windows update", "delivery optimization", "winsxs", "dism", "startcomponentcleanup", "storage sense", "disk cleanup", "cleanmgr", "hiberfil", "windows.old"],
+  "docs": "HUONG-DAN.md",
+  "actions": [
+    {
+      "id": "kiem-tra",
+      "label": "Xem ổ C đang đầy vì đâu",
+      "file": "DonOC.ps1",
+      "fixedArgs": ["-Mode", "kiem-tra"],
+      "admin": false,
+      "risk": "read-only",
+      "primary": true,
+      "duration": "Dưới 1 phút",
+      "description": "Chỉ đọc. Ghi báo cáo ket_qua\\BaoCao_DonOC_<tên máy>_<thời gian>.txt: dung lượng trống, rác dọn được của bạn và của Windows, những thứ chiếm nhiều chỗ kèm cách xử lý; cuối báo cáo là nút nên chạy. Không có quyền Admin thì vài thư mục của Windows hiện dấu ?.",
+      "args": [
+        { "id": "so-ngay", "type": "number", "flag": "-SoNgay", "label": "Tính file tạm cũ hơn (ngày)", "default": 7, "min": 1, "max": 365 }
+      ]
+    },
+    {
+      "id": "don-cua-toi",
+      "label": "Dọn rác của bạn",
+      "file": "DonOC.ps1",
+      "fixedArgs": ["-Mode", "don-cua-toi"],
+      "admin": false,
+      "risk": "asks-before-change",
+      "duration": "1-3 phút",
+      "description": "File tạm (%TEMP%) cũ hơn số ngày đã chọn, báo cáo lỗi và bản ghi ứng dụng bị treo, bộ nhớ đệm Chrome, Edge, Brave, Cốc Cốc, Firefox. In danh sách và dung lượng, hỏi lại rồi mới xoá; trình duyệt đang mở thì hỏi đóng hoặc bỏ qua. Không mất mật khẩu, lịch sử, đăng nhập.",
+      "changes": [
+        "Xoá file tạm cũ của tài khoản đang dùng máy",
+        "Xoá bộ nhớ đệm trình duyệt (ảnh, mã trang web; trình duyệt tự tải lại)",
+        "Đóng trình duyệt khi bạn chọn \"đóng giúp\""
+      ],
+      "args": [
+        { "id": "so-ngay", "type": "number", "flag": "-SoNgay", "label": "Chỉ xoá file tạm cũ hơn (ngày)", "default": 7, "min": 1, "max": 365 },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ dọn gì, không xoá" }
+      ]
+    },
+    {
+      "id": "don-he-thong",
+      "label": "Dọn rác của Windows",
+      "file": "DonOC.ps1",
+      "fixedArgs": ["-Mode", "don-he-thong"],
+      "admin": true,
+      "restorePoint": false,
+      "risk": "asks-before-change",
+      "duration": "1-5 phút",
+      "description": "Windows\\Temp cũ, file tải về của Windows Update đã cài (bỏ qua khi Windows đang cài hoặc chờ khởi động lại), bộ nhớ đệm Delivery Optimization (bằng lệnh của Windows), báo cáo lỗi, nhật ký CBS cũ. Tuỳ chọn: bản ghi lỗi màn hình xanh. In danh sách, hỏi lại rồi mới xoá.",
+      "changes": [
+        "Xoá file tạm cũ trong Windows\\Temp",
+        "Xoá file tải về của Windows Update đã cài, bộ nhớ đệm Delivery Optimization",
+        "Xoá báo cáo lỗi, nhật ký cài cập nhật cũ của Windows"
+      ],
+      "args": [
+        { "id": "so-ngay", "type": "number", "flag": "-SoNgay", "label": "Chỉ xoá file cũ hơn (ngày)", "default": 7, "min": 1, "max": 365 },
+        { "id": "dump-loi", "type": "bool", "flag": "-DumpLoi", "label": "Xoá cả bản ghi lỗi màn hình xanh (MEMORY.DMP, LiveKernelReports)", "help": "Vài trăm MB tới vài GB. Giữ lại nếu còn cần gửi đi phân tích lỗi; Windows\\Minidump luôn được giữ." },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ dọn gì, không xoá" }
+      ]
+    },
+    {
+      "id": "don-winsxs",
+      "label": "Dọn kho thành phần Windows (WinSxS)",
+      "file": "DonOC.ps1",
+      "fixedArgs": ["-Mode", "don-winsxs"],
+      "admin": true,
+      "restorePoint": false,
+      "risk": "asks-before-change",
+      "duration": "5-30 phút",
+      "description": "Phân tích bằng DISM /AnalyzeComponentStore; Windows khuyên dọn thì hỏi rồi chạy DISM /StartComponentCleanup (không dùng /ResetBase, các bản cập nhật đang cài vẫn gỡ được). Không chạy khi Windows đang cài cập nhật hoặc chờ khởi động lại.",
+      "changes": ["Xoá bản cũ của thành phần Windows đã được bản cập nhật thay thế"],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ phân tích, không dọn" }
+      ]
+    },
+    {
+      "id": "storage-sense",
+      "type": "url",
+      "label": "Mở Storage Sense (Windows tự dọn định kỳ)",
+      "url": "ms-settings:storagesense",
+      "risk": "read-only",
+      "description": "Mở Settings > System > Storage. Bật Storage Sense để Windows tự xoá file tạm và thùng rác cũ."
+    },
+    {
+      "id": "menu",
+      "label": "Mở menu (như bấm đúp DON_O_C.bat)",
+      "file": "DON_O_C.bat",
+      "admin": false,
+      "risk": "asks-before-change",
+      "description": "Menu đủ các mục trên; mục cần quyền Admin tự hỏi UAC trong cửa sổ riêng."
+    }
+  ],
+  "probes": [
+    {
+      "type": "registry", "label": "Storage Sense",
+      "path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy", "name": "01",
+      "values": { "1": "Đang bật", "0": "Đang tắt" },
+      "empty": "Chưa bật", "badge": false, "snapshot": false
+    }
+  ],
+  "outputs": [
+    { "label": "Báo cáo dung lượng", "dir": "ket_qua", "glob": "BaoCao_DonOC_%COMPUTERNAME%_*.txt" },
+    { "label": "Nhật ký dọn", "dir": "ket_qua", "glob": "NhatKy_DonOC_%COMPUTERNAME%_*.txt" }
+  ],
+  "pack": {
+    "name": "DonOC",
+    "include": ["DON_O_C.bat", "DonOC.ps1", "lib/*.ps1", "HUONG-DAN.md"]
+  },
+  "issues": [
+    "Mới chạy trên máy phát triển (Windows 11 Home): Xem ổ C thật, Chạy thử các nút không có quyền Admin; phần xoá thử bằng giả lập trong thư mục cát. Chưa dọn thật trên máy nào.",
+    "Chỉ dọn rác của tài khoản đang chạy công cụ; máy nhiều tài khoản thì mỗi người tự chạy \"Dọn rác của bạn\".",
+    "Edge hay chạy nền (Startup boost) nên công cụ báo đang mở dù không thấy cửa sổ; chọn D để đóng giúp hoặc B để bỏ qua Edge.",
+    "Thư mục nằm quá sâu (đường dẫn dài hơn 260 ký tự) không đọc được: bỏ qua, không xoá."
+  ],
+  "upgrades": [
+    "P1 – Dọn bộ nhớ đệm Microsoft Teams, bộ cài cập nhật Zalo khi ứng dụng đã tắt (hiện chỉ báo dung lượng).",
+    "P1 – Liệt kê các thư mục lớn nhất trong hồ sơ người dùng để biết ổ đầy vì đâu.",
+    "P2 – Dọn cho mọi tài khoản trên máy trong một lần chạy (cần quyền Admin).",
+    "P2 – Hẹn giờ dọn định kỳ bằng Task Scheduler cho máy không bật được Storage Sense."
+  ]
+}

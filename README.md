@@ -38,6 +38,7 @@ driver...): trạm kiểm tra khi mở trang công cụ và có nút **Cài** ch
 | `tools\fix-win` | Sửa lỗi Windows | Menu SFC, DISM, đặt lại mạng, CHKDSK, kiểm tra RAM, đặt lại Windows Update. |
 | `tools\wifi-fix` | Kiểm tra và sửa lỗi Wi-Fi | `KET_NOI_WIFI.bat`: sửa lỗi "Can't connect to this network" khi vào mạng mới, xem vì sao Wi-Fi không kết nối (nhật ký 7 ngày), mở trang driver. Menu cũ: đặt lại IP, DNS, Winsock. |
 | `tools\may-in-lan` | Máy in mạng LAN và thư mục chia sẻ | Chẩn đoán in, chia sẻ, SMB; sửa hàng đợi kẹt, máy in trùng, lỗi 0x0000011B, 0x00000709, 0x00000BCB; thêm máy in bằng IP, gắn ổ mạng; có hoàn tác. |
+| `tools\don-o-c` | Dọn ổ C an toàn | Xem ổ C đầy vì đâu; dọn file tạm cũ, bộ nhớ đệm trình duyệt, file tải về của Windows Update, WinSxS. Xem trước rồi mới xoá, không đụng dữ liệu cá nhân, thùng rác. |
 | `tools\service-optimizer` | Tắt/bật dịch vụ nền | DiagTrack, Optimize Drives, Windows Insider, SysMain. |
 | `tools\clock-optimizer` | Tối ưu đồng hồ hệ thống | UsePlatformClock, Dynamic Tick. **Hiện không có tác dụng**, xem phân tích. |
 | `tools\office` | Gỡ sạch và cài Office theo mẫu | Gỡ mọi bản Office (Click-to-Run, MSI, Microsoft Store, phần sót, khoá cũ), sao lưu mẫu Word, macro, chữ ký; cài theo bộ cài mẫu ODT của bạn, kiểm tra và kích hoạt. Khoá trong mẫu không bao giờ hiện ra. |

@@ -36,7 +36,7 @@
     "'Run All' chạy SFC trước DISM (nên DISM trước) và đặt lại mạng không cần thiết.",
     "'Reset Windows Update' lỗi ở lần chạy thứ hai vì SoftwareDistribution.old đã tồn tại; dùng cứng C:\\Windows thay vì %SystemRoot%.",
     "'Registry Cleanup' xoá cả khoá DelegateFolders mà Explorer dùng để hiện ổ, thiết bị: có rủi ro mà không có lợi ích rõ ràng.",
-    "'Clean Temp' gọi cleanmgr /sagerun:1 khi chưa từng /sageset:1 nên không dọn thêm gì.",
+    "'Clean Temp' gọi cleanmgr /sagerun:1 khi chưa từng /sageset:1 nên không dọn thêm gì, và xoá hết %TEMP% kể cả file đang dùng. Dùng công cụ Dọn ổ C an toàn thay thế (xem trước rồi mới dọn, chỉ xoá file cũ).",
     "'Check Disk' chạy chkdsk /f /r trên ổ sắp hỏng có thể làm mất dữ liệu; nên cứu dữ liệu (CheckWinFix) trước."
   ],
   "upgrades": [

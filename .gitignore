@@ -47,6 +47,11 @@ BaoCao_Office_*.txt
 NhatKy_Office_*.txt
 Office_ket_qua/
 
+# Dọn ổ C: báo cáo, nhật ký có tên máy, đường dẫn tài khoản
+BaoCao_DonOC_*.txt
+NhatKy_DonOC_*.txt
+DonOC_ket_qua/
+
 # Ghi âm / video
 *.m4a
 *.mp3
