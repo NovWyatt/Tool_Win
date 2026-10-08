@@ -1,0 +1,97 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "the-xe-nt",
+  "name": "File thẻ xe .nt (phần mềm giữ xe)",
+  "version": "1.0",
+  "category": "chuyen-doi",
+  "icon": "table",
+  "audience": "all",
+  "summary": "Sửa file danh sách thẻ .nt của bên bán bị mất số 0 ở CardID (nạp xong thẻ không quẹt được), tạo file .nt từ danh sách Excel, xem phần mềm giữ xe sẽ đọc file ra sao.",
+  "description": "File .nt là file Excel 97-2003 đổi đuôi, cột STT, CardID, tinhtrang. Phần mềm giữ xe (ITS Pro) đọc giá trị thật của ô chứ không đọc kiểu hiển thị: CardID lưu dạng số thì 0009569726 thành 9569726, đầu đọc gửi đủ 10 số nên thẻ không quẹt được. Công cụ đọc file đúng cách phần mềm đọc để báo lỗi, ghi bản sửa với CardID dạng chữ đủ 10 số, kèm file thử 1 thẻ để nạp trước. File gốc không bao giờ bị sửa. Không cần Excel (trừ khi đọc danh sách .xlsx).",
+  "tags": ["thẻ xe", "the xe", "giữ xe", "bãi xe", "parking", "its pro", "idt", "file nt", ".nt", "cardid", "mất số 0", "số 0 ở đầu", "không quẹt được thẻ", "nạp thẻ", "import thẻ", "thẻ từ", "rfid", "em"],
+  "docs": "HUONG-DAN.md",
+  "actions": [
+    {
+      "id": "xem",
+      "label": "Xem file thẻ như phần mềm giữ xe đọc",
+      "file": "TheXe.ps1",
+      "fixedArgs": ["-Mode", "xem"],
+      "admin": false,
+      "risk": "read-only",
+      "primary": true,
+      "duration": "Vài giây",
+      "description": "Chỉ đọc. Phần mềm nạp được bao nhiêu thẻ, CardID dạng số hay chữ, đủ 10 số chưa, dòng bị bỏ qua, mã trùng; vài thẻ đầu và cuối để so với số in trên thẻ. Ghi báo cáo ket_qua\\BaoCao_TheXe_<tên file>_<thời gian>.txt.",
+      "args": [
+        { "id": "file", "type": "file", "flag": "-File", "label": "File thẻ (.nt)", "required": true, "filter": "File thẻ|*.nt;*.xls" },
+        { "id": "do-dai", "type": "number", "flag": "-DoDai", "label": "Số chữ số của mã thẻ", "default": 10, "min": 4, "max": 20, "help": "Thẻ EM của đầu đọc gửi 10 số." }
+      ]
+    },
+    {
+      "id": "sua",
+      "label": "Sửa file thẻ của bên bán (thêm số 0 bị mất)",
+      "file": "TheXe.ps1",
+      "fixedArgs": ["-Mode", "sua"],
+      "admin": false,
+      "risk": "asks-before-change",
+      "duration": "Vài giây",
+      "description": "Ghi bản sửa vào thư mục da-sua cạnh file gốc, cùng tên: <tên>.nt để nạp, <tên>.xls để mở xem, thu-<số thẻ đầu>.nt chỉ có 1 thẻ để nạp thử. CardID thành chữ đủ 10 số; đọc lại như phần mềm và so từng thẻ. File có mã trùng, mã có chữ, thiếu số thì báo và không ghi gì. Đã có file cùng tên thì hỏi ghi đè.",
+      "args": [
+        { "id": "file", "type": "file", "flag": "-File", "label": "File thẻ của bên bán (.nt)", "required": true, "filter": "File thẻ|*.nt;*.xls" },
+        { "id": "thu-muc", "type": "folder", "flag": "-ThuMuc", "label": "Thư mục ghi kết quả (không bắt buộc)", "help": "Bỏ trống: thư mục da-sua cạnh file gốc." },
+        { "id": "do-dai", "type": "number", "flag": "-DoDai", "label": "Số chữ số của mã thẻ", "default": 10, "min": 4, "max": 20 }
+      ]
+    },
+    {
+      "id": "tao",
+      "label": "Tạo file thẻ .nt từ danh sách Excel",
+      "file": "TheXe.ps1",
+      "fixedArgs": ["-Mode", "tao"],
+      "admin": false,
+      "risk": "asks-before-change",
+      "duration": "Vài giây",
+      "description": "Danh sách .xlsx, .xls, .csv có một cột số thẻ (SỐ THẺ hoặc STT) và một cột mã thẻ (ID hoặc CardID), dòng tiêu đề trong 15 dòng đầu. Ghi <số đầu>-<số cuối>.nt, bản .xls để xem và file thử 1 thẻ. Đọc .xlsx cần Excel.",
+      "args": [
+        { "id": "file", "type": "file", "flag": "-File", "label": "File danh sách thẻ", "required": true, "filter": "Danh sách thẻ|*.xlsx;*.xls;*.csv;*.txt" },
+        { "id": "thu-muc", "type": "folder", "flag": "-ThuMuc", "label": "Thư mục ghi kết quả (không bắt buộc)", "help": "Bỏ trống: cùng thư mục với danh sách." },
+        { "id": "do-dai", "type": "number", "flag": "-DoDai", "label": "Số chữ số của mã thẻ", "default": 10, "min": 4, "max": 20 }
+      ]
+    },
+    {
+      "id": "menu",
+      "label": "Mở menu (như bấm đúp THE_XE.bat)",
+      "file": "THE_XE.bat",
+      "admin": false,
+      "risk": "asks-before-change",
+      "description": "Menu đủ các mục trên; kéo thả file vào cửa sổ để nhập đường dẫn. Kéo thả file .nt vào THE_XE.bat cũng mở menu với file đó."
+    }
+  ],
+  "requires": [
+    { "id": "jet", "type": "path", "label": "Jet OLEDB 4.0 bản 32 bit (có sẵn trong Windows)", "paths": ["%SystemRoot%\\SysWOW64\\msjetoledb40.dll", "%SystemRoot%\\System32\\msjetoledb40.dll"] },
+    {
+      "id": "excel", "type": "path", "label": "Microsoft Excel (chỉ cần khi danh sách là .xlsx)", "optional": true,
+      "paths": [
+        "%ProgramFiles%\\Microsoft Office\\root\\Office*\\EXCEL.EXE",
+        "%ProgramFiles(x86)%\\Microsoft Office\\root\\Office*\\EXCEL.EXE",
+        "%ProgramFiles%\\Microsoft Office\\Office*\\EXCEL.EXE",
+        "%ProgramFiles(x86)%\\Microsoft Office\\Office*\\EXCEL.EXE"
+      ]
+    }
+  ],
+  "outputs": [
+    { "label": "Báo cáo xem file", "dir": "ket_qua", "glob": "BaoCao_TheXe_*.txt" },
+    { "label": "Nhật ký sửa, tạo file", "dir": "ket_qua", "glob": "NhatKy_TheXe_*.txt" }
+  ],
+  "pack": {
+    "name": "TheXe",
+    "include": ["THE_XE.bat", "TheXe.ps1", "lib/*.ps1", "mau/mau-trong.xls", "HUONG-DAN.md"]
+  },
+  "issues": [
+    "Định dạng file và cách nạp lấy từ mã ITS Pro đã dịch ngược và các file của bên bán thẻ; đã đọc lại bằng đúng cách phần mềm đọc (Jet OLEDB 4.0) nhưng chưa nạp thử file do công cụ ghi vào phần mềm thật.",
+    "Mã thẻ phải toàn số (mã EM thập phân). Thẻ dùng mã hex hoặc có dấu phẩy (dạng 145,05310) công cụ báo lỗi, không tự đổi.",
+    "Công cụ không đụng tới cơ sở dữ liệu của phần mềm giữ xe: thẻ đã nạp với mã thiếu số 0 phải xoá trong phần mềm."
+  ],
+  "upgrades": [
+    "P1 – So file mới với danh sách thẻ đang có trong phần mềm (bảng active) để báo trước mã trùng, STT đã có.",
+    "P2 – Ghép nhiều lô vào một file, tách một lô lớn thành nhiều file."
+  ]
+}

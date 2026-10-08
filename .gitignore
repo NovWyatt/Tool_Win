@@ -52,6 +52,16 @@ BaoCao_DonOC_*.txt
 NhatKy_DonOC_*.txt
 DonOC_ket_qua/
 
+# File thẻ xe: danh sách thẻ của khách (.nt là .xls đổi đuôi), báo cáo có mã thẻ
+*.nt
+tools/the-xe-nt/**/*.xls
+tools/the-xe-nt/**/*.xlsx
+tools/the-xe-nt/**/*.csv
+!tools/the-xe-nt/mau/mau-trong.xls
+BaoCao_TheXe_*.txt
+NhatKy_TheXe_*.txt
+TheXe_ket_qua/
+
 # Ghi âm / video
 *.m4a
 *.mp3
