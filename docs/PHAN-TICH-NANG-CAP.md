@@ -69,6 +69,11 @@ Mức ưu tiên:
   `%LOCALAPPDATA%\MyExcelFix\BaoCao` thay vì Public Documents (mọi tài khoản đọc được), chỉ snapshot cấu hình còn ở thư
   mục chung để so giữa các tài khoản; báo cáo che cả tên chủ tài khoản; `ThongTinKhaiBao.txt` chỉ ghi khi đặt lại thật;
   `HOAN_TAC.bat` không tham số liệt kê bản sao lưu để chọn (cả bản cũ trên Desktop). Mới thử bằng giả lập.
+- **Trạm 1.4.0 (kết quả máy đọc được)**: chuẩn JSON kết quả chung `tramtool.ketqua/1`; MyExcelFix 2026.10.3,
+  Chuyển dữ liệu 2.1 và `mdf2sql doctor --ket-qua` ghi theo chuẩn. Trạm gắn kết quả vào Lịch sử, hiện từng phát
+  hiện kèm cách sửa và nút chạy tiếp; mã 2 hiện *Chưa làm*, 3 hiện *Làm được một phần*; mở lại, tắt giao diện web của
+  mdf2sql qua `server.json`. Đã thử trên trạm thử với công cụ giả, máy chủ giả và máy chủ mdf2sql thật; chưa xem kết
+  quả MyExcelFix của một máy có MyExcel thật trong trạm.
 
 ## Đã sửa trong đợt này
 
@@ -105,13 +110,15 @@ Mức ưu tiên:
 | `15bedfb` | Báo cáo sức khoẻ | Bản 1.1: không có sự kiện thì in [OK] thay vì [LOI]; tự nâng quyền bằng `fltmc`, đường dẫn qua biến môi trường (thư mục có dấu `'` chạy được), đợi cửa sổ Admin để trả mã thoát; bỏ lời khuyên gửi file cho ChatGPT. |
 | `e198820` | Ghi âm sang Word | 2026.10.1: tên kết quả giữ đuôi file gốc (`hop.m4a - ban tho.docx`), `hop.m4a` và `hop.mp4` không ghi đè nhau; kết quả bản cũ vẫn được nhận nên không làm lại; `--ra` chọn thư mục kết quả. |
 | `2bfd956`, `d0e8d92` (submodule) | Khôi phục .mdf sang .sql | mdf2sql 1.1.1: hộp thoại chọn file (Tk) chạy trong tiến trình riêng thay vì trên luồng HTTP (có thể làm sập máy chủ); `Chay_tool.bat` chạy thử Python thay cho `where python` (lối tắt Microsoft Store không còn qua được); pyodbc 5.x theo `requirements.txt`. |
+| `ac49ded` | Trạm, MyExcelFix, Chuyển dữ liệu khi cài lại Windows | Trạm 1.4.0: chuẩn JSON kết quả `tramtool.ketqua/1` (`hub\lib\KetQua.ps1`), Lịch sử gắn kết quả từng lần chạy, hộp thoại *Xem chi tiết* có nút chạy tiếp; mã 2/3 có nhãn riêng; theo dõi công cụ tự nâng quyền khi mở bằng quyền thường; `webServer` trong `tool.json` để mở lại, tắt giao diện web. MyExcelFix 2026.10.3, Chuyển dữ liệu 2.1 ghi theo chuẩn. |
+| `31fe2b4` (submodule) | Khôi phục .mdf sang .sql | mdf2sql 1.2.0: `doctor --ket-qua` theo chuẩn của trạm; `tool.json` khai `webServer`; máy chủ đọc hết thân yêu cầu rồi mới trả 403 (trước đó Windows cắt kết nối, bài thử chập chờn WinError 10053); `Chay_tool.bat` tự đóng khi tắt bình thường. |
 | `a5ef3e4` | MyExcelFix | 2026.10.2: sao lưu, báo cáo, JSON kết quả vào `%LOCALAPPDATA%\MyExcelFix` (riêng từng tài khoản, không đồng bộ OneDrive); Public Documents chỉ còn snapshot cấu hình, báo cáo cũ của tài khoản đang chạy tự chuyển sang; che tên chủ tài khoản; `ThongTinKhaiBao.txt` chỉ khi đặt lại; `HOAN_TAC.bat` không tham số liệt kê bản sao lưu. |
 
 ## Bảng tổng quan
 
 | Công cụ | Dành cho | Đánh giá | Việc nên làm trước |
 |---|---|---|---|
-| CheckWinFix | Mọi người | Bộ chẩn đoán đầy đủ nhất: 24 nhóm thông tin, khoảng 45 cảnh báo tự động (lỗi sự kiện so theo nguồn + mã, cả mức Warning), chạy đúng với mọi đường dẫn. *Cứu dữ liệu* bản 2.0 an toàn hơn (ổ vật lý khác, MD5 khi SQL dừng, luôn bật lại dịch vụ), mới thử bằng giả lập. | P1: lõi dùng chung, JSON kết quả, đọc EventData ở các mục còn lại. |
+| CheckWinFix | Mọi người | Bộ chẩn đoán đầy đủ nhất: 24 nhóm thông tin, khoảng 45 cảnh báo tự động (lỗi sự kiện so theo nguồn + mã, cả mức Warning), chạy đúng với mọi đường dẫn. *Cứu dữ liệu* bản 2.0 an toàn hơn (ổ vật lý khác, MD5 khi SQL dừng, luôn bật lại dịch vụ), mới thử bằng giả lập. | P1: lõi dùng chung, JSON kết quả theo chuẩn của trạm, đọc EventData ở các mục còn lại. |
 | Báo cáo sức khoẻ | Mọi người | Bản 1.1 chạy được, không có sự kiện thì báo [OK]; nhưng trùng phần lớn với *Thu thập thông tin* của CheckWinFix. | P1: gộp vào CheckWinFix thành chế độ nhanh. |
 | Sửa lỗi Windows | Kỹ thuật | Bản 2.0: DISM rồi SFC, đặt lại mạng (ghi lại IP/DNS đặt tay trước), đặt lại tường lửa (sao lưu `.wfw`, hỏi lại, khôi phục được), quét và sửa ổ đĩa (xem sức khoẻ ổ trước), kiểm tra RAM, đặt lại Windows Update (đổi tên có thời gian); mỗi lệnh kiểm tra kết quả thật. Mới thử bằng giả lập. | P1: nhật ký tóm tắt CBS/DISM; DISM dùng ISO khi Windows Update không tải được. |
 | Kiểm tra và sửa lỗi Wi-Fi | Mọi người | Bản 1.1 thêm `KET_NOI_WIFI.bat`: gọi thẳng API Wi-Fi (không phụ thuộc ngôn ngữ Windows), sửa lỗi *Can't connect to this network* khi vào mạng mới sau khi máy thức dậy, chẩn đoán từ nhật ký WLAN theo mã lý do. Phần kết nối mới chạy thử, chưa chạy thật. Menu cũ `fixwf.bat` vẫn tìm card bằng chữ. | P1: tự sửa sau khi máy thức dậy; gộp menu cũ vào `KetNoiWifi.ps1`. |
@@ -121,10 +128,10 @@ Mức ưu tiên:
 | Gỡ sạch và cài Office theo mẫu | Kỹ thuật | Kiểm tra Office, giấy phép, bộ cài mẫu (ODT) trước; gỡ mọi bản Office rồi cài theo mẫu, mẫu hỏng thì không gỡ gì; sao lưu mẫu Word, macro, chữ ký; khoá trong mẫu không bao giờ in ra, kích hoạt chỉ theo cách của Microsoft. Kiểm tra và Chạy thử đã chạy thật; gỡ, cài, kích hoạt mới thử bằng giả lập. | P1: gỡ, cài thật trên một máy thử; tạo mẫu mới (LTSC 2024, Microsoft 365) ngay trong công cụ; Quick Repair trước khi phải gỡ. |
 | Dọn ổ C an toàn | Mọi người | Xem ổ C đầy vì đâu (rác dọn được và thứ chiếm chỗ bạn tự quyết: thùng rác, Windows.old, file ngủ đông, Zalo, Downloads); dọn file tạm cũ hơn N ngày, bộ nhớ đệm trình duyệt khi đã tắt, file tải về của Windows Update, Delivery Optimization, WinSxS. Xem trước, gõ C mới xoá; danh sách thư mục được phép. Xem và Chạy thử đã chạy thật; phần xoá mới thử trong thư mục cát. | P1: dọn thật trên một máy; dọn Teams, bộ cài cập nhật Zalo; liệt kê thư mục lớn nhất. |
 | File thẻ xe .nt | Mọi người | Chuyển danh sách Excel sang .nt, kiểm tra file .nt như phần mềm giữ xe đọc và so từng thẻ với danh sách Excel, chuyển .nt sang Excel kèm kết quả từng thẻ, sửa CardID mất số 0; bản sửa lô 3257-3426 khớp từng thẻ với bản sửa tay. Không cần Excel. | P1: nạp thử file do công cụ ghi vào phần mềm thật; so với danh sách thẻ đang có trong phần mềm trước khi nạp. |
-| MyExcelFix | Mọi người | Chẩn đoán kỹ theo từng tài khoản Windows, có sao lưu và hoàn tác an toàn (giữ bản đã sửa tiếp), mã thoát và JSON kết quả có mã phát hiện cố định; sao lưu, báo cáo nằm trong thư mục riêng của tài khoản, bản gửi đi đã che số và tên; mã nguồn chia module và build ra một file `.bat`. | P1: Trạm hiện phát hiện từ JSON; Trạm liệt kê bản sao lưu trong form Hoàn tác; `common\` dùng chung cho hai bản build. |
+| MyExcelFix | Mọi người | Chẩn đoán kỹ theo từng tài khoản Windows, có sao lưu và hoàn tác an toàn (giữ bản đã sửa tiếp), mã thoát và JSON kết quả có mã phát hiện cố định; sao lưu, báo cáo nằm trong thư mục riêng của tài khoản, bản gửi đi đã che số và tên; mã nguồn chia module và build ra một file `.bat`. Trạm hiện từng phát hiện, gợi ý chạy *Sửa lỗi* khi bản Sửa xử lý được. | P1: Trạm liệt kê bản sao lưu trong form Hoàn tác; `common\` dùng chung cho hai bản build. |
 | DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5-35 phút). | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
 | Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn; tên kết quả giữ đuôi file gốc, chọn được thư mục kết quả. | P1: lưu tiến độ để chạy tiếp, chỉ chạy lại bằng CPU khi đúng là lỗi card. |
-| Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. Có `doctor` kiểm tra môi trường; giao diện giữ cổng riêng, tự lùi khi cổng bận; hộp thoại chọn file chạy trong tiến trình riêng. | P1: `.venv` riêng khoá phiên bản pyodbc; dọn database tạm, thư mục làm việc bị bỏ lại; trạm đọc `server.json` để mở lại, tắt giao diện. |
+| Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. Có `doctor` kiểm tra môi trường; giao diện giữ cổng riêng, tự lùi khi cổng bận; hộp thoại chọn file chạy trong tiến trình riêng; Trạm mở lại, tắt giao diện đang chạy và hiện kết quả `doctor`. | P1: `.venv` riêng khoá phiên bản pyodbc; dọn database tạm, thư mục làm việc bị bỏ lại. |
 | Chuyển dữ liệu khi cài lại Windows | Kỹ thuật | Bản 2.0: sao lưu Wi-Fi kèm mật khẩu, máy in kèm driver, dữ liệu Claude, khoá BitLocker, driver mạng ra nơi chọn (USB trước), tuỳ chọn mã hoá phần bí mật; manifest đánh dấu đã xong, bước nhập không dùng bản dở; có Chạy thử. Mới thử bằng giả lập. | P1: kiểm đếm file và SHA-256; hỏi bật tự mở khoá ổ BitLocker sau khi mở. |
 | BitLocker và khoá khôi phục | Mọi người | Kiểm tra từng ổ (mã hoá, tạm dừng, bị khoá), khoá khôi phục đã lưu ở đâu, TPM, các lần máy phải nhập khoá; kết luận theo thứ tự nên làm. 6 nút đổi máy có Chạy thử, nhật ký hoàn tác; khoá 48 số không bao giờ vào báo cáo, nhật ký. Chưa chạy trên ổ mã hoá thật, mới thử bằng giả lập. | P1: chạy thật trên máy có BitLocker; sao lưu khoá lên tài khoản Microsoft; lưu gói khoá `.KPG`. |
 | Đăng xuất GitHub | Kỹ thuật | Bản 1.1: xoá mọi mục GitHub của Git trong Credential Manager (cả mục kèm tên tài khoản), hỏi trước với mục của ứng dụng khác và GitHub CLI, có Chạy thử. | P2: chọn tài khoản cần xoá thay vì xoá hết. |
@@ -154,12 +161,15 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
    và `hub\dev\Normalize-Encoding.ps1` để giữ đúng.
 7. **Môi trường Python tự phát.** Mỗi công cụ một kiểu cài. Quy ước (đã áp dụng cho DWG sang PDF, Ghi âm sang Word):
    `.venv` riêng, `requirements-lock.txt` khoá phiên bản, `CAI_DAT.ps1` tự cài lại được trên máy mới.
-8. **Kết quả chỉ là chữ.** Trạm không biết công cụ chạy xong hay lỗi, tìm thấy gì. Quy ước (P1): mỗi lần chạy ghi thêm
-   một file JSON tóm tắt (máy, thời gian, trạng thái, phát hiện, mức độ, cách sửa, đường dẫn kết quả).
+8. **Kết quả chỉ là chữ.** Trạm không biết công cụ chạy xong hay lỗi, tìm thấy gì. Quy ước: mỗi lần chạy ghi thêm
+   một file JSON theo chuẩn `tramtool.ketqua/1` (máy, thời gian, mã thoát, trạng thái, phát hiện, mức độ, cách sửa,
+   công cụ chạy tiếp, file liên quan; xem `docs\THEM-CONG-CU.md`). Đã làm cho MyExcelFix, Chuyển dữ liệu khi cài lại
+   Windows, `mdf2sql doctor`; Trạm 1.4.0 đọc và hiện trong Lịch sử. Còn lại: CheckWinFix, Sửa lỗi Windows, Máy in LAN,
+   BitLocker, Dọn ổ C, Office.
 9. **Bài thử không nằm trong repo.** Các nút đổi máy chủ yếu được thử bằng giả lập, nhưng bài thử chỉ nằm ở thư mục
    tạm của phiên làm việc nên sửa sau không chạy lại được. Đã làm: `tests\` với một trình chạy chung
-   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 34 bài cho 17 bộ (cú pháp, mã hoá file, danh mục và lược đồ
-   `tool.json`, không commit dữ liệu khách, lan can của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
+   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 35 bài cho 17 bộ (cú pháp, mã hoá file, danh mục và lược đồ
+   `tool.json`, không commit dữ liệu khách, lan can và kết quả JSON của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
    dịch vụ, đồng hồ, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe, Đăng xuất GitHub, Báo cáo sức khoẻ, Ghi âm
    sang Word, `.bat` của mdf2sql) và `tools\mdf2sql\tests` (unittest).
    Chạy bằng quyền thường, thư mục tạm ngoài repo, registry chỉ trong `HKCU\Software\TramToolTest`. Quy ước: chạy
@@ -186,20 +196,25 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 
 ### Giai đoạn 2: chuẩn hoá (P1)
 
-- [ ] File JSON kết quả chung cho mọi công cụ; Trạm đọc để hiện *tìm thấy gì* và gợi ý công cụ chạy tiếp.
-- [x] Trạm đợi tiến trình xong trong nền, ghi mã thoát và thời gian chạy vào Lịch sử (Trạm 1.1.0). Chưa theo dõi được
-      công cụ tự nâng quyền (cửa sổ đầu thoát ngay, cửa sổ Admin là tiến trình khác).
+- [x] Chuẩn JSON kết quả chung; Trạm đọc để hiện *tìm thấy gì* và gợi ý công cụ chạy tiếp (Trạm 1.4.0; MyExcelFix,
+      Chuyển dữ liệu khi cài lại Windows, `mdf2sql doctor` đã ghi theo chuẩn).
+- [ ] JSON kết quả theo chuẩn cho CheckWinFix, Sửa lỗi Windows, Máy in LAN, BitLocker, Dọn ổ C, Office.
+- [x] Trạm đợi tiến trình xong trong nền, ghi mã thoát và thời gian chạy vào Lịch sử (Trạm 1.1.0). Công cụ tự nâng
+      quyền: cửa sổ đầu đợi cửa sổ Admin và trả mã của nó (bài thử tĩnh kiểm), trạm theo dõi cả khi mở bằng quyền
+      thường (Trạm 1.4.0).
 - [ ] Lõi PowerShell dùng chung (kiểm tra Admin, ghi log, đọc SMART, minidump, WHEA, chọn nơi lưu), build ra từng `.bat`
       một file như MyExcelFix để vẫn gửi khách được một file.
 - [ ] Gộp: Báo cáo sức khoẻ thành chế độ nhanh của CheckWinFix; Tắt/bật dịch vụ + Tối ưu đồng hồ thành một công cụ
       *Tối ưu* có trang trạng thái.
 - [ ] Khôi phục .mdf: `.venv` riêng có pyodbc khoá phiên bản; dọn database tạm, thư mục làm việc bị bỏ lại.
 - [x] Khôi phục .mdf: hộp thoại chọn file trong tiến trình riêng; `Chay_tool.bat` chạy thử Python thật (mdf2sql 1.1.1).
+- [x] Khôi phục .mdf: trạm đọc `server.json` để mở lại, tắt giao diện; `doctor --ket-qua` (mdf2sql 1.2.0, Trạm 1.4.0).
 - [x] Ghi âm sang Word: tên kết quả giữ đuôi file gốc, `--ra` (2026.10.1).
 - [ ] Ghi âm sang Word: lưu tiến độ từng khúc; hết bộ nhớ card thì thử lại khúc đó với beam nhỏ.
 - [x] MyExcelFix: sao lưu, báo cáo theo tài khoản (`%LOCALAPPDATA%`) thay vì Desktop, Public Documents; che tên chủ
       tài khoản; `HOAN_TAC.bat` liệt kê bản sao lưu (2026.10.2).
-- [ ] MyExcelFix: Trạm liệt kê bản sao lưu trong form Hoàn tác; hiện phát hiện từ `KetQua_MyExcel_*.json`.
+- [x] MyExcelFix: Trạm hiện phát hiện từ `KetQua_MyExcel_*.json`, gợi ý *Sửa lỗi* (2026.10.3, Trạm 1.4.0).
+- [ ] MyExcelFix: Trạm liệt kê bản sao lưu trong form Hoàn tác.
 - [x] Đăng xuất GitHub: lọc `cmdkey /list` theo `github` (bản 1.1).
 - [x] Báo cáo sức khoẻ: không có sự kiện thì [OK]; nâng quyền bằng `fltmc`, đường dẫn qua biến môi trường (bản 1.1).
 - [x] DWG sang PDF: giải mã TCVN3 (`.VnTime`, `.VnArial`...) giống cách đã làm với VNI.
@@ -320,8 +335,31 @@ trạng thái đang tải, trống, lỗi; một hệ bo góc; chữ số thẳn
 PowerToys Command Palette, Raycast, Linear (ô Ctrl+K), UniGetUI (bảng tác vụ đang chạy, lịch sử), GitHub Desktop
 (trạng thái trống có việc tiếp theo), hướng dẫn UAC và InfoBar của Microsoft.
 
-**Hướng tiếp**: các mục *Trạm* trong lộ trình ở trên (JSON kết quả, tiến độ, cập nhật công cụ); loại probe `script`
-chỉ đọc (BitLocker, SMB); thư viện nhật ký hoàn tác chung.
+**Bản 1.4.0 (09/10/2026): kết quả máy đọc được**
+
+- **Chuẩn JSON kết quả** `tramtool.ketqua/1` (`docs\THEM-CONG-CU.md`): công cụ khai file kết quả trong `outputs`
+  (`"ketQua": true`). Khi cửa sổ đóng, trạm tìm file của đúng công cụ, sửa trong lúc chạy, đọc (tên trường không phân
+  biệt hoa thường, nhận cả cách ghi cũ) và gắn tóm tắt vào Lịch sử. Dòng Lịch sử, thông báo khi xong và *Cần chú ý* ở
+  *Tổng quan* hiện câu tóm tắt; *Xem chi tiết* mở hộp thoại: trạng thái, số lỗi, cần xem, thông tin, từng phát hiện
+  kèm mã và cách sửa, nút chạy tiếp (`chayTiep`, vẫn qua form và hộp xác nhận như chạy thường), file liên quan (chỉ
+  mở thư mục trong Explorer, không chạy file). *Kết quả gần đây* có nút *Xem* cho file kết quả.
+- **Mã thoát**: 2 hiện *Chưa làm*, 3 hiện *Làm được một phần* thay cho *Báo lỗi*, cả với bản ghi cũ; tab *Có lỗi* đổi
+  thành *Cần xem* (lỗi, làm một phần, chưa làm, kết quả có lỗi). *Cần chú ý* chỉ xét lần chạy mới nhất của mỗi công cụ.
+- **Công cụ tự nâng quyền**: cả 7 action `selfElevates` (CheckWinFix, Báo cáo sức khoẻ) đều khai `admin: true`,
+  nên trạm vốn mở bằng quyền Admin và theo dõi được; phần thiếu nhỏ hơn đánh giá ban đầu. Nay: bài thử tĩnh kiểm cửa sổ
+  đầu đợi cửa sổ Admin và trả mã của nó; trạm giữ handle ngay khi mở; action `selfElevates` không khai `admin` vẫn
+  được theo dõi (trừ công cụ chưa có `tool.json`).
+- **Giao diện web cục bộ** (`webServer`): trạm đọc file trạng thái (`%LOCALAPPDATA%\mdf2sql\server.json`), chỉ
+  tin khi `/api/health` trả đúng ứng dụng và tiến trình. Bấm *Chạy* khi giao diện đang chạy thì mở lại trang cũ; trang
+  công cụ hiện *Đang chạy ở cổng N từ HH:MM* với *Mở lại*, *Tắt* (đang chuyển đổi thì mdf2sql từ chối, trạm báo lại).
+  Địa chỉ kèm mã không gửi lên trình duyệt của trạm.
+- Đã thử: 56 mục trong `tram/5_KetQua` (gồm máy chủ web giả), toàn bộ 35 bài; trạm thử với công cụ giả (Lịch sử,
+  hộp thoại ở sáng, tối, màn hình hẹp, nút chạy tiếp), tắt máy chủ giả và máy chủ mdf2sql thật (`LOCALAPPDATA` tạm,
+  `--no-browser`). Lần thử đó tìm ra lỗi: trạm gửi thân `{}` kèm lệnh tắt, máy chủ tắt ngay nên Windows cắt kết nối
+  giữa lúc trạm đang ghi (trạm báo lỗi dù đã tắt); nay gửi POST rỗng, bài thử kiểm độ dài thân bằng 0.
+
+**Hướng tiếp**: các mục *Trạm* trong lộ trình ở trên (JSON kết quả cho các công cụ còn lại, tiến độ, cập nhật công
+cụ); loại probe `script` chỉ đọc (BitLocker, SMB); thư viện nhật ký hoàn tác chung.
 
 ## Công cụ Windows nên thêm
 
