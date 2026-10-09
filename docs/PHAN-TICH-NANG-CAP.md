@@ -29,7 +29,8 @@ Mức ưu tiên:
 - **Lan can an toàn (Trạm 1.2.0)**: điểm khôi phục hệ thống trước công cụ đổi máy bằng quyền Admin, ghi dịch vụ và
   registry trước khi chạy để xem thay đổi và trả lại, kiểm tra và sửa winget. Đã thử bằng giả lập, chưa tạo điểm khôi
   phục thật (máy phát triển đang tắt Bảo vệ hệ thống).
-- **Cần sửa trước khi đưa người khác dùng (P0)**: Khôi phục .mdf sang .sql (lệnh `doctor`, tự lùi sang cổng trống).
+- **Cần sửa trước khi đưa người khác dùng (P0)**: đã sửa hết (giai đoạn 1 của *Lộ trình*). Phần lớn nút đổi máy
+  mới thử bằng giả lập: nên chạy thật trên một máy thử trước khi đưa cho khách.
 - **CheckWinFix 2026.10.2**: *Cứu dữ liệu* chọn nơi lưu trên ổ vật lý khác, dừng mọi instance SQL Server, đối chiếu
   MD5 khi SQL còn dừng, luôn bật lại dịch vụ (nhớ cả khi cửa sổ bị đóng), luôn ghi vào thư mục mới; bảng cảnh báo so
   theo nguồn + mã sự kiện, đọc cả mức Warning, tách lỗi ổ đĩa theo từng Disk; kiểm tra Admin bằng `fltmc`. Cứu dữ
@@ -53,6 +54,10 @@ Mức ưu tiên:
   báo [OK]. Mới thử bằng giả lập (Wi-Fi, máy in, BitLocker, driver, Claude giả) và chạy thử chỉ đọc trên máy thật.
 - **Khôi phục .mdf sang .sql**: máy phát triển nay đã có ODBC Driver 17 và SQL Server Express (09/10/2026), trạm báo
   đủ yêu cầu; máy mới thì `CAI_DAT.bat` cài ODBC Driver 18 và LocalDB (cần quyền Admin).
+- **Khôi phục .mdf sang .sql 2026.10.1 (mdf2sql 1.1.0)**: lệnh `doctor` (nút *Kiểm tra máy đủ điều kiện chưa*) kiểm
+  tra pyodbc, driver ODBC, SQL Server (kết nối thử, quyền tạo database), database tạm và thư mục làm việc còn sót, in
+  cách sửa; máy chủ giao diện giữ cổng riêng, cổng 8760 bận thì tự lùi, nhận `--port 0`; `/api/health`,
+  `/api/shutdown` và `server.json` để trạm quản lý. `doctor` đã chạy thật với SQL Server Express của máy phát triển.
 
 ## Đã sửa trong đợt này
 
@@ -77,6 +82,13 @@ Mức ưu tiên:
 | `9af2d8e` | File thẻ xe .nt (mới) | Công cụ mới `tools\the-xe-nt`: đọc file thẻ đúng cách phần mềm giữ xe ITS Pro đọc (Jet OLEDB 4.0), sửa file của bên bán có CardID dạng số bị mất số 0, tạo file .nt từ danh sách Excel; ghi CardID dạng chữ đủ 10 số, đọc lại so từng thẻ, kèm file thử 1 thẻ; không cần Excel. |
 | `8aff9e2` | File thẻ xe .nt | Bản 1.1: chuyển file .nt sang Excel (mỗi thẻ một dòng, mã phần mềm đọc được, kết quả từng thẻ, ô có vấn đề tô đỏ; sửa xong chuyển ngược lại ra .nt); kiểm tra file .nt so với danh sách Excel (khớp, mất số 0, khác mã, thiếu, thừa); đọc, ghi .xlsx thẳng nên không cần Excel cả khi danh sách là .xlsx; nhận ra .xlsx bị đổi đuôi .nt. |
 | `cc3b8e8` | Trạm, mọi `tool.json` | Trạm 1.3.0: giao diện làm lại không dùng Fluent UI (hệ màu riêng, chữ Be Vietnam Pro, biểu tượng Phosphor, danh mục dạng mục lục, một nút chính mỗi vùng); `CAI_DAT.bat` cài một lần mọi thứ các công cụ cần trên máy mới, rồi tạo lối tắt và mở trạm; `tool.json` bỏ gạch dài. |
+| `7e54901` | Tối ưu đồng hồ hệ thống | Bản 2.0: bản cũ ghi vào registry (Windows không đọc) nên không có tác dụng; nay đổi thẳng trong BCD bằng `bcdedit`, đọc lại sau khi đổi, tạm dừng BitLocker 1 lần khởi động khi cần, dọn giá trị registry bản cũ. |
+| `19136e0` | Tắt/bật dịch vụ nền | Bản 2.0: xét kiểu khởi động thay vì đang chạy hay dừng, lưu kiểu khởi động gốc trước khi tắt để *Bật lại* trả đúng như cũ, đọc lại sau mỗi lần đổi. |
+| `43b7a27` | Sửa lỗi Windows | Bản 2.0: mỗi lệnh kiểm tra kết quả thật (DISM, SFC đọc CBS.log, `Repair-Volume`); đặt lại tường lửa tách riêng, sao lưu `.wfw` và hỏi lại; bỏ *Registry Cleanup*, *Clean Temp*. |
+| `acc7e46` | CheckWinFix, Kiểm tra và sửa lỗi Wi-Fi | CheckWinFix 2026.10.2: *Cứu dữ liệu* lưu sang ổ vật lý khác, dừng mọi instance SQL Server, đối chiếu MD5 khi SQL còn dừng, luôn bật lại dịch vụ; cảnh báo so theo nguồn + mã, đọc cả mức Warning. Cả CheckWinFix và `fixwf.bat` kiểm tra Admin bằng `fltmc`, mã thoát 0/1/2/3. |
+| `330017a` | MyExcelFix | 2026.10.1: hết đầu vào thì dừng; hoàn tác lưu cấu hình hiện tại trước, so SHA-256 từng file Excel, giữ bản đã sửa tiếp; mã thoát và JSON kết quả có mã phát hiện cố định. |
+| `72eb0f2` | Chuyển dữ liệu khi cài lại Windows | Bản 2.0: chọn nơi lưu (USB trước, không cho thư mục Trạm Tool); tuỳ chọn mã hoá mật khẩu Wi-Fi, cấu hình Claude vào `BiMat.aes`; `manifest.json` đánh dấu đang làm/xong, bước nhập bỏ bản dở, hỏi trước bản `_cu_`; tham số, chạy thử, mã thoát, JSON kết quả. |
+| `48f44a8` (submodule) | Khôi phục .mdf sang .sql | mdf2sql 1.1.0: lệnh `doctor`; máy chủ giao diện giữ cổng riêng (`SO_EXCLUSIVEADDRUSE`), cổng bận thì tự lùi, `--port 0`, in URL thật; `/api/health`, `/api/shutdown`, `server.json`; gợi ý cài ODBC 18 khi chỉ có driver cũ. |
 
 ## Bảng tổng quan
 
@@ -95,7 +107,7 @@ Mức ưu tiên:
 | MyExcelFix | Mọi người | Chẩn đoán kỹ theo từng tài khoản Windows, có sao lưu và hoàn tác an toàn (giữ bản đã sửa tiếp), mã thoát và JSON kết quả có mã phát hiện cố định; mã nguồn chia module và build ra một file `.bat`. | P1: Trạm hiện phát hiện từ JSON; `/undo`, `/list`; sao lưu theo tài khoản thay vì Desktop. |
 | DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5-35 phút). | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
 | Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn. | P1: tên kết quả giữ đuôi file gốc, lưu tiến độ để chạy tiếp, chỉ chạy lại bằng CPU khi đúng là lỗi card. |
-| Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. | P0: lệnh `doctor` kiểm tra môi trường, không dùng chung cổng 8760. |
+| Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. Có `doctor` kiểm tra môi trường; giao diện giữ cổng riêng, tự lùi khi cổng bận. | P1: `.venv` riêng khoá phiên bản pyodbc; dọn database tạm, thư mục làm việc bị bỏ lại; trạm đọc `server.json` để mở lại, tắt giao diện. |
 | Chuyển dữ liệu khi cài lại Windows | Kỹ thuật | Bản 2.0: sao lưu Wi-Fi kèm mật khẩu, máy in kèm driver, dữ liệu Claude, khoá BitLocker, driver mạng ra nơi chọn (USB trước), tuỳ chọn mã hoá phần bí mật; manifest đánh dấu đã xong, bước nhập không dùng bản dở; có Chạy thử. Mới thử bằng giả lập. | P1: kiểm đếm file và SHA-256; hỏi bật tự mở khoá ổ BitLocker sau khi mở. |
 | BitLocker và khoá khôi phục | Mọi người | Kiểm tra từng ổ (mã hoá, tạm dừng, bị khoá), khoá khôi phục đã lưu ở đâu, TPM, các lần máy phải nhập khoá; kết luận theo thứ tự nên làm. 6 nút đổi máy có Chạy thử, nhật ký hoàn tác; khoá 48 số không bao giờ vào báo cáo, nhật ký. Chưa chạy trên ổ mã hoá thật, mới thử bằng giả lập. | P1: chạy thật trên máy có BitLocker; sao lưu khoá lên tài khoản Microsoft; lưu gói khoá `.KPG`. |
 | Đăng xuất GitHub | Kỹ thuật | Nhỏ, đúng việc; có thể sót mục đăng nhập lưu theo tài khoản. | P1: lọc `cmdkey /list` theo `github`. |
@@ -142,7 +154,8 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
       (bản 2026.10.1, kèm JSON kết quả).
 - [x] Chuyển dữ liệu khi cài lại Windows: chọn nơi lưu, `manifest.json` đánh dấu đang làm/xong, `-DryRun`, mã thoát
       (bản 2.0, kèm tuỳ chọn mã hoá `BiMat.aes` và JSON kết quả).
-- [ ] Khôi phục .mdf: `mdf2sql doctor`; tự lùi sang cổng trống, không dùng chung cổng.
+- [x] Khôi phục .mdf: `mdf2sql doctor`; tự lùi sang cổng trống, không dùng chung cổng (mdf2sql 1.1.0, kèm
+      `/api/health`, `/api/shutdown`).
 
 ### Giai đoạn 2: chuẩn hoá (P1)
 
