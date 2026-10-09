@@ -61,6 +61,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `tram/3_KhoiChay` | Máy in LAN `-ChayThu -KhongDung` dò máy này và 127.0.0.1 |
 | `checkwinfix/3_ThuThap` | chạy thật phần PowerShell của Thu thập thông tin bằng quyền thường (`-KhongHoi`, không mở Notepad), báo cáo và JSON vào thư mục tạm, khoảng 1,5 phút |
 | `gio-chu-ky-so/2_ChayThat` | Kiểm tra thật (hỏi máy chủ giờ qua mạng, đọc dịch vụ, đầu đọc thẻ, kho chứng thư của tài khoản; không hỏi PIN); Sửa giờ, Sửa token, Trả lại ở chế độ chạy thử; so cấu hình giờ, dịch vụ trước và sau |
+| `bo-ung-dung/2_ChayThat` | Kiểm tra thật (`winget export`, chỉ đọc); Cài, Cập nhật ở chế độ chạy thử (không hỏi UAC, không cài gì); cờ lạ, chế độ sai; so danh sách phần mềm đã cài trước và sau |
 | `toi-uu/3_ToiUu` | Kiểm tra dịch vụ nền thật (chỉ đọc); phần đồng hồ chạy `-ChayThu` nên không hỏi UAC, `bcdedit /enum` bị từ chối khi không có quyền Admin |
 
 `tram/1_LanCanAnToan` cũng đọc trạng thái Bảo vệ hệ thống, winget, dịch vụ SysMain, build Windows (chỉ đọc).
@@ -80,6 +81,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `checkwinfix` | `3_ThuThap`: mọi cảnh báo có mã và mức, gợi ý chạy tiếp trỏ tới action có thật; lỗi ổ USB hoặc ổ đã rút chỉ là cảnh báo; kiểm tra sâu (DISM, chkdsk /scan giả); tham số từ trạm; JSON theo chuẩn mà trạm đọc được |
 | `toi-uu` | tắt/bật dịch vụ (sc.exe giả), đổi BCD (bcdedit giả), BitLocker; phát hiện có mã cho Kiểm tra chung; chuyển file trạng thái gốc từ chỗ cũ (`service-optimizer`); `ToiUu.ps1` gộp hai phần, mã thoát chung, gọi script con thật trong cùng cửa sổ |
 | `gio-chu-ky-so` | độ lệch giờ, múi giờ, dịch vụ, token, chứng thư (giả lập); sửa giờ (đặt giờ khi đồng bộ xong vẫn lệch, máy trong domain không đổi cấu hình), sửa dịch vụ token, trả lại như cũ, giữ giá trị của lần sửa đầu; JSON kết quả mà trạm đọc được |
+| `bo-ung-dung` | danh sách `DanhSach.json` khớp ô chọn trong `tool.json`, khoá không trùng tiền tố tham số của script; chọn bằng cờ; cài (bỏ qua ứng dụng đã có, bộ gõ cùng nhóm chỉ cài một, đọc lại danh sách đã cài thay vì tin mã thoát, cần khởi động lại), cập nhật (đã mới nhất, lỗi); winget giả; JSON kết quả mà trạm đọc được |
 | `ghi-am-sang-word` | tên kết quả giữ đuôi file gốc, nhận kết quả bản cũ, `--ra` (Python của máy, không nạp mô hình) |
 | các bộ khác | `fix-win`, `may-in-lan`, `the-xe-nt` |
 | `mdf2sql` | `1_ChayTool`: hai `.bat` với `python.exe` giả (lối tắt Store, thiếu pyodbc, pip lỗi); `tools\mdf2sql\tests` (unittest): doctor, cổng riêng, `/api/health`, `/api/shutdown`, từ chối khi thiếu mã vẫn trả 403 (không mất câu trả lời), `doctor --ket-qua` theo chuẩn của trạm, hộp thoại chọn file trong tiến trình con, CLI |

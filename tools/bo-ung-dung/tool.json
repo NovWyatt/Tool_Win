@@ -1,0 +1,101 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "bo-ung-dung",
+  "name": "Bộ ứng dụng văn phòng (winget)",
+  "version": "1.0",
+  "category": "cai-lai-may",
+  "icon": "apps",
+  "audience": "all",
+  "summary": "Cài một lượt Zalo, bộ gõ tiếng Việt, 7-Zip, đọc PDF, UltraViewer, Chrome... từ nguồn winget của Microsoft; xem ứng dụng nào đã có, cập nhật cả bộ.",
+  "description": "Máy mới cài lại Windows: chọn ứng dụng rồi cài một lượt, không phải tìm bộ cài trên mạng (dễ dính bản có mã độc). Cài từ nguồn winget chính thức, im lặng, bỏ qua ứng dụng đã có, đọc lại danh sách đã cài để chắc cài xong. Hai bộ gõ tiếng Việt chỉ cài một. Danh sách nằm trong DanhSach.json, sửa được. Không gỡ ứng dụng: gỡ trong Cài đặt > Ứng dụng như thường.",
+  "tags": ["winget", "cài ứng dụng", "cài phần mềm", "máy mới", "cài lại máy", "Zalo", "UniKey", "EVKey", "7-Zip", "Foxit", "UltraViewer", "Chrome", "Cốc Cốc", "cập nhật"],
+  "docs": "HUONG-DAN.md",
+  "requires": [
+    { "type": "command", "name": "winget", "label": "winget (App Installer)", "fix": { "label": "Sửa winget", "hubScript": "Sua-Winget.ps1" } }
+  ],
+  "actions": [
+    {
+      "id": "kiem-tra",
+      "label": "Kiểm tra",
+      "file": "BoUngDung.ps1",
+      "fixedArgs": ["-Mode", "kiem-tra"],
+      "admin": false,
+      "risk": "read-only",
+      "primary": true,
+      "duration": "Vài giây",
+      "description": "Chỉ đọc. Winget chạy được không; ứng dụng nào trong danh sách đã cài, chưa cài (nhận cả ứng dụng không cài bằng winget)."
+    },
+    {
+      "id": "cai",
+      "label": "Cài ứng dụng",
+      "file": "BoUngDung.ps1",
+      "fixedArgs": ["-Mode", "cai"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "Vài phút, tuỳ mạng",
+      "description": "Cài các ứng dụng đánh dấu, im lặng, từ nguồn winget. Ứng dụng đã có thì bỏ qua; không đánh dấu ô nào thì cài các ứng dụng mặc định.",
+      "changes": [
+        "Cài ứng dụng đã chọn (winget install --silent)",
+        "Đồng ý điều khoản của từng gói và của nguồn winget thay bạn"
+      ],
+      "args": [
+        { "id": "Zalo", "type": "bool", "flag": "-Zalo", "default": true, "label": "Zalo" },
+        { "id": "UniKey", "type": "bool", "flag": "-UniKey", "default": true, "label": "UniKey (bộ gõ tiếng Việt)", "help": "Chỉ cài một bộ gõ: chọn cả hai thì cài UniKey, bỏ qua EVKey." },
+        { "id": "EVKey", "type": "bool", "flag": "-EVKey", "label": "EVKey (bộ gõ tiếng Việt)" },
+        { "id": "SevenZip", "type": "bool", "flag": "-SevenZip", "default": true, "label": "7-Zip (nén, giải nén)" },
+        { "id": "Foxit", "type": "bool", "flag": "-Foxit", "default": true, "label": "Foxit PDF Reader" },
+        { "id": "UltraViewer", "type": "bool", "flag": "-UltraViewer", "default": true, "label": "UltraViewer (hỗ trợ từ xa)" },
+        { "id": "Chrome", "type": "bool", "flag": "-Chrome", "default": true, "label": "Google Chrome" },
+        { "id": "CocCoc", "type": "bool", "flag": "-CocCoc", "label": "Cốc Cốc", "help": "Bản trên winget cũ (v120); Cốc Cốc tự cập nhật sau khi cài." },
+        { "id": "Firefox", "type": "bool", "flag": "-Firefox", "label": "Firefox" },
+        { "id": "AdobeReader", "type": "bool", "flag": "-AdobeReader", "label": "Adobe Acrobat Reader" },
+        { "id": "VLC", "type": "bool", "flag": "-VLC", "label": "VLC (xem video)" },
+        { "id": "NotepadPP", "type": "bool", "flag": "-NotepadPP", "label": "Notepad++" },
+        { "id": "TeamViewer", "type": "bool", "flag": "-TeamViewer", "label": "TeamViewer (hỗ trợ từ xa)" },
+        { "id": "Telegram", "type": "bool", "flag": "-Telegram", "label": "Telegram" },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ cài gì, không cài" }
+      ]
+    },
+    {
+      "id": "cap-nhat",
+      "label": "Cập nhật ứng dụng",
+      "file": "BoUngDung.ps1",
+      "fixedArgs": ["-Mode", "cap-nhat"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "Vài phút, tuỳ mạng",
+      "description": "Cập nhật các ứng dụng trong danh sách đã cài lên bản mới nhất trên winget. Ứng dụng đang mở thì nên đóng trước.",
+      "changes": [
+        "Cập nhật ứng dụng trong danh sách đã cài (winget upgrade --silent)"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ cập nhật gì" }
+      ]
+    },
+    {
+      "id": "menu",
+      "label": "Mở menu (như bấm đúp BO_UNG_DUNG.bat)",
+      "file": "BoUngDung.ps1",
+      "admin": false,
+      "selfElevates": true,
+      "risk": "asks-before-change",
+      "description": "Menu: kiểm tra, chọn ứng dụng bằng số rồi cài, cập nhật; hỏi lại trước khi cài. Việc cần quyền Admin mở cửa sổ Admin riêng (UAC)."
+    }
+  ],
+  "outputs": [
+    { "label": "Kết quả", "dir": "ket_qua", "glob": "KetQua_BoUngDung_%COMPUTERNAME%_*.json", "ketQua": true }
+  ],
+  "pack": {
+    "name": "BoUngDung",
+    "include": ["BO_UNG_DUNG.bat", "BoUngDung.ps1", "DanhSach.json", "HUONG-DAN.md"]
+  },
+  "issues": [
+    "Mới chạy thật Kiểm tra và các chế độ chạy thử trên máy phát triển; phần cài, cập nhật thử bằng giả lập, chưa cài thật.",
+    "Cần winget (App Installer): Windows 10 bản cũ, Windows LTSC thường thiếu; trạm có nút Sửa winget.",
+    "Ứng dụng cài cho riêng tài khoản (như Zalo) được cài vào tài khoản đang chạy cửa sổ Admin; máy dùng tài khoản thường riêng thì đăng nhập tài khoản đó rồi cài."
+  ],
+  "upgrades": [
+    "P1: Báo ứng dụng nào có bản mới ngay trong Kiểm tra (winget upgrade đọc được dạng JSON khi winget hỗ trợ).",
+    "P2: Nhiều bộ danh sách (văn phòng, kế toán, kỹ thuật) chọn trong form."
+  ]
+}

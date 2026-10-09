@@ -1,0 +1,19 @@
+{
+  "ghiChu": "Bộ ứng dụng chuẩn. id: mã gói winget (nguồn winget, kiểm bằng 'winget show --id <id> -e'). khoa: tên cờ (-Khoa) và id ô chọn trong tool.json; thêm ứng dụng thì thêm cả ô chọn trong action 'cai' của tool.json (bài thử kiểm hai nơi khớp nhau). nhom: các ứng dụng cùng nhóm chỉ cài một.",
+  "ungDung": [
+    { "khoa": "Zalo", "id": "VNGCorp.Zalo", "ten": "Zalo", "macDinh": true },
+    { "khoa": "UniKey", "id": "UniKey.UniKey", "ten": "UniKey (bộ gõ tiếng Việt)", "macDinh": true, "nhom": "bo-go" },
+    { "khoa": "EVKey", "id": "lamquangminh.EVKey", "ten": "EVKey (bộ gõ tiếng Việt)", "macDinh": false, "nhom": "bo-go" },
+    { "khoa": "SevenZip", "id": "7zip.7zip", "ten": "7-Zip (nén, giải nén)", "macDinh": true },
+    { "khoa": "Foxit", "id": "Foxit.FoxitReader", "ten": "Foxit PDF Reader", "macDinh": true },
+    { "khoa": "UltraViewer", "id": "DucFabulous.UltraViewer", "ten": "UltraViewer (hỗ trợ từ xa)", "macDinh": true },
+    { "khoa": "Chrome", "id": "Google.Chrome", "ten": "Google Chrome", "macDinh": true },
+    { "khoa": "CocCoc", "id": "CocCoc.CocCoc", "ten": "Cốc Cốc", "macDinh": false, "ghiChu": "bản trên winget cũ (v120), Cốc Cốc tự cập nhật sau khi cài" },
+    { "khoa": "Firefox", "id": "Mozilla.Firefox", "ten": "Firefox", "macDinh": false },
+    { "khoa": "AdobeReader", "id": "Adobe.Acrobat.Reader.64-bit", "ten": "Adobe Acrobat Reader", "macDinh": false },
+    { "khoa": "VLC", "id": "VideoLAN.VLC", "ten": "VLC (xem video)", "macDinh": false },
+    { "khoa": "NotepadPP", "id": "Notepad++.Notepad++", "ten": "Notepad++", "macDinh": false },
+    { "khoa": "TeamViewer", "id": "TeamViewer.TeamViewer", "ten": "TeamViewer (hỗ trợ từ xa)", "macDinh": false },
+    { "khoa": "Telegram", "id": "Telegram.TelegramDesktop", "ten": "Telegram", "macDinh": false }
+  ]
+}
