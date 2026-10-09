@@ -56,7 +56,7 @@ driver...): trạm kiểm tra khi mở trang công cụ và có nút **Cài** ch
 | `tools\may-in-lan` | Máy in mạng LAN và thư mục chia sẻ | Chẩn đoán in, chia sẻ, SMB; sửa hàng đợi kẹt, máy in trùng, lỗi 0x0000011B, 0x00000709, 0x00000BCB; thêm máy in bằng IP, gắn ổ mạng; có hoàn tác. |
 | `tools\don-o-c` | Dọn ổ C an toàn | Xem ổ C đầy vì đâu; dọn file tạm cũ, bộ nhớ đệm trình duyệt, file tải về của Windows Update, WinSxS. Xem trước rồi mới xoá, không đụng dữ liệu cá nhân, thùng rác. |
 | `tools\service-optimizer` | Tắt/bật dịch vụ nền | DiagTrack, Optimize Drives, Windows Insider, SysMain. |
-| `tools\clock-optimizer` | Tối ưu đồng hồ hệ thống | UsePlatformClock, Dynamic Tick. **Hiện không có tác dụng**, xem phân tích. |
+| `tools\clock-optimizer` | Tối ưu đồng hồ hệ thống | Dynamic Tick, ép HPET trong BCD (`bcdedit`); trả về mặc định của Windows. |
 | `tools\office` | Gỡ sạch và cài Office theo mẫu | Gỡ mọi bản Office (Click-to-Run, MSI, Microsoft Store, phần sót, khoá cũ), sao lưu mẫu Word, macro, chữ ký; cài theo bộ cài mẫu ODT của bạn, kiểm tra và kích hoạt. Khoá trong mẫu không bao giờ hiện ra. |
 | `tools\myexcelfix` | MyExcel VietQR | Chẩn đoán và sửa add-in MyExcel không bật hoặc không tạo được VietQR; có hoàn tác. |
 | `tools\dwg2pdf` | Bản vẽ DWG sang PDF | Chuyển .dwg sang PDF đen trắng, mỗi khung bản vẽ một trang, không cần AutoCAD. |

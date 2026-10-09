@@ -31,8 +31,9 @@ Mức ưu tiên:
   phục thật (máy phát triển đang tắt Bảo vệ hệ thống).
 - **Cần sửa trước khi đưa người khác dùng (P0)**: Sửa lỗi Windows, Tắt/bật dịch vụ, Chuyển dữ liệu khi cài lại Windows,
   phần *Cứu dữ liệu* của CheckWinFix.
-- **Không có tác dụng**: Tối ưu đồng hồ hệ thống ghi thiết lập vào registry trong khi Windows đọc từ BCD (`bcdedit`).
-  Trạm đánh dấu *Cần xem lại* và cảnh báo trước khi chạy.
+- **Tối ưu đồng hồ hệ thống 2.0**: bản cũ ghi thiết lập vào registry trong khi Windows đọc từ BCD nên không có tác
+  dụng; bản mới đổi thẳng trong BCD (`bcdedit`), đọc lại sau khi đổi, tạm dừng BitLocker 1 lần khởi động khi cần. Mới
+  thử bằng giả lập, chưa đổi BCD thật.
 - **Khôi phục .mdf sang .sql**: máy phát triển nay đã có ODBC Driver 17 và SQL Server Express (09/10/2026), trạm báo
   đủ yêu cầu; máy mới thì `CAI_DAT.bat` cài ODBC Driver 18 và LocalDB (cần quyền Admin).
 
@@ -70,7 +71,7 @@ Mức ưu tiên:
 | Kiểm tra và sửa lỗi Wi-Fi | Mọi người | Bản 1.1 thêm `KET_NOI_WIFI.bat`: gọi thẳng API Wi-Fi (không phụ thuộc ngôn ngữ Windows), sửa lỗi *Can't connect to this network* khi vào mạng mới sau khi máy thức dậy, chẩn đoán từ nhật ký WLAN theo mã lý do. Phần kết nối mới chạy thử, chưa chạy thật. Menu cũ `fixwf.bat` vẫn tìm card bằng chữ. | P1: tự sửa sau khi máy thức dậy; gộp menu cũ vào `KetNoiWifi.ps1`. |
 | Máy in mạng LAN và thư mục chia sẻ | Mọi người | Chẩn đoán 11 nhóm, chỉ nút sửa theo mã lỗi; 8 nút sửa in việc sẽ làm, hỏi trước, có Chạy thử, ghi nhật ký hoàn tác; nới bảo mật tách riêng, hỏi 2 lần; không bật SMB1. Mới kiểm chứng trên máy phát triển. | P1: chạy các nút sửa ở văn phòng thật; Local Port `\\MÁY\máy-in` thay cho nới RPC; dò máy in trong mạng. |
 | Tắt/bật dịch vụ nền | Kỹ thuật | Báo *thành công* cả khi `sc config` bị từ chối; coi *đã dừng* là *đã tắt*. Tắt Optimize Drives làm mất TRIM cho SSD. | P0: tự nâng quyền, xét kiểu khởi động, lưu trạng thái gốc để khôi phục đúng. |
-| Tối ưu đồng hồ hệ thống | Kỹ thuật | Không có tác dụng (ghi sai chỗ). | P0: bỏ khỏi trạm, hoặc viết lại bằng `bcdedit` và đo trước/sau. |
+| Tối ưu đồng hồ hệ thống | Kỹ thuật | Bản 2.0: đổi Dynamic Tick, ép HPET thẳng trong BCD và đọc lại sau khi đổi; *Trả về mặc định* xoá sạch cả ba thiết lập; hỏi rồi tạm dừng BitLocker 1 lần khởi động khi cần; dọn giá trị registry bản cũ. Mới thử bằng giả lập. | P1: đo trước/sau (LatencyMon) rồi mới khuyên dùng. |
 | Gỡ sạch và cài Office theo mẫu | Kỹ thuật | Kiểm tra Office, giấy phép, bộ cài mẫu (ODT) trước; gỡ mọi bản Office rồi cài theo mẫu, mẫu hỏng thì không gỡ gì; sao lưu mẫu Word, macro, chữ ký; khoá trong mẫu không bao giờ in ra, kích hoạt chỉ theo cách của Microsoft. Kiểm tra và Chạy thử đã chạy thật; gỡ, cài, kích hoạt mới thử bằng giả lập. | P1: gỡ, cài thật trên một máy thử; tạo mẫu mới (LTSC 2024, Microsoft 365) ngay trong công cụ; Quick Repair trước khi phải gỡ. |
 | Dọn ổ C an toàn | Mọi người | Xem ổ C đầy vì đâu (rác dọn được và thứ chiếm chỗ bạn tự quyết: thùng rác, Windows.old, file ngủ đông, Zalo, Downloads); dọn file tạm cũ hơn N ngày, bộ nhớ đệm trình duyệt khi đã tắt, file tải về của Windows Update, Delivery Optimization, WinSxS. Xem trước, gõ C mới xoá; danh sách thư mục được phép. Xem và Chạy thử đã chạy thật; phần xoá mới thử trong thư mục cát. | P1: dọn thật trên một máy; dọn Teams, bộ cài cập nhật Zalo; liệt kê thư mục lớn nhất. |
 | File thẻ xe .nt | Mọi người | Chuyển danh sách Excel sang .nt, kiểm tra file .nt như phần mềm giữ xe đọc và so từng thẻ với danh sách Excel, chuyển .nt sang Excel kèm kết quả từng thẻ, sửa CardID mất số 0; bản sửa lô 3257-3426 khớp từng thẻ với bản sửa tay. Không cần Excel. | P1: nạp thử file do công cụ ghi vào phần mềm thật; so với danh sách thẻ đang có trong phần mềm trước khi nạp. |
@@ -87,7 +88,8 @@ Mức ưu tiên:
 Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy ước chung thay vì vá từng nơi.
 
 1. **Kiểm tra quyền Admin sai cách hoặc không kiểm tra.** CheckWinFix, Wi-Fi dùng `net session` (cần dịch vụ Server,
-   bị tắt là báo nhầm hoặc tự mở lại không dừng). Sửa lỗi Windows, Tắt/bật dịch vụ, Tối ưu đồng hồ không kiểm tra gì.
+   bị tắt là báo nhầm hoặc tự mở lại không dừng). Sửa lỗi Windows, Tắt/bật dịch vụ không kiểm tra gì (Tối ưu đồng hồ
+   đã sửa ở bản 2.0).
    Quy ước: `fltmc >nul 2>&1` để kiểm tra, tự nâng quyền đúng một lần, không được thì báo rõ và thoát.
 2. **Báo thành công giả.** Lỗi bị giấu bằng `>nul 2>&1` rồi in *thành công*; mã thoát luôn 0. Quy ước: kiểm tra
    `errorlevel` (hoặc `$LASTEXITCODE`) sau mỗi lệnh thay đổi máy; mã thoát `0` xong, `1` lỗi, `2` thiếu điều kiện,
@@ -111,8 +113,8 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 ### Giai đoạn 1: an toàn (P0)
 
 - [ ] Quy ước Admin + mã thoát (mục 1, 2 ở trên) cho Sửa lỗi Windows, Tắt/bật dịch vụ, Wi-Fi, CheckWinFix.
-- [ ] Tối ưu đồng hồ: bỏ khỏi trạm, hoặc viết lại bằng `bcdedit /set {current} disabledynamictick yes` và
-      `bcdedit /deletevalue {current} useplatformclock`, đọc trạng thái thật bằng `bcdedit /enum {current}`.
+- [x] Tối ưu đồng hồ: viết lại bằng `bcdedit /set {current} disabledynamictick yes` và
+      `bcdedit /deletevalue {current} useplatformclock`, đọc trạng thái thật bằng `bcdedit /enum {current}` (bản 2.0).
 - [ ] CheckWinFix *Cứu dữ liệu*: đối chiếu MD5 khi SQL còn dừng, so ổ vật lý nguồn/đích, dò mọi instance `MSSQL*`,
       luôn bật lại SQL Server kể cả khi lỗi giữa chừng.
 - [ ] CheckWinFix cảnh báo: so theo nguồn sự kiện + mã, thêm disk 154, WHEA 1/18 và mức Warning.

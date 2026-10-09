@@ -1,57 +1,105 @@
 {
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "clock-optimizer",
-  "name": "Tối ưu đồng hồ hệ thống (UsePlatformClock, Dynamic Tick)",
-  "version": "1.0",
+  "name": "Tối ưu đồng hồ hệ thống (Dynamic Tick, HPET)",
+  "version": "2.0",
   "category": "toi-uu",
   "icon": "clock",
   "audience": "tech",
-  "status": "warning",
-  "statusNote": "Công cụ ghi useplatformclock và disabledynamictick vào registry, nhưng đây là tuỳ chọn khởi động (bcdedit) nên Windows không đọc chỗ đó: chạy xong không có tác dụng dù báo thành công. Xem mục Lỗi đã biết trước khi dùng.",
-  "summary": "Menu tắt hoặc bật lại UsePlatformClock và Dynamic Tick với mục đích giảm giật trong game.",
-  "tags": ["tối ưu", "game", "timer", "HPET", "dynamic tick", "registry"],
+  "summary": "Xem và đổi Dynamic Tick, ép HPET trong cấu hình khởi động (BCD) với mục đích giảm giật trong game; trả về mặc định của Windows bất cứ lúc nào.",
+  "description": "Chạy Kiểm tra trước: công cụ đọc thiết lập thật bằng bcdedit /enum {current}, báo giá trị bản 1.0 còn sót trong registry và trạng thái BitLocker ổ Windows. \"Tối ưu cho chơi game\" tắt Dynamic Tick và bỏ ép HPET; \"Trả về mặc định\" xoá cả ba thiết lập. Cả hai đọc lại BCD sau khi đổi để chắc Windows đã nhận, và cần khởi động lại máy. Ổ Windows đang bật BitLocker thì công cụ hỏi trước rồi tạm dừng BitLocker đúng 1 lần khởi động, vì đổi BCD có thể làm máy hỏi khoá khôi phục.",
+  "tags": ["tối ưu", "game", "timer", "HPET", "dynamic tick", "useplatformclock", "disabledynamictick", "bcdedit", "BCD", "giật lag"],
+  "docs": "HUONG-DAN.md",
   "actions": [
     {
-      "id": "menu",
-      "label": "Mở menu tối ưu đồng hồ",
-      "file": "ServiceOptimizer.bat",
-      "type": "console",
+      "id": "kiem-tra",
+      "label": "Kiểm tra",
+      "file": "DongHo.ps1",
+      "fixedArgs": ["-Mode", "kiem-tra"],
+      "admin": true,
+      "risk": "read-only",
+      "primary": true,
+      "duration": "Vài giây",
+      "description": "Chỉ đọc. In Dynamic Tick, HPET, đồng hồ nền tảng trong BCD kèm lời khuyên, giá trị registry bản cũ còn sót và trạng thái BitLocker ổ Windows."
+    },
+    {
+      "id": "choi-game",
+      "label": "Tối ưu cho chơi game",
+      "file": "DongHo.ps1",
+      "fixedArgs": ["-Mode", "choi-game"],
       "admin": true,
       "risk": "modifies-system",
-      "primary": true,
+      "restorePoint": false,
       "duration": "Vài giây, cần khởi động lại máy",
-      "description": "Menu 7 mục: tắt/bật từng thiết lập, tắt cả hai, kiểm tra trạng thái.",
-      "confirm": "Hai thiết lập này thực ra nằm trong BCD (bcdedit). Công cụ hiện chỉ ghi registry nên không có tác dụng thật.",
-      "changes": ["Ghi useplatformclock, disabledynamictick vào HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel"]
+      "description": "Tắt Dynamic Tick (bcdedit /set {current} disabledynamictick yes) và bỏ ép HPET nếu đang ép. Không thấy game mượt hơn sau khi khởi động lại thì chạy \"Trả về mặc định\".",
+      "confirm": "Laptop có thể hao pin hơn một chút khi tắt Dynamic Tick. Điểm khôi phục hệ thống không lưu BCD; muốn quay lại thì dùng nút \"Trả về mặc định\".",
+      "changes": [
+        "BCD mục khởi động hiện tại: disabledynamictick = yes",
+        "BCD: xoá useplatformclock nếu đang đặt",
+        "Xoá useplatformclock, disabledynamictick bản 1.0 ghi trong HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel",
+        "Ổ Windows đang bật BitLocker: tạm dừng 1 lần khởi động (hỏi trước)"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "mac-dinh",
+      "label": "Trả về mặc định của Windows",
+      "file": "DongHo.ps1",
+      "fixedArgs": ["-Mode", "mac-dinh"],
+      "admin": true,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Vài giây, cần khởi động lại máy",
+      "description": "Xoá disabledynamictick, useplatformclock, useplatformtick khỏi BCD (Windows tự chọn đồng hồ như lúc mới cài) và dọn giá trị registry bản cũ.",
+      "changes": [
+        "BCD mục khởi động hiện tại: xoá disabledynamictick, useplatformclock, useplatformtick nếu đang đặt",
+        "Xoá useplatformclock, disabledynamictick bản 1.0 ghi trong HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel",
+        "Ổ Windows đang bật BitLocker: tạm dừng 1 lần khởi động (hỏi trước)"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "menu",
+      "label": "Mở menu (như bấm đúp TOI_UU_DONG_HO.bat)",
+      "file": "TOI_UU_DONG_HO.bat",
+      "admin": false,
+      "risk": "asks-before-change",
+      "description": "Menu đủ các mục trên, hỏi lại trước khi đổi; cửa sổ tự hỏi UAC để có quyền Admin."
     }
   ],
   "probes": [
     {
       "type": "registry",
-      "label": "useplatformclock (giá trị công cụ ghi)",
+      "label": "useplatformclock bản 1.0 ghi (còn sót)",
       "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel",
       "name": "useplatformclock",
-      "values": { "0": "0 (công cụ đã 'tắt')", "1": "1 (công cụ đã 'bật lại')" },
-      "note": "Windows không đọc giá trị này. Thiết lập thật: bcdedit /enum {current} (cần Admin)."
+      "snapshot": false,
+      "note": "Windows không đọc giá trị này; hai nút đổi thiết lập sẽ xoá. Thiết lập thật xem bằng nút Kiểm tra."
     },
     {
       "type": "registry",
-      "label": "disabledynamictick (giá trị công cụ ghi)",
+      "label": "disabledynamictick bản 1.0 ghi (còn sót)",
       "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel",
       "name": "disabledynamictick",
-      "values": { "0": "0 (công cụ đã 'bật lại')", "1": "1 (công cụ đã 'tắt')" },
-      "note": "Windows không đọc giá trị này. Thiết lập thật: bcdedit /enum {current} (cần Admin)."
+      "snapshot": false,
+      "note": "Windows không đọc giá trị này; hai nút đổi thiết lập sẽ xoá. Thiết lập thật xem bằng nút Kiểm tra."
     }
   ],
+  "pack": {
+    "name": "ToiUuDongHo",
+    "include": ["TOI_UU_DONG_HO.bat", "DongHo.ps1", "HUONG-DAN.md"]
+  },
   "issues": [
-    "Ghi useplatformclock/disabledynamictick vào registry (Session Manager\\kernel) trong khi đây là tuỳ chọn BCD (bcdedit /set ...): mọi lựa chọn trong menu đều không có tác dụng.",
-    "Không kiểm tra quyền Admin; chạy thường thì 'reg add' bị từ chối nhưng thông báo bị giấu nên vẫn in 'Đã tắt thành công'.",
-    "'Bật lại' ghi useplatformclock=1 (ép dùng HPET) chứ không trả về mặc định (mặc định là không có giá trị).",
-    "Tên file ServiceOptimizer.bat dễ nhầm với công cụ tối ưu dịch vụ."
+    "Mới thử bằng giả lập (bcdedit, BitLocker, registry giả) và chạy thử không quyền Admin trên máy phát triển; chưa đổi BCD thật.",
+    "Chỉ đổi mục khởi động hiện tại ({current}); máy cài song song nhiều Windows thì mục kia giữ nguyên.",
+    "Lợi ích không chắc chắn: trên Windows 10/11 hiện đại hai tinh chỉnh này thường không làm game mượt hơn, tắt Dynamic Tick có thể tăng điện năng tiêu thụ."
   ],
   "upgrades": [
-    "P0: Hoặc bỏ công cụ, hoặc viết lại bằng 'bcdedit /set {current} disabledynamictick yes' và 'bcdedit /deletevalue {current} useplatformclock' (trả về mặc định), có tự nâng quyền và đọc trạng thái thật từ 'bcdedit /enum {current}'.",
-    "P1: Đo trước/sau (độ trễ DPC bằng LatencyMon) rồi mới khuyên dùng: hai tinh chỉnh này thường không cải thiện trên Windows 10/11 hiện đại và có thể tăng điện năng tiêu thụ.",
-    "P2: Đổi tên file thành ClockOptimizer.bat; gộp với tối ưu dịch vụ thành một công cụ 'Tối ưu' có trang trạng thái."
+    "P1: Đo trước/sau (độ trễ DPC bằng LatencyMon hoặc thời gian khung hình) rồi mới khuyên dùng.",
+    "P2: Gộp với tối ưu dịch vụ thành một công cụ 'Tối ưu' có trang trạng thái."
   ]
 }
