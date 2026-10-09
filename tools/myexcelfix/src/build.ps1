@@ -11,7 +11,13 @@ foreach ($p in $parts) {
     [void]$sb.Append($text.TrimEnd("`n")).Append("`n")
 }
 $all = $sb.ToString() -replace "`n", "`r`n"
-[IO.File]::WriteAllText($out, $all, $utf8)
+
+# Version stamp: every __MYX_VERSION__ (title, header, $script:Version) becomes "version" from ..\tool.json
+$toolJson = Join-Path (Split-Path $src -Parent) 'tool.json'
+$version = [string]((Get-Content -LiteralPath $toolJson -Raw -Encoding UTF8 | ConvertFrom-Json).version)
+if ($version -notmatch '^[0-9A-Za-z][0-9A-Za-z.\-]*$') { throw "Bad version in tool.json: '$version'" }
+if ($all.IndexOf('__MYX_VERSION__') -lt 0) { throw 'No __MYX_VERSION__ placeholder in the parts' }
+$all = $all.Replace('__MYX_VERSION__', $version)
 
 # Syntax check of the PowerShell payload
 $tokens = $null; $errors = $null
@@ -21,6 +27,7 @@ if ($errors.Count -gt 0) {
     throw "$($errors.Count) syntax error(s)"
 }
 # The batch header must stay ASCII (cmd.exe parses it before PowerShell takes over)
-$header = ([IO.File]::ReadAllText($out, $utf8) -split "#>")[0]
+$header = ($all -split "#>")[0]
 if ($header -match '[^\x00-\x7F]') { throw 'Batch header contains non-ASCII characters' }
-Write-Host ("Built {0} ({1:N0} bytes, {2} parts)" -f $out, (Get-Item $out).Length, $parts.Count)
+[IO.File]::WriteAllText($out, $all, $utf8)
+Write-Host ("Built {0} v{1} ({2:N0} bytes, {3} parts)" -f $out, $version, (Get-Item $out).Length, $parts.Count)

@@ -18,7 +18,7 @@ try {
         if ($a.Source -eq 'OPEN' -and $rel) { $openRelated += $a }
         if (-not $exists -and $a.Source -eq 'OPEN') {
             $lv = if ($rel) { 'LOI' } else { 'CANHBAO' }
-            Add-Finding $lv "Excel đang cố nạp add-in không còn tồn tại: $($a.Raw)" 'Excel > File > Options > Add-ins > Manage: Excel Add-ins > Go > bỏ tích mục đó (Excel sẽ hỏi xóa khỏi danh sách => Yes).'
+            Add-Finding 'ADDIN_MAT_FILE' $lv "Excel đang cố nạp add-in không còn tồn tại: $($a.Raw)" 'Excel > File > Options > Add-ins > Manage: Excel Add-ins > Go > bỏ tích mục đó (Excel sẽ hỏi xóa khỏi danh sách => Yes).'
         }
     }
     Snap 'AddIns.OPEN' ((@($script:AddinEntries | Where-Object Source -eq 'OPEN') | ForEach-Object { $_.Raw }) -join ' | ')
@@ -26,11 +26,11 @@ try {
 
     $main = @($openRelated | Where-Object { $_.Path -match '(?i)myexcel[^\\]*\.xlam$' })
     if ($script:MyxRoots.Count -gt 0 -and $main.Count -eq 0) {
-        Add-Finding 'LOI' 'Add-in MyExcel.xlam CHƯA được bật trong profile này' 'Excel > File > Options > Add-ins > Manage: Excel Add-ins > Go > Browse > C:\MyExcel > chọn MyExcel > OK. Nếu Excel hỏi "Copy to Addins folder?" thì chọn NO.'
+        Add-Finding 'ADDIN_CHUA_BAT' 'LOI' 'Add-in MyExcel.xlam CHƯA được bật trong profile này' 'Excel > File > Options > Add-ins > Manage: Excel Add-ins > Go > Browse > C:\MyExcel > chọn MyExcel > OK. Nếu Excel hỏi "Copy to Addins folder?" thì chọn NO.'
     }
     foreach ($m in $openRelated) {
         if ($script:MyxRoots.Count -gt 0 -and -not ($script:MyxRoots | Where-Object { Test-UnderPath $m.Path $_ })) {
-            Add-Finding 'LOI' "Excel đang nạp MyExcel/QR từ vị trí lạ (không phải thư mục cài): $($m.Path)" 'Đây là lỗi hay gặp ở profile cũ: bản sao add-in (thường trong AppData\Roaming\Microsoft\AddIns hoặc Downloads) thiếu file đi kèm. Bỏ tích bản đó trong Add-ins, di chuyển file sao chép đi nơi khác, rồi Browse lại C:\MyExcel\MyExcel.xlam (trả lời NO khi hỏi copy).'
+            Add-Finding 'ADDIN_SAI_CHO' 'LOI' "Excel đang nạp MyExcel/QR từ vị trí lạ (không phải thư mục cài): $($m.Path)" 'Đây là lỗi hay gặp ở profile cũ: bản sao add-in (thường trong AppData\Roaming\Microsoft\AddIns hoặc Downloads) thiếu file đi kèm. Bỏ tích bản đó trong Add-ins, di chuyển file sao chép đi nơi khác, rồi Browse lại C:\MyExcel\MyExcel.xlam (trả lời NO khi hỏi copy).'
         }
     }
     $byLeaf = $script:AddinEntries | Where-Object { -not $_.Automation } | Group-Object { (Split-Path $_.Path -Leaf).ToLowerInvariant() }
@@ -38,7 +38,7 @@ try {
         $paths = @($g.Group | ForEach-Object { $_.Path } | Sort-Object -Unique)
         if ($paths.Count -gt 1) {
             $lv = if (Test-Related $g.Name) { 'LOI' } else { 'CANHBAO' }
-            Add-Finding $lv ("Add-in '{0}' được đăng ký từ {1} đường dẫn khác nhau: {2}" -f $g.Name, $paths.Count, ($paths -join ' ; ')) 'Chỉ giữ 1 bản đúng trong C:\MyExcel. Trong Excel Add-ins bỏ tích các bản còn lại, đổi tên/di chuyển file thừa rồi mở lại Excel.'
+            Add-Finding 'ADDIN_TRUNG' $lv ("Add-in '{0}' được đăng ký từ {1} đường dẫn khác nhau: {2}" -f $g.Name, $paths.Count, ($paths -join ' ; ')) 'Chỉ giữ 1 bản đúng trong C:\MyExcel. Trong Excel Add-ins bỏ tích các bản còn lại, đổi tên/di chuyển file thừa rồi mở lại Excel.'
         }
     }
 } catch { Note "Lỗi khi phân tích add-in: $($_.Exception.Message)" }
@@ -53,7 +53,7 @@ try {
                 $txt = [Text.Encoding]::Unicode.GetString($it.Value, 12, $it.Value.Length - 12) -replace '[\x00-\x1F]+', ' | '
             }
             $lv = if (Test-Related $txt) { 'LOI' } else { 'CANHBAO' }
-            Add-Finding $lv "Excel $ver đã VÔ HIỆU HÓA (Disabled Items): $txt" 'Excel > File > Options > Add-ins > Manage: Disabled Items > Go > chọn mục đó > Enable > đóng mở lại Excel.'
+            Add-Finding 'ADDIN_BI_VO_HIEU' $lv "Excel $ver đã VÔ HIỆU HÓA (Disabled Items): $txt" 'Excel > File > Options > Add-ins > Manage: Disabled Items > Go > chọn mục đó > Enable > đóng mở lại Excel.'
         }
         Snap "AddIns.DisabledItems[$ver]" @($items).Count
         if (@($items).Count -eq 0) { Ok "Excel $ver không có Disabled Items" }
@@ -68,7 +68,7 @@ try {
         Snap "Excel.UseSystemSeparators[$ver]" ("$use|$dsep|$tsep")
         $alt = Get-RegValue $opt 'AltStartup'
         if ($alt) {
-            Add-Finding 'CANHBAO' "Excel $ver có thư mục khởi động phụ (AltStartup): $alt" 'File trong thư mục này tự mở cùng Excel và có thể xung đột. Kiểm tra File > Options > Advanced > General > "At startup, open all files in".'
+            Add-Finding 'ALT_STARTUP' 'CANHBAO' "Excel $ver có thư mục khởi động phụ (AltStartup): $alt" 'File trong thư mục này tự mở cùng Excel và có thể xung đột. Kiểm tra File > Options > Advanced > General > "At startup, open all files in".'
         }
     }
 } catch { Note "Lỗi khi đọc Disabled Items: $($_.Exception.Message)" }
@@ -88,7 +88,7 @@ try {
     }
     Snap 'Excel.XLSTART' (($startFiles | ForEach-Object { $_.Name }) -join ' | ')
     if ($startFiles.Count -gt 0) {
-        Add-Finding 'CANHBAO' ("Có file tự mở cùng Excel trong XLSTART: {0}" -f (($startFiles | ForEach-Object { $_.Name }) -join ', ')) 'Profile mới không có các file này. PERSONAL.XLSB có thể đặt chế độ tính toán Manual (hàm VietQR không cập nhật) hoặc trùng tên macro. Thử: Formulas > Calculation Options = Automatic; hoặc tạm di chuyển file ra khỏi XLSTART rồi mở lại Excel.'
+        Add-Finding 'XLSTART_CO_FILE' 'CANHBAO' ("Có file tự mở cùng Excel trong XLSTART: {0}" -f (($startFiles | ForEach-Object { $_.Name }) -join ', ')) 'Profile mới không có các file này. PERSONAL.XLSB có thể đặt chế độ tính toán Manual (hàm VietQR không cập nhật) hoặc trùng tên macro. Thử: Formulas > Calculation Options = Automatic; hoặc tạm di chuyển file ra khỏi XLSTART rồi mở lại Excel.'
     }
     $xlb = @(Get-ChildItem -LiteralPath (Join-Path $env:APPDATA 'Microsoft\Excel') -Filter '*.xlb' -File -ErrorAction SilentlyContinue)
     foreach ($x in $xlb) { Note ("File thanh công cụ: {0} ({1:N0} KB)" -f $x.FullName, ($x.Length / 1KB)) }

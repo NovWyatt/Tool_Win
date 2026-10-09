@@ -117,11 +117,15 @@ function Invoke-WorkbookRelink {
         $i = 0
         foreach ($o in $ooxml) {
             $i++
-            $dest = Join-Path $wbDir ('{0:000}_{1}' -f $i, $o.File.Name)
+            $leaf = '{0:000}_{1}' -f $i, $o.File.Name
+            $dest = Join-Path $wbDir $leaf
             try {
                 Copy-Item -LiteralPath $o.File.FullName -Destination $dest -Force -ErrorAction Stop
+                $hashBackup = Get-Sha256 $dest
                 Update-LinkedEntries $o.File.FullName $o.Entries
-                $script:Manifest.Workbooks += [ordered]@{ Original = $o.File.FullName; Backup = $dest }
+                # Backup tương đối với thư mục sao lưu (chép thư mục đi chỗ khác vẫn hoàn tác được);
+                # HashAfter để hoàn tác biết file có bị sửa tiếp sau lần sửa này không
+                $script:Manifest.Workbooks += [ordered]@{ Original = $o.File.FullName; Backup = "Workbooks\$leaf"; HashBackup = $hashBackup; HashAfter = (Get-Sha256 $o.File.FullName) }
                 Save-Manifest
                 Done "Nối lại liên kết: $($o.File.FullName)"
             } catch {

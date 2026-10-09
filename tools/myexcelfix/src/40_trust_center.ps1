@@ -18,9 +18,9 @@ try {
     Info 'Macro Settings' "$txt$src"
     Snap 'Sec.VBAWarnings' "$eff$src"
     if ($eff -ne 1 -and $myxTrusted) {
-        Add-Finding 'THONGTIN' "Macro Settings đang là '$txt' nhưng thư mục MyExcel nằm trong Trusted Locations nên macro MyExcel/QR vẫn chạy - không phải nguyên nhân" 'Chỉ file .xlsm nằm ngoài Trusted Locations mới phải bấm Enable Content. Muốn đúng hướng dẫn MyExcel: Trust Center > Macro Settings > "Enable VBA macros".'
+        Add-Finding 'MACRO_DA_TIN_CAY' 'THONGTIN' "Macro Settings đang là '$txt' nhưng thư mục MyExcel nằm trong Trusted Locations nên macro MyExcel/QR vẫn chạy - không phải nguyên nhân" 'Chỉ file .xlsm nằm ngoài Trusted Locations mới phải bấm Enable Content. Muốn đúng hướng dẫn MyExcel: Trust Center > Macro Settings > "Enable VBA macros".'
     } elseif ($eff -ne 1) {
-        Add-Finding 'LOI' "Macro Settings đang là '$txt' và thư mục MyExcel chưa nằm hết trong Trusted Locations => macro MyExcel/QR bị chặn" 'Excel > File > Options > Trust Center > Trust Center Settings > Macro Settings > chọn "Enable VBA macros" (mục cuối), hoặc thêm C:\MyExcel vào Trusted Locations (tích thư mục con) > OK > đóng mở lại Excel.'
+        Add-Finding 'MACRO_BI_CHAN' 'LOI' "Macro Settings đang là '$txt' và thư mục MyExcel chưa nằm hết trong Trusted Locations => macro MyExcel/QR bị chặn" 'Excel > File > Options > Trust Center > Trust Center Settings > Macro Settings > chọn "Enable VBA macros" (mục cuối), hoặc thêm C:\MyExcel vào Trusted Locations (tích thư mục con) > OK > đóng mở lại Excel.'
     } else { Ok 'Macro Settings = Enable VBA macros' }
 
     $vbom = Get-RegValue $sec 'AccessVBOM'; $vbomp = Get-RegValue $pol 'AccessVBOM'
@@ -28,7 +28,7 @@ try {
     Info 'Trust access to VBA project object model' ($(if ($vbomEff -eq 1) { 'bật' } else { 'TẮT' }))
     Snap 'Sec.AccessVBOM' $vbomEff
     if ($vbomEff -ne 1) {
-        Add-Finding 'THONGTIN' 'Chưa tích "Trust access to the VBA project object model" (mặc định, không cần cho VietQR)' 'Chỉ bật khi tính năng tạo nút/code của MyExcel báo lỗi: Trust Center > Macro Settings > tích "Trust access to the VBA project object model".'
+        Add-Finding 'VBA_OM_CHUA_BAT' 'THONGTIN' 'Chưa tích "Trust access to the VBA project object model" (mặc định, không cần cho VietQR)' 'Chỉ bật khi tính năng tạo nút/code của MyExcel báo lỗi: Trust Center > Macro Settings > tích "Trust access to the VBA project object model".'
     }
 
     # --- Protected View
@@ -44,9 +44,9 @@ try {
         if ($on) { $pvOn += $pvNames[$n]; $pvOnKeys += $n }
     }
     if (@($pvOnKeys | Where-Object { $_ -ne 'DisableAttachementsInPV' }).Count -gt 0) {
-        Add-Finding 'CANHBAO' ("Protected View còn bật: {0}. File Excel tải về (Zalo/Mail/Internet) mở ở chế độ bảo vệ, phải bấm Enable Editing thì hàm QR mới tính; không làm hỏng việc bật hàm QR" -f ($pvOn -join ', ')) 'Trust Center > Protected View > bỏ các dấu tích > OK (đúng hướng dẫn của MyExcel).'
+        Add-Finding 'PROTECTED_VIEW' 'CANHBAO' ("Protected View còn bật: {0}. File Excel tải về (Zalo/Mail/Internet) mở ở chế độ bảo vệ, phải bấm Enable Editing thì hàm QR mới tính; không làm hỏng việc bật hàm QR" -f ($pvOn -join ', ')) 'Trust Center > Protected View > bỏ các dấu tích > OK (đúng hướng dẫn của MyExcel).'
     } elseif ($pvOn.Count -gt 0) {
-        Add-Finding 'THONGTIN' 'Protected View chỉ còn bật cho file đính kèm Outlook - không liên quan VietQR' 'Không cần xử lý.'
+        Add-Finding 'PROTECTED_VIEW_OUTLOOK' 'THONGTIN' 'Protected View chỉ còn bật cho file đính kèm Outlook - không liên quan VietQR' 'Không cần xử lý.'
     } else { Ok 'Protected View đã tắt cả 3 mục' }
 
     # --- ActiveX
@@ -58,9 +58,9 @@ try {
     Info 'ActiveX Settings' $axTxt
     Snap 'Sec.ActiveX' "DisableAll=$dis;UFI=$ufi"
     if ($dis -eq 1) {
-        Add-Finding 'LOI' 'ActiveX đang CHẶN tất cả control => form Khai báo/Tạo QR của MyExcel báo lỗi' 'Trust Center > ActiveX Settings > chọn "Enable all controls without restrictions and without prompting" > OK (https://myexcel.vn/loi-khai-bao-activex-setting-myexcel/).'
+        Add-Finding 'ACTIVEX_CHAN_HET' 'LOI' 'ActiveX đang CHẶN tất cả control => form Khai báo/Tạo QR của MyExcel báo lỗi' 'Trust Center > ActiveX Settings > chọn "Enable all controls without restrictions and without prompting" > OK (https://myexcel.vn/loi-khai-bao-activex-setting-myexcel/).'
     } elseif ($ufi -ne 1) {
-        Add-Finding 'CANHBAO' 'ActiveX chưa đặt "Enable all controls without restrictions" như hướng dẫn cài MyExcel' 'Trust Center > ActiveX Settings > chọn "Enable all controls without restrictions and without prompting" > OK.'
+        Add-Finding 'ACTIVEX_CHUA_MO' 'CANHBAO' 'ActiveX chưa đặt "Enable all controls without restrictions" như hướng dẫn cài MyExcel' 'Trust Center > ActiveX Settings > chọn "Enable all controls without restrictions and without prompting" > OK.'
     } else { Ok 'ActiveX = Enable all controls' }
 
     # --- Trust Center > Add-ins
@@ -70,10 +70,10 @@ try {
     Info 'Add-ins: Disable all Application Add-ins' ($(if ($disAdd -eq 1) { 'CÓ' } else { 'không' }))
     Snap 'Sec.AddinsPolicy' "RequireSig=$reqSig;DisableAll=$disAdd"
     if ($disAdd -eq 1) {
-        Add-Finding 'LOI' 'Trust Center đang bật "Disable all Application Add-ins" => mọi add-in (kể cả MyExcel/QR) bị tắt' 'Trust Center > Add-ins > bỏ tích "Disable all Application Add-ins" > OK > mở lại Excel.'
+        Add-Finding 'ADDIN_TAT_HET' 'LOI' 'Trust Center đang bật "Disable all Application Add-ins" => mọi add-in (kể cả MyExcel/QR) bị tắt' 'Trust Center > Add-ins > bỏ tích "Disable all Application Add-ins" > OK > mở lại Excel.'
     }
     if ($reqSig -eq 1) {
-        Add-Finding 'CANHBAO' 'Trust Center bắt buộc add-in phải có chữ ký số (MyExcel không ký số)' 'Trust Center > Add-ins > bỏ tích "Require Application Add-ins to be signed by Trusted Publisher".'
+        Add-Finding 'ADDIN_CAN_KY_SO' 'CANHBAO' 'Trust Center bắt buộc add-in phải có chữ ký số (MyExcel không ký số)' 'Trust Center > Add-ins > bỏ tích "Require Application Add-ins to be signed by Trusted Publisher".'
     }
 } catch { Note "Lỗi khi đọc Macro/PV/ActiveX: $($_.Exception.Message)" }
 
@@ -85,7 +85,7 @@ try {
     Info 'Disable all Trusted Locations' ($(if ($allDis -eq 1) { 'ĐANG BẬT (mọi vị trí tin cậy bị vô hiệu)' } else { 'không' }))
     Info 'Allow Trusted Locations on network' ($(if ($allowNet -eq 1) { 'có' } else { 'không' }))
     if ($allDis -eq 1) {
-        Add-Finding 'LOI' 'Đang tích "Disable all Trusted Locations" => C:\MyExcel không được tin cậy' 'Trust Center > Trusted Locations > bỏ tích "Disable all Trusted Locations".'
+        Add-Finding 'TRUSTED_LOC_TAT' 'LOI' 'Đang tích "Disable all Trusted Locations" => C:\MyExcel không được tin cậy' 'Trust Center > Trusted Locations > bỏ tích "Disable all Trusted Locations".'
     }
     $locs = @($script:TlLocs)
     foreach ($l in $locs) {
@@ -95,7 +95,7 @@ try {
     Snap 'Sec.TrustedLocations' (($locs | ForEach-Object { "$($_.Path)[sub=$($_.Sub)]" }) -join ' | ')
     $polUserLoc = Get-RegValue "HKCU:\Software\Policies\Microsoft\Office\$ver\Common\Security\Trusted Locations" 'Allow User Locations'
     if (($locs | Where-Object Policy) -and $polUserLoc -ne 1) {
-        Add-Finding 'CANHBAO' 'Group Policy đặt Trusted Locations riêng và có thể bỏ qua vị trí do user tự thêm' 'Cần admin/IT thêm C:\MyExcel vào policy Trusted Locations hoặc bật "Allow mix of policy and user locations".'
+        Add-Finding 'TRUSTED_LOC_POLICY' 'CANHBAO' 'Group Policy đặt Trusted Locations riêng và có thể bỏ qua vị trí do user tự thêm' 'Cần admin/IT thêm C:\MyExcel vào policy Trusted Locations hoặc bật "Allow mix of policy and user locations".'
     }
 
     foreach ($root in $script:MyxRoots) {
@@ -109,11 +109,11 @@ try {
         }
         if ($qrDirs.Count -gt 0 -and $qrOk) { $script:TlCoversQr = $true }
         if (-not $cov) {
-            Add-Finding 'LOI' "Thư mục $root CHƯA nằm trong Trusted Locations của profile này (profile mới đã khai báo nên chạy được)" "Trust Center > Trusted Locations > Add new location > Browse chọn $root > TÍCH 'Subfolders of this location are also trusted' > OK."
+            Add-Finding 'THU_MUC_CHUA_TIN_CAY' 'LOI' "Thư mục $root CHƯA nằm trong Trusted Locations của profile này (profile mới đã khai báo nên chạy được)" "Trust Center > Trusted Locations > Add new location > Browse chọn $root > TÍCH 'Subfolders of this location are also trusted' > OK."
         } elseif (-not $qrOk) {
-            Add-Finding 'LOI' "Đã khai báo $root nhưng KHÔNG tích 'Subfolders of this location are also trusted' => file QR Code trong thư mục con (Mini Tool) không được tin cậy" "Trust Center > Trusted Locations > chọn dòng $root > Modify > tích 'Subfolders of this location are also trusted' > OK."
+            Add-Finding 'THU_MUC_CON_CHUA_TIN_CAY' 'LOI' "Đã khai báo $root nhưng KHÔNG tích 'Subfolders of this location are also trusted' => file QR Code trong thư mục con (Mini Tool) không được tin cậy" "Trust Center > Trusted Locations > chọn dòng $root > Modify > tích 'Subfolders of this location are also trusted' > OK."
         } elseif (-not $covSub) {
-            Add-Finding 'CANHBAO' "Đã khai báo $root nhưng không tích 'Subfolders of this location are also trusted'" "Trust Center > Trusted Locations > chọn dòng $root > Modify > tích 'Subfolders of this location are also trusted' > OK."
+            Add-Finding 'THU_MUC_CON_CHUA_TIN_CAY' 'CANHBAO' "Đã khai báo $root nhưng không tích 'Subfolders of this location are also trusted'" "Trust Center > Trusted Locations > chọn dòng $root > Modify > tích 'Subfolders of this location are also trusted' > OK."
         } else { Ok "Trusted Locations đã gồm $root và thư mục con" }
     }
     Snap 'Sec.TL.CoversMyExcel' "$($script:TlCoversRoot)|QR=$($script:TlCoversQr)"
@@ -126,7 +126,7 @@ try {
     foreach ($f in $fbOn) { Note "File Block: $($f.Name) = $($f.Value)" }
     Snap 'Sec.FileBlock' (($fbOn | ForEach-Object { "$($_.Name)=$($_.Value)" }) -join ' | ')
     if ($fbOn.Count -gt 0) {
-        Add-Finding 'CANHBAO' ("Trust Center > File Block Settings đang chặn một số loại file: {0}" -f (($fbOn | ForEach-Object { $_.Name }) -join ', ')) 'Trust Center > File Block Settings > bỏ tích Open/Save của các loại Excel Add-in / Excel 97-2003 rồi OK.'
+        Add-Finding 'FILE_BLOCK' 'CANHBAO' ("Trust Center > File Block Settings đang chặn một số loại file: {0}" -f (($fbOn | ForEach-Object { $_.Name }) -join ', ')) 'Trust Center > File Block Settings > bỏ tích Open/Save của các loại Excel Add-in / Excel 97-2003 rồi OK.'
     }
     $blk = Get-RegValue $pol 'blockcontentexecutionfrominternet'
     Info 'Policy chặn macro file từ Internet' ($(if ($null -eq $blk) { 'không đặt (Office vẫn chặn file có MOTW)' } else { $blk }))
@@ -148,7 +148,7 @@ try {
         }
     }
     if ($polLines.Count -gt 0) {
-        Add-Finding 'THONGTIN' "Máy có $($polLines.Count) giá trị Group Policy cho Office (liệt kê bên dưới)" 'Policy có thể ghi đè cài đặt Trust Center; cần quyền admin để đổi.'
+        Add-Finding 'GROUP_POLICY_OFFICE' 'THONGTIN' "Máy có $($polLines.Count) giá trị Group Policy cho Office (liệt kê bên dưới)" 'Policy có thể ghi đè cài đặt Trust Center; cần quyền admin để đổi.'
         foreach ($l in ($polLines | Select-Object -First 60)) { Note $l }
     }
     Snap 'Sec.OfficePolicies' ($polLines -join ' | ')
@@ -182,7 +182,7 @@ try {
                 Note ("{0} = {1}" -f $n, $d)
             }
         }
-        Add-Finding 'THONGTIN' "Có dữ liệu VBA lưu theo user ở nhánh [$($app.PSChildName)] (có thể là tài khoản ngân hàng/cài đặt QR của MyExcel)" 'Profile mới chỉ có dữ liệu này sau khi dùng MyExcel. Nếu mọi mục LỖI đã xử lý mà vẫn lỗi: chạy FixMyExcel_VietQR.bat, ở bước 9 chọn đặt lại dữ liệu MyExcel (có sao lưu), rồi khai báo lại tài khoản ngân hàng.'
+        Add-Finding 'DU_LIEU_VBA_USER' 'THONGTIN' "Có dữ liệu VBA lưu theo user ở nhánh [$($app.PSChildName)] (có thể là tài khoản ngân hàng/cài đặt QR của MyExcel)" 'Profile mới chỉ có dữ liệu này sau khi dùng MyExcel. Nếu mọi mục LỖI đã xử lý mà vẫn lỗi: chạy FixMyExcel_VietQR.bat, ở bước 9 chọn đặt lại dữ liệu MyExcel (có sao lưu), rồi khai báo lại tài khoản ngân hàng.'
     }
     Snap 'VBA.SaveSettingKeys' ($names -join ' | ')
 
@@ -201,7 +201,7 @@ try {
             $xlamDate = (Get-Item -LiteralPath $xlams[0] -Force).LastWriteTime
             Info 'Dữ liệu MyExcel tạo từ bản' ('{0} (bộ MyExcel đang dùng: {1})' -f $dataDate.ToString('dd/MM/yyyy'), $xlamDate.ToString('dd/MM/yyyy'))
             if (($xlamDate - $dataDate).TotalDays -gt 30) {
-                Add-Finding 'LOI' ('Dữ liệu MyExcel của profile tạo từ bản {0}, cũ hơn bộ MyExcel đang dùng ({1}) - đúng kiểu lỗi đã gặp: profile cũ không bật/tạo được VietQR, profile mới thì được' -f $dataDate.ToString('dd/MM/yyyy'), $xlamDate.ToString('dd/MM/yyyy')) 'Chạy FixMyExcel_VietQR.bat trong profile này, ở bước 9 chọn "Đặt lại dữ liệu MyExcel ngay" (có sao lưu và file hoàn tác), rồi khai báo lại tài khoản ngân hàng.'
+                Add-Finding 'DU_LIEU_MYEXCEL_CU' 'LOI' ('Dữ liệu MyExcel của profile tạo từ bản {0}, cũ hơn bộ MyExcel đang dùng ({1}) - đúng kiểu lỗi đã gặp: profile cũ không bật/tạo được VietQR, profile mới thì được' -f $dataDate.ToString('dd/MM/yyyy'), $xlamDate.ToString('dd/MM/yyyy')) 'Chạy FixMyExcel_VietQR.bat trong profile này, ở bước 9 chọn "Đặt lại dữ liệu MyExcel ngay" (có sao lưu và file hoàn tác), rồi khai báo lại tài khoản ngân hàng.'
             }
         }
     }

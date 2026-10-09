@@ -8,7 +8,7 @@ try {
     Info 'TEMP tồn tại / ghi được' "$exists / $writable"
     Snap 'Temp.Writable' $writable
     if (-not $exists -or -not $writable) {
-        Add-Finding 'LOI' "Thư mục TEMP của user ($t) không tồn tại hoặc không ghi được => VBA không tạo được file ảnh QR tạm" 'Tạo lại thư mục TEMP hoặc đặt lại biến: setx TEMP "%USERPROFILE%\AppData\Local\Temp" và setx TMP "%USERPROFILE%\AppData\Local\Temp", đăng xuất/đăng nhập lại.'
+        Add-Finding 'TEMP_HONG' 'LOI' "Thư mục TEMP của user ($t) không tồn tại hoặc không ghi được => VBA không tạo được file ảnh QR tạm" 'Tạo lại thư mục TEMP hoặc đặt lại biến: setx TEMP "%USERPROFILE%\AppData\Local\Temp" và setx TMP "%USERPROFILE%\AppData\Local\Temp", đăng xuất/đăng nhập lại.'
     } else {
         $cnt = 0; $tmpCnt = 0
         foreach ($f in [IO.Directory]::EnumerateFiles($t)) {
@@ -19,9 +19,9 @@ try {
         Info 'Số file trong TEMP (cấp 1) / file .tmp' "$cnt / $tmpCnt"
         Snap 'Temp.FileCountBucket' ($(if ($cnt -gt 20000) { '>20000' } elseif ($cnt -gt 2000) { '>2000' } else { '<=2000' }))
         if ($tmpCnt -gt 30000) {
-            Add-Finding 'LOI' "TEMP có $tmpCnt file .tmp (Windows giới hạn 65535) => Excel/VBA có thể không tạo được file tạm" 'Đóng Excel, Win+R gõ %TEMP% > Ctrl+A > Delete (bỏ qua file đang dùng).'
+            Add-Finding 'TEMP_QUA_NHIEU_TMP' 'LOI' "TEMP có $tmpCnt file .tmp (Windows giới hạn 65535) => Excel/VBA có thể không tạo được file tạm" 'Đóng Excel, Win+R gõ %TEMP% > Ctrl+A > Delete (bỏ qua file đang dùng).'
         } elseif ($cnt -gt 5000) {
-            Add-Finding 'CANHBAO' "TEMP có $cnt file" 'Đóng Excel, Win+R gõ %TEMP% > xóa bớt file tạm.'
+            Add-Finding 'TEMP_NHIEU_FILE' 'CANHBAO' "TEMP có $cnt file" 'Đóng Excel, Win+R gõ %TEMP% > xóa bớt file tạm.'
         }
     }
 
@@ -38,9 +38,9 @@ try {
     if ($script:ExcelDir -and (Test-Path -LiteralPath (Join-Path $script:ExcelDir 'EXCEL.EXE'))) { $exeTime = (Get-Item -LiteralPath (Join-Path $script:ExcelDir 'EXCEL.EXE')).LastWriteTime }
     $staleExd = @($exd | Where-Object { $exeTime -and $_.LastWriteTime -lt $exeTime })
     if ($staleExd.Count -gt 0) {
-        Add-Finding 'CANHBAO' ("Có {0} file cache ActiveX (.exd) cũ hơn bản Excel đang cài ({1}) - cache cũ có thể làm form/nút VBA lỗi sau khi Office cập nhật (Office tự tạo lại nên profile nào dùng lâu cũng có)" -f $staleExd.Count, $exeTime.ToString('dd/MM/yyyy')) $exdFix
+        Add-Finding 'EXD_CU' 'CANHBAO' ("Có {0} file cache ActiveX (.exd) cũ hơn bản Excel đang cài ({1}) - cache cũ có thể làm form/nút VBA lỗi sau khi Office cập nhật (Office tự tạo lại nên profile nào dùng lâu cũng có)" -f $staleExd.Count, $exeTime.ToString('dd/MM/yyyy')) $exdFix
     } elseif ($exd.Count -gt 0) {
-        Add-Finding 'THONGTIN' "Có $($exd.Count) file cache ActiveX (.exd), không cũ hơn bản Excel đang cài - bình thường" "Chỉ cần xóa nếu form/nút VBA báo lỗi. $exdFix"
+        Add-Finding 'EXD_BINH_THUONG' 'THONGTIN' "Có $($exd.Count) file cache ActiveX (.exd), không cũ hơn bản Excel đang cài - bình thường" "Chỉ cần xóa nếu form/nút VBA báo lỗi. $exdFix"
     } else { Ok 'Không có file .exd' }
 } catch { Note "Lỗi khi kiểm tra TEMP: $($_.Exception.Message)" }
 
@@ -54,7 +54,7 @@ try {
     foreach ($o in $od) { Info 'OneDrive đăng nhập' $o }
     Snap 'OneDrive.KFM' (($desk -match '(?i)onedrive') -or ($docs -match '(?i)onedrive'))
     if ($desk -match '(?i)onedrive' -or $docs -match '(?i)onedrive') {
-        Add-Finding 'CANHBAO' 'Desktop/Documents đang đồng bộ OneDrive: file Excel mở từ đó có đường dẫn dạng https:// nên macro lưu/chèn ảnh QR có thể lỗi' 'Copy file Excel cần tạo VietQR ra thư mục thường (VD C:\Data) rồi mở và thử lại. Nếu chạy được => tắt backup Desktop/Documents của OneDrive hoặc làm việc ngoài OneDrive.'
+        Add-Finding 'ONEDRIVE_DONG_BO' 'CANHBAO' 'Desktop/Documents đang đồng bộ OneDrive: file Excel mở từ đó có đường dẫn dạng https:// nên macro lưu/chèn ảnh QR có thể lỗi' 'Copy file Excel cần tạo VietQR ra thư mục thường (VD C:\Data) rồi mở và thử lại. Nếu chạy được => tắt backup Desktop/Documents của OneDrive hoặc làm việc ngoài OneDrive.'
     }
 } catch { Note "Lỗi khi kiểm tra OneDrive: $($_.Exception.Message)" }
 
@@ -66,11 +66,11 @@ try {
         Info 'Máy in mặc định của user' ("{0} (offline: {1}, mạng: {2})" -f $def.Name, $def.WorkOffline, $def.Network)
         Snap 'Printer.Default' $def.Name
         if ($def.WorkOffline) {
-            Add-Finding 'CANHBAO' "Máy in mặc định '$($def.Name)' đang offline - VBA đụng tới PageSetup/In sẽ treo hoặc báo lỗi" 'Đặt "Microsoft Print to PDF" làm máy in mặc định rồi thử lại.'
+            Add-Finding 'MAY_IN_OFFLINE' 'CANHBAO' "Máy in mặc định '$($def.Name)' đang offline - VBA đụng tới PageSetup/In sẽ treo hoặc báo lỗi" 'Đặt "Microsoft Print to PDF" làm máy in mặc định rồi thử lại.'
         }
     } else {
         Snap 'Printer.Default' ''
-        Add-Finding 'CANHBAO' 'User này không có máy in mặc định' 'Settings > Bluetooth & devices > Printers & scanners > tắt "Let Windows manage my default printer" > chọn Microsoft Print to PDF > Set as default.'
+        Add-Finding 'KHONG_CO_MAY_IN' 'CANHBAO' 'User này không có máy in mặc định' 'Settings > Bluetooth & devices > Printers & scanners > tắt "Let Windows manage my default printer" > chọn Microsoft Print to PDF > Set as default.'
     }
 } catch { Note "Không đọc được danh sách máy in: $($_.Exception.Message)" }
 
@@ -82,7 +82,7 @@ try {
     Info 'Phần mềm điều khiển từ xa' ($rem -join ', ')
     Snap 'Proc.IME' ($ime -join ',')
     if ($ime.Count -gt 0) {
-        Add-Finding 'THONGTIN' "Bộ gõ $($ime -join ', ') đang chạy" 'Khi gõ công thức =QrBank_Sotien_Noidung(...) hoặc khai báo tài khoản, chuyển bộ gõ sang chế độ E (tiếng Anh) để tránh bị bỏ dấu/đổi ký tự.'
+        Add-Finding 'BO_GO_DANG_CHAY' 'THONGTIN' "Bộ gõ $($ime -join ', ') đang chạy" 'Khi gõ công thức =QrBank_Sotien_Noidung(...) hoặc khai báo tài khoản, chuyển bộ gõ sang chế độ E (tiếng Anh) để tránh bị bỏ dấu/đổi ký tự.'
     }
     $clip = Get-RegValue 'HKCU:\Software\Microsoft\Clipboard' 'EnableClipboardHistory'
     Info 'Clipboard history (Win+V)' ($(if ($clip -eq 1) { 'bật' } else { 'tắt' }))
@@ -111,7 +111,7 @@ try {
     }
     Snap 'COM.Fail' ($fails -join ',')
     if ($fails.Count -gt 0) {
-        Add-Finding 'CANHBAO' ("Không tạo được đối tượng COM: {0}" -f ($fails -join ', ')) 'Nếu profile mới tạo được còn profile này thì không => đăng ký COM theo user bị hỏng (xem danh sách HKCU bên dưới). Nếu cả máy đều lỗi => mở CMD (Admin) chạy: regsvr32 scrrun.dll  /  regsvr32 vbscript.dll  /  regsvr32 wiaaut.dll.'
+        Add-Finding 'COM_LOI' 'CANHBAO' ("Không tạo được đối tượng COM: {0}" -f ($fails -join ', ')) 'Nếu profile mới tạo được còn profile này thì không => đăng ký COM theo user bị hỏng (xem danh sách HKCU bên dưới). Nếu cả máy đều lỗi => mở CMD (Admin) chạy: regsvr32 scrrun.dll  /  regsvr32 vbscript.dll  /  regsvr32 wiaaut.dll.'
     }
 } catch { Note "Lỗi khi thử COM: $($_.Exception.Message)" }
 
@@ -142,6 +142,6 @@ try {
     if ($vbaBroken.Count -gt 0) {
         $coreRx = '(?i)0D452EE1-E08F-101A-852E-02608C4D0BB4|2DF8D04C-5BFA-101B-BDE5-00AA0044DE52|000204EF-0000-0000-C000-000000000046|0002E157-0000-0000-C000-000000000046|00020813-0000-0000-C000-000000000046|00020430-0000-0000-C000-000000000046|fm20|vbe7'
         $lv = if ($vbaBroken | Where-Object { $_ -match $coreRx }) { 'LOI' } else { 'CANHBAO' }
-        Add-Finding $lv "Có $($vbaBroken.Count) đăng ký COM/TypeLib của VBA/Office trong HKCU trỏ tới file không tồn tại (VBA báo lỗi thư viện/ActiveX, profile mới không bị)" 'Mở regedit, Export rồi xóa đúng các key GUID được liệt kê ở trên trong HKCU\Software\Classes (CLSID/TypeLib), sau đó mở lại Excel. Đăng ký ở cấp máy (HKLM) vẫn còn nên Excel dùng lại bản đúng.'
+        Add-Finding 'COM_VBA_HONG' $lv "Có $($vbaBroken.Count) đăng ký COM/TypeLib của VBA/Office trong HKCU trỏ tới file không tồn tại (VBA báo lỗi thư viện/ActiveX, profile mới không bị)" 'Mở regedit, Export rồi xóa đúng các key GUID được liệt kê ở trên trong HKCU\Software\Classes (CLSID/TypeLib), sau đó mở lại Excel. Đăng ký ở cấp máy (HKLM) vẫn còn nên Excel dùng lại bản đúng.'
     }
 } catch { Note "Lỗi khi quét HKCU\Software\Classes: $($_.Exception.Message)" }

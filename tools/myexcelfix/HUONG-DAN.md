@@ -23,7 +23,13 @@ Kết quả:
 - `%PUBLIC%\Documents\MyExcelCheck\BaoCao_MyExcel_<máy>_<tài khoản>_<giờ>.txt` (mở sẵn bằng Notepad) và một
   bản sao trên Desktop.
 - `snapshot_<máy>_<tài khoản>.json` cạnh báo cáo: lần kiểm tra sau tự so sánh giữa các tài khoản để chỉ ra
-  khác biệt giữa tài khoản lỗi và tài khoản chạy được.
+  khác biệt giữa tài khoản lỗi và tài khoản chạy được. Snapshot hỏng của tài khoản khác chỉ bị bỏ qua.
+- `KetQua_MyExcel_KiemTra_<máy>_<tài khoản>_<giờ>.json` cạnh báo cáo: mỗi phát hiện có mã cố định (vd
+  `ADDIN_CHUA_BAT`, `THU_MUC_CHUA_TIN_CAY`), mức độ (`loi`, `canh-bao`, `thong-tin`) và cách sửa. Mã không đổi khi
+  sửa câu chữ; mã cũng in trong ngoặc ở phần *Kết luận* của báo cáo.
+
+Mã thoát: `0` kiểm tra xong (kể cả khi có phát hiện), `1` không ghi được báo cáo, `2` chạy sai tài khoản (kết quả
+không phải của tài khoản bị lỗi).
 
 ## 2. Sửa lỗi
 
@@ -39,13 +45,33 @@ Lưu và **đóng Excel** trước khi chạy. Công cụ hỏi từng bước (
 
 Không bao giờ: tắt Excel giữa chừng, sửa registry toàn máy, đổi Macro Settings, Protected View, ActiveX.
 
+Chạy không có cửa sổ dòng lệnh (đầu vào bị chuyển hướng) thì công cụ đọc từng dòng trả lời; hết dòng thì dừng hẳn
+và báo *Hết đầu vào*, không hỏi lại mãi.
+
+Mã thoát: `0` xong, `1` lỗi (không sao lưu được, lỗi bất ngờ), `2` chưa sửa gì (sai tài khoản, chọn không sửa,
+Excel chưa đóng, không có bộ MyExcel đủ file QR, hết đầu vào trước khi sửa), `3` làm được một phần (có cảnh báo,
+VietQR vẫn lỗi, hết đầu vào giữa chừng). Kết quả ghi thêm ra
+`%PUBLIC%\Documents\MyExcelCheck\KetQua_MyExcel_Sua_<máy>_<tài khoản>_<giờ>.json`.
+
 ## 3. Hoàn tác
 
-Chạy `HoanTac_FixMyExcel.bat` trong thư mục sao lưu của lần sửa (hoặc nút **Hoàn tác lần sửa** trong Trạm
-Tool). Cấu hình Excel và dữ liệu MyExcel được nạp lại từ file `.reg`, thư mục bộ cài được đổi tên lại.
+Nút **Hoàn tác lần sửa** trong Trạm Tool (hoặc `HOAN_TAC.bat "<thư mục sao lưu>"`) chạy bản
+`FixMyExcel_VietQR.bat` mới nhất ở chế độ hoàn tác. Bấm đúp `HoanTac_FixMyExcel.bat` trong thư mục sao lưu cũng được,
+nhưng file đó là bản của lần sửa: thư mục sao lưu tạo trước bản 2026.10.1 nên hoàn tác bằng Trạm Tool.
 
-> **Cẩn thận:** hoàn tác chép bản sao lưu đè lên các file Excel đã được sửa liên kết. Nếu người dùng đã nhập
-> thêm dữ liệu vào các file đó sau lần sửa thì phần nhập thêm sẽ mất: sao lưu các file đó trước khi hoàn tác.
+1. Liệt kê từng file Excel đã sửa liên kết và việc sẽ làm với nó, rồi hỏi.
+2. Lưu cấu hình hiện tại (registry Excel, dữ liệu MyExcel) vào `TruocHoanTac_<giờ>\` trong thư mục sao lưu. Không
+   lưu được thì dừng, chưa đổi gì.
+3. Xoá khoá do lần sửa tạo, nạp lại cấu hình Excel và dữ liệu MyExcel từ file `.reg`, đổi tên lại thư mục bộ cài.
+4. File Excel: lần sửa ghi dấu SHA-256 của từng file sau khi sửa (`HashAfter` trong `manifest.json`).
+   - File chưa đổi từ đó: chép lại bản trước khi sửa.
+   - File đã được sửa tiếp (hoặc thư mục sao lưu cũ không có dấu): bản hiện tại được giữ thành
+     `<tên>.truoc_hoantac.xlsx` cạnh file, rồi mới chép bản trước khi sửa. Dữ liệu nhập thêm nằm trong file giữ lại.
+   - File đã bị chuyển hoặc xoá, bản sao lưu bị thay đổi: bỏ qua và cảnh báo.
+
+Đường dẫn bản sao lưu trong `manifest.json` là tương đối, nên chép cả thư mục sao lưu sang chỗ khác vẫn hoàn tác
+được. Mã thoát: `0` xong, `1` lỗi (manifest hỏng, không lưu được cấu hình hiện tại), `2` chưa hoàn tác gì, `3` một
+phần (có file bỏ qua). Kết quả ghi thêm ra `KetQua_MyExcel_HoanTac_<máy>_<tài khoản>_<giờ>.json`.
 
 ## Dữ liệu cá nhân
 
@@ -56,4 +82,11 @@ snapshot hay thư mục sao lưu lên git.
 ## Sửa mã nguồn
 
 `CheckMyExcel_VietQR.bat` và `FixMyExcel_VietQR.bat` được ghép từ các phần trong `src\` và `src_fix\` bằng
-`build.ps1` của từng thư mục (ghi đè file .bat ở thư mục này). `LuuTru\` giữ bản sửa cũ v1, không dùng nữa.
+`build.ps1` của từng thư mục (ghi đè file .bat ở thư mục này). `build.ps1` thay mọi `__MYX_VERSION__` (tiêu đề cửa
+sổ, dòng đầu file, `$script:Version`) bằng `version` trong `tool.json`, kiểm tra cú pháp PowerShell và phần đầu cmd
+chỉ có ASCII rồi mới ghi file. Đổi `version` trong `tool.json` trước khi build bản phát hành. `LuuTru\` giữ bản sửa
+cũ v1, không dùng nữa.
+
+Thử không đụng máy thật: các biến `MYX_*` trong `src_fix\10_core.ps1` (registry thử qua `MYX_REGBASE`, bộ MyExcel giả
+qua `MYX_CANDIDATES`, `MYX_PREFERRED`, thư mục quét `MYX_SCANROOT`, nơi ghi `MYX_OUT`, trả lời tự động `MYX_AUTO`),
+cùng `TEMP` và `APPDATA` trỏ sang thư mục nháp để bước dọn `.exd` không xoá cache thật.

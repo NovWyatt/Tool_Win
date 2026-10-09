@@ -33,7 +33,7 @@ try {
         Snap 'Office.ExcelVersion' (Get-Item -LiteralPath $excel).VersionInfo.ProductVersion
         Snap 'Office.Bitness' $bit
     } else {
-        Add-Finding 'LOI' 'Không tìm thấy EXCEL.EXE' 'Kiểm tra lại bộ Office trên máy.'
+        Add-Finding 'KHONG_CO_EXCEL' 'LOI' 'Không tìm thấy EXCEL.EXE' 'Kiểm tra lại bộ Office trên máy.'
     }
     $c2r = 'HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration'
     if (Test-Path $c2r) {
@@ -64,11 +64,11 @@ try {
         Sort-Object DisplayName -Unique
     foreach ($a in $offs) { Info 'Sản phẩm Office trong Programs' ("{0}  {1}" -f $a.DisplayName, $a.DisplayVersion) }
     if (@($offs).Count -gt 1) {
-        Add-Finding 'CANHBAO' 'Có nhiều bộ Office cùng cài trên máy' 'Nhiều phiên bản Office song song dễ làm add-in/đăng ký COM bị lẫn. Nên gỡ bộ không dùng.'
+        Add-Finding 'NHIEU_BO_OFFICE' 'CANHBAO' 'Có nhiều bộ Office cùng cài trên máy' 'Nhiều phiên bản Office song song dễ làm add-in/đăng ký COM bị lẫn. Nên gỡ bộ không dùng.'
     }
     if (($apps | Where-Object { $_.DisplayName -match 'Office 2016|Excel 2016' }) -and -not (Test-Path $c2r)) {
         if (-not ($apps | Where-Object { $_.DisplayName -match 'KB4484305' })) {
-            Add-Finding 'CANHBAO' 'Office 2016 bản MSI chưa thấy bản vá KB4484305 (lỗi khởi động MyExcel do Windows Update)' 'Cài bản vá theo https://myexcel.vn/loi-khoi-dong-myexcel-do-window/ rồi khởi động lại máy.'
+            Add-Finding 'THIEU_KB4484305' 'CANHBAO' 'Office 2016 bản MSI chưa thấy bản vá KB4484305 (lỗi khởi động MyExcel do Windows Update)' 'Cài bản vá theo https://myexcel.vn/loi-khoi-dong-myexcel-do-window/ rồi khởi động lại máy.'
         }
     }
 } catch { Note "Lỗi khi đọc thông tin Office: $($_.Exception.Message)" }
@@ -79,10 +79,10 @@ try {
     foreach ($p in $xl) {
         Note ("PID {0} session {1}: {2}" -f $p.ProcessId, $p.SessionId, $p.CommandLine)
         if ($p.CommandLine -match '(?i)/safe') {
-            Add-Finding 'LOI' "Excel (PID $($p.ProcessId)) đang chạy ở chế độ /safe => add-in không được nạp" 'Đóng Excel, mở lại bình thường (không dùng /safe, không giữ Ctrl khi mở).'
+            Add-Finding 'EXCEL_SAFE_MODE' 'LOI' "Excel (PID $($p.ProcessId)) đang chạy ở chế độ /safe => add-in không được nạp" 'Đóng Excel, mở lại bình thường (không dùng /safe, không giữ Ctrl khi mở).'
         }
         if ($p.CommandLine -match '(?i)/automation|-embedding') {
-            Add-Finding 'CANHBAO' "Có Excel chạy ẩn (PID $($p.ProcessId), /automation hoặc -Embedding)" 'Đóng hết Excel, mở Task Manager kết thúc mọi EXCEL.EXE còn sót rồi mới thử lại.'
+            Add-Finding 'EXCEL_CHAY_AN' 'CANHBAO' "Có Excel chạy ẩn (PID $($p.ProcessId), /automation hoặc -Embedding)" 'Đóng hết Excel, mở Task Manager kết thúc mọi EXCEL.EXE còn sót rồi mới thử lại.'
         }
     }
     if ($xl.Count -gt 0) { Note 'Nên ĐÓNG Excel khi chạy script để kết quả chính xác nhất.' }

@@ -27,14 +27,14 @@ try {
         $loaded = @($script:AddinEntries | Where-Object { $_.Source -eq 'OPEN' -and $_.Path -match '(?i)myexcel[^\\]*\.xlam$' } | ForEach-Object { $_.Path })
         $loadedTxt = if ($loaded.Count -gt 0) { $loaded -join ' ; ' } else { 'chưa nạp bộ nào' }
         $lv = if (@($loaded | Where-Object { -not (Test-UnderPath $_ 'C:\MyExcel') }).Count -gt 0) { 'LOI' } else { 'CANHBAO' }
-        Add-Finding $lv ("Máy có {0} bộ MyExcel ({1}); profile này đang nạp: {2}" -f $installs.Count, ($installs -join ', '), $loadedTxt) 'Chỉ dùng 1 bộ ở C:\MyExcel như hướng dẫn MyExcel. Chạy FixMyExcel_VietQR.bat trong profile này: tự chọn bộ chuẩn, hỏi trước khi cất bộ thừa, có sao lưu và file hoàn tác.'
+        Add-Finding 'NHIEU_BO_MYEXCEL' $lv ("Máy có {0} bộ MyExcel ({1}); profile này đang nạp: {2}" -f $installs.Count, ($installs -join ', '), $loadedTxt) 'Chỉ dùng 1 bộ ở C:\MyExcel như hướng dẫn MyExcel. Chạy FixMyExcel_VietQR.bat trong profile này: tự chọn bộ chuẩn, hỏi trước khi cất bộ thừa, có sao lưu và file hoàn tác.'
     }
 
     if ($script:MyxRoots.Count -eq 0) {
-        Add-Finding 'LOI' 'Không tìm thấy thư mục cài MyExcel (C:\MyExcel) và không có add-in MyExcel nào được đăng ký' 'Cài lại MyExcel theo https://myexcel.vn/download/ (giải nén, copy thư mục MyExcel vào ổ C:).'
+        Add-Finding 'KHONG_CO_MYEXCEL' 'LOI' 'Không tìm thấy thư mục cài MyExcel (C:\MyExcel) và không có add-in MyExcel nào được đăng ký' 'Cài lại MyExcel theo https://myexcel.vn/download/ (giải nén, copy thư mục MyExcel vào ổ C:).'
     }
     if ($script:MyxRoots.Count -gt 0 -and -not ($script:MyxRoots | Where-Object { Test-SamePath $_ 'C:\MyExcel' })) {
-        Add-Finding 'CANHBAO' ("MyExcel không nằm ở C:\MyExcel mà ở: {0}" -f ($script:MyxRoots -join ', ')) 'MyExcel khuyến nghị cài đúng C:\MyExcel, nếu không file tạo từ máy khác sẽ lỗi #NAME / lỗi nút bấm.'
+        Add-Finding 'MYEXCEL_SAI_CHO' 'CANHBAO' ("MyExcel không nằm ở C:\MyExcel mà ở: {0}" -f ($script:MyxRoots -join ', ')) 'MyExcel khuyến nghị cài đúng C:\MyExcel, nếu không file tạo từ máy khác sẽ lỗi #NAME / lỗi nút bấm.'
     }
 
     $execExt = '(?i)\.(xlam|xla|xll|xlsm|xlsb|xls|xltm|dll|ocx|exe|tlb)$'
@@ -48,7 +48,7 @@ try {
         Info 'User này ghi được vào thư mục' $canWrite
         Snap "MyExcel.Writable[$root]" $canWrite
         if (-not $canWrite) {
-            Add-Finding 'CANHBAO' "User này KHÔNG ghi được vào $root (nếu profile mới là tài khoản admin thì ghi được => khác biệt)" "Mở CMD bằng quyền Admin chạy:  icacls `"$root`" /grant *S-1-5-32-545:(OI)(CI)M /T  (cấp quyền Modify cho nhóm Users) rồi thử lại."
+            Add-Finding 'THU_MUC_KHONG_GHI_DUOC' 'CANHBAO' "User này KHÔNG ghi được vào $root (nếu profile mới là tài khoản admin thì ghi được => khác biệt)" "Mở CMD bằng quyền Admin chạy:  icacls `"$root`" /grant *S-1-5-32-545:(OI)(CI)M /T  (cấp quyền Modify cho nhóm Users) rồi thử lại."
         }
         $blocked = @()
         $shown = 0
@@ -76,18 +76,18 @@ try {
         if ($untrustedQr.Count -gt 0) {
             $lv = if ($isActive) { 'LOI' } else { 'CANHBAO' }
             $note = if ($isActive) { '' } else { ' (bộ này profile không nạp)' }
-            Add-Finding $lv ("File QR Code trong {0} bị Windows chặn (Mark of the Web) và KHÔNG nằm trong Trusted Locations{1}: {2}" -f $root, $note, (($untrustedQr | ForEach-Object { $_.Name } | Sort-Object -Unique) -join ', ')) "Đúng lỗi MyExcel đã hướng dẫn: đóng Excel > chuột phải từng file QR Code > Properties > tích Unblock > OK. Hoặc mở PowerShell chạy:  $unblockCmd"
+            Add-Finding 'QR_BI_CHAN' $lv ("File QR Code trong {0} bị Windows chặn (Mark of the Web) và KHÔNG nằm trong Trusted Locations{1}: {2}" -f $root, $note, (($untrustedQr | ForEach-Object { $_.Name } | Sort-Object -Unique) -join ', ')) "Đúng lỗi MyExcel đã hướng dẫn: đóng Excel > chuột phải từng file QR Code > Properties > tích Unblock > OK. Hoặc mở PowerShell chạy:  $unblockCmd"
         } elseif ($blocked.Count -gt 0 -and (Test-TrustedDir $root -WithSubfolders)) {
-            Add-Finding 'THONGTIN' ("{0} file trong {1} còn dấu chặn của Windows (MOTW) nhưng thư mục nằm trong Trusted Locations (có thư mục con) nên macro vẫn chạy - không phải nguyên nhân" -f $blocked.Count, $root) "Vẫn nên Unblock cho sạch: đóng Excel, mở PowerShell chạy:  $unblockCmd"
+            Add-Finding 'MOTW_DA_TIN_CAY' 'THONGTIN' ("{0} file trong {1} còn dấu chặn của Windows (MOTW) nhưng thư mục nằm trong Trusted Locations (có thư mục con) nên macro vẫn chạy - không phải nguyên nhân" -f $blocked.Count, $root) "Vẫn nên Unblock cho sạch: đóng Excel, mở PowerShell chạy:  $unblockCmd"
         } elseif ($blocked.Count -gt 0) {
-            Add-Finding 'CANHBAO' "$($blocked.Count) file trong $root đang bị Windows chặn (MOTW) và thư mục chưa được tin cậy hết" "Đóng Excel, mở PowerShell chạy:  $unblockCmd  rồi thêm $root vào Trusted Locations (tích thư mục con)."
+            Add-Finding 'FILE_BI_CHAN' 'CANHBAO' "$($blocked.Count) file trong $root đang bị Windows chặn (MOTW) và thư mục chưa được tin cậy hết" "Đóng Excel, mở PowerShell chạy:  $unblockCmd  rồi thêm $root vào Trusted Locations (tích thư mục con)."
         }
         if (-not ($files | Where-Object { $_.Name -match '(?i)^myexcel.*\.xlam$' })) {
-            Add-Finding 'LOI' "Không thấy file MyExcel*.xlam trong $root" 'File có thể bị phần mềm diệt virus xóa. Thêm thư mục MyExcel vào danh sách loại trừ rồi giải nén/copy lại bộ cài.'
+            Add-Finding 'THIEU_XLAM' 'LOI' "Không thấy file MyExcel*.xlam trong $root" 'File có thể bị phần mềm diệt virus xóa. Thêm thư mục MyExcel vào danh sách loại trừ rồi giải nén/copy lại bộ cài.'
         }
     }
     if ($script:MyxRoots.Count -gt 0 -and $script:QrAddinCount -eq 0) {
-        Add-Finding 'LOI' 'Không thấy file nào tên QR Code trong thư mục MyExcel (Mini Tool)' 'Nhiều khả năng file QR Code đã bị antivirus xóa/cách ly. Kiểm tra lịch sử bảo vệ của Windows Security, thêm C:\MyExcel vào Exclusions, rồi copy lại thư mục MiniTool từ bộ cài.'
+        Add-Finding 'THIEU_FILE_QR' 'LOI' 'Không thấy file nào tên QR Code trong thư mục MyExcel (Mini Tool)' 'Nhiều khả năng file QR Code đã bị antivirus xóa/cách ly. Kiểm tra lịch sử bảo vệ của Windows Security, thêm C:\MyExcel vào Exclusions, rồi copy lại thư mục MiniTool từ bộ cài.'
     }
     foreach ($q in $script:QrFiles) {
         $qd = Split-Path $q -Parent
@@ -125,7 +125,7 @@ try {
     }
     $addinCopies = @($copies | Where-Object { $_.Extension -match '(?i)\.(xlam|xla|xll)$' })
     if ($addinCopies.Count -gt 0) {
-        Add-Finding 'CANHBAO' ("Có {0} file add-in MyExcel/QR nằm ngoài thư mục cài (VD: {1})" -f $addinCopies.Count, $addinCopies[0].FullName) 'Nếu Excel đang nạp bản sao này (xem mục 5) thì bản sao thiếu các file đi kèm => chức năng QR lỗi. Gỡ tích bản sao trong Excel Add-ins, di chuyển file đó ra chỗ khác, rồi Browse lại đúng C:\MyExcel.'
+        Add-Finding 'BAN_SAO_ADDIN' 'CANHBAO' ("Có {0} file add-in MyExcel/QR nằm ngoài thư mục cài (VD: {1})" -f $addinCopies.Count, $addinCopies[0].FullName) 'Nếu Excel đang nạp bản sao này (xem mục 5) thì bản sao thiếu các file đi kèm => chức năng QR lỗi. Gỡ tích bản sao trong Excel Add-ins, di chuyển file đó ra chỗ khác, rồi Browse lại đúng C:\MyExcel.'
     }
     Snap 'MyExcel.CopiesOutside' (($copies | ForEach-Object { $_.FullName }) -join ' | ')
 } catch { Note "Lỗi khi tìm bản sao: $($_.Exception.Message)" }

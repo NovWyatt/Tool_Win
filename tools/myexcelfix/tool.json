@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "myexcelfix",
   "name": "MyExcel VietQR: kiểm tra và sửa lỗi",
-  "version": "2026.10",
+  "version": "2026.10.1",
   "category": "van-phong",
   "icon": "table",
   "audience": "all",
@@ -20,7 +20,7 @@
       "risk": "read-only",
       "primary": true,
       "duration": "5-60 giây",
-      "description": "Kiểm tra 12 nhóm nguyên nhân (Excel, add-in, Trust Center, Trusted Locations, file bị chặn, dữ liệu MyExcel, TEMP, Defender, mạng). Ghi báo cáo .txt và snapshot .json rồi mở bằng Notepad. Chạy thêm ở một tài khoản tạo được VietQR để so sánh."
+      "description": "Kiểm tra 12 nhóm nguyên nhân (Excel, add-in, Trust Center, Trusted Locations, file bị chặn, dữ liệu MyExcel, TEMP, Defender, mạng). Ghi báo cáo .txt (mở bằng Notepad), snapshot .json để so sánh và KetQua_MyExcel_KiemTra_*.json (mỗi phát hiện có mã cố định, mức độ, cách sửa). Chạy thêm ở một tài khoản tạo được VietQR để so sánh. Mã thoát: 0 xong, 1 không ghi được báo cáo, 2 chạy sai tài khoản."
     },
     {
       "id": "sua-loi",
@@ -30,7 +30,7 @@
       "admin": false,
       "risk": "modifies-system",
       "duration": "2-10 phút, có hỏi từng bước",
-      "description": "Sao lưu ra Desktop, nạp lại add-in, thêm Trusted Location, bật lại add-in bị vô hiệu hoá, sửa đường dẫn MyExcel tự lưu, xoá cache .exd, bỏ chặn file. Hỏi trước khi đổi tên bộ cài thừa, sửa liên kết trong file Excel và đặt lại dữ liệu MyExcel.",
+      "description": "Sao lưu ra Desktop, nạp lại add-in, thêm Trusted Location, bật lại add-in bị vô hiệu hoá, sửa đường dẫn MyExcel tự lưu, xoá cache .exd, bỏ chặn file. Hỏi trước khi đổi tên bộ cài thừa, sửa liên kết trong file Excel và đặt lại dữ liệu MyExcel. Mã thoát: 0 xong, 1 lỗi, 2 chưa sửa gì (sai tài khoản, không đồng ý, Excel chưa đóng, không có ai trả lời), 3 làm được một phần hoặc VietQR vẫn lỗi.",
       "confirm": "Lưu và đóng Excel trước khi chạy. Chạy bằng đúng tài khoản Windows đang bị lỗi.",
       "changes": [
         "Registry Excel của tài khoản này: danh sách add-in, Trusted Locations, Disabled Items",
@@ -47,8 +47,8 @@
       "admin": false,
       "risk": "modifies-system",
       "duration": "Dưới 1 phút",
-      "description": "Khôi phục cấu hình Excel và dữ liệu MyExcel từ thư mục sao lưu của một lần sửa, đổi tên lại thư mục bộ cài, chép lại các file Excel đã sửa liên kết.",
-      "confirm": "Các file Excel đã sửa liên kết sẽ bị bản sao lưu chép đè: dữ liệu nhập thêm vào các file đó sau lần sửa sẽ mất. Lỗi VietQR cũ có thể quay lại.",
+      "description": "Lưu cấu hình hiện tại vào TruocHoanTac_<giờ> trong thư mục sao lưu, rồi khôi phục cấu hình Excel và dữ liệu MyExcel, đổi tên lại thư mục bộ cài, chép lại các file Excel đã sửa liên kết. File Excel đã được sửa tiếp sau lần sửa thì bản hiện tại được giữ thành <tên>.truoc_hoantac.xlsx. Luôn dùng bản sửa mới nhất, kể cả với thư mục sao lưu của bản cũ. Mã thoát: 0 xong, 1 lỗi, 2 chưa hoàn tác gì, 3 một phần.",
+      "confirm": "Lỗi VietQR cũ có thể quay lại. File Excel nào đã nhập thêm dữ liệu sau lần sửa sẽ trở về bản trước khi sửa; bản có dữ liệu mới được giữ ở <tên>.truoc_hoantac.xlsx cạnh file.",
       "args": [
         { "id": "thu-muc", "type": "folder", "required": true, "label": "Thư mục sao lưu MyExcelFix_SaoLuu_... của lần sửa", "help": "Thường nằm trên Desktop của tài khoản đã sửa." }
       ]
@@ -57,6 +57,7 @@
   "outputs": [
     { "label": "Báo cáo kiểm tra", "dir": "%PUBLIC%\\Documents\\MyExcelCheck", "glob": "BaoCao_MyExcel_%COMPUTERNAME%_*.txt" },
     { "label": "Bản sao báo cáo trên Desktop", "dir": "{Desktop}", "glob": "BaoCao_MyExcel_*.txt" },
+    { "label": "Kết quả JSON (kiểm tra, sửa, hoàn tác)", "dir": "%PUBLIC%\\Documents\\MyExcelCheck", "glob": "KetQua_MyExcel_*_%COMPUTERNAME%_*.json" },
     { "label": "Sao lưu của lần sửa (dùng để hoàn tác)", "dir": "{Desktop}", "type": "folder", "glob": "MyExcelFix_SaoLuu_*",
       "deleteNote": "\"Hoàn tác lần sửa\" cần đúng thư mục này. Xoá rồi thì không hoàn tác được lần sửa đó nữa (trừ khi lấy lại từ Thùng rác)." }
   ],
@@ -65,18 +66,15 @@
     "include": ["CheckMyExcel_VietQR.bat", "FixMyExcel_VietQR.bat", "HUONG-DAN.md"]
   },
   "issues": [
-    "Sửa lỗi bị treo, ăn 100% CPU nếu chạy mà không có cửa sổ dòng lệnh thật (đầu vào bị chuyển hướng); Trạm Tool luôn mở cửa sổ riêng nên không gặp.",
-    "Hoàn tác chép đè file Excel bằng bản sao lưu mà không kiểm tra file đã bị sửa sau đó; xoá khoá registry mà không lưu trạng thái hiện tại trước.",
+    "Mã thoát, hoàn tác an toàn và JSON kết quả (bản 2026.10.1) mới thử bằng giả lập (registry thử, bộ MyExcel và file Excel giả); chưa chạy lại trên máy có MyExcel thật.",
+    "Thư mục sao lưu của bản trước 2026.10.1 không ghi dấu file: hoàn tác luôn giữ bản hiện tại thành *.truoc_hoantac. Bấm đúp HoanTac_FixMyExcel.bat trong các thư mục đó vẫn chạy mã hoàn tác cũ (chép đè); dùng nút Hoàn tác của Trạm Tool hoặc HOAN_TAC.bat.",
     "Báo '[ĐÃ SỬA]' Trusted Location cả khi Group Policy ghi đè nên thực tế không đổi.",
     "Chỉ kiểm tra Excel đã đóng lúc bắt đầu; mở lại Excel giữa chừng thì Excel ghi đè danh sách add-in khi tắt.",
     "Sao lưu nằm trên Desktop (thường đồng bộ OneDrive) và chứa số tài khoản ngân hàng; ThongTinKhaiBao.txt được ghi cả khi chọn không đặt lại.",
-    "Một file snapshot hỏng làm mọi lần kiểm tra sau không lưu được snapshot; báo cáo ở Public Documents mọi tài khoản đều đọc được.",
-    "Mã thoát luôn 0 nên không phân biệt được thành công hay thất bại."
+    "Báo cáo và JSON kết quả ở Public Documents: mọi tài khoản trên máy đều đọc được."
   ],
   "upgrades": [
-    "P0: Hết đầu vào thì dừng có thông báo; mã thoát: Kiểm tra 0/1/2, Sửa 0/1/2/3.",
-    "P0: Hoàn tác an toàn: lưu hash file sau khi sửa, file đã đổi thì giữ bản hiện tại (*.truoc_hoantac); lưu trạng thái trước khi hoàn tác; đường dẫn tương đối.",
-    "P0: Xuất JSON kết quả (mã lỗi ổn định, mức độ, cách sửa) để Trạm Tool hiển thị; build.ps1 đóng dấu phiên bản.",
+    "P1: Trạm Tool đọc KetQua_MyExcel_*.json để hiện phát hiện theo mã và gợi ý bước sửa.",
     "P1: FixMyExcel_VietQR.bat /undo \"<thư mục>\" và /list để Trạm Tool liệt kê bản sao lưu.",
     "P1: Thư mục common\\ dùng chung cho hai bản build; lưu nguồn UTF-8 có BOM.",
     "P2: Lưu báo cáo, sao lưu theo từng tài khoản ở %LOCALAPPDATA%\\MyExcelFix thay vì Public Documents và Desktop."

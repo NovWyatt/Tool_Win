@@ -36,21 +36,34 @@ function Test-VietConsole {
 }
 function Txt([string]$Text) { if ($script:NoDau) { return (Remove-Diacritics $Text) }; return $Text }
 $script:NoDau = -not (Test-VietConsole)
+$script:Version    = '__MYX_VERSION__'   # build.ps1 thay bằng version trong tool.json
 $script:Log        = New-Object System.Collections.Generic.List[string]
-$script:Stamp      = (Get-Date).ToString('yyyyMMdd_HHmmss')
+$script:Started    = Get-Date
+$script:Stamp      = $script:Started.ToString('yyyyMMdd_HHmmss')
 $script:Preferred  = if ($env:MYX_PREFERRED) { $env:MYX_PREFERRED.TrimEnd('\') } else { 'C:\MyExcel' }   # thư mục MyExcel khuyên dùng
 $script:RegBase    = if ($env:MYX_REGBASE) { $env:MYX_REGBASE.Trim('\') + '\' } else { '' }          # chỉ dùng khi test
 $script:Auto       = [bool]$env:MYX_AUTO                                                            # chỉ dùng khi test
 $script:QrAnswers  = @(if ($env:MYX_QR_OK) { $env:MYX_QR_OK -split ',' })                           # chỉ dùng khi test
 $script:QrAsked    = 0
-$script:UndoMode   = ((Split-Path $env:MYX_SELF -Leaf) -like 'HoanTac*')
+# Hoàn tác: bản HoanTac_FixMyExcel.bat trong thư mục sao lưu, hoặc HOAN_TAC.bat đặt MYX_UNDO_DIR rồi gọi bản mới nhất
+$script:UndoDir    = if ($env:MYX_UNDO_DIR) { $env:MYX_UNDO_DIR.TrimEnd('\') } elseif ((Split-Path $env:MYX_SELF -Leaf) -like 'HoanTac*') { Split-Path $env:MYX_SELF -Parent } else { $null }
+$script:UndoMode   = [bool]$script:UndoDir
 $script:Changes    = 0
 $script:Problems   = 0
+$script:Warnings   = New-Object System.Collections.Generic.List[string]
+$script:ChangesAtBackup = $null   # số Done lúc sao lưu xong: Done sau mốc này mới là thay đổi thật
+$script:StillBroken = $false
+$script:ExitCode   = $null       # 0 xong, 1 lỗi, 2 thiếu điều kiện / không đồng ý, 3 làm được một phần
+$script:Reason     = ''
+$script:ReasonText = ''
+$script:KeptFiles  = New-Object System.Collections.Generic.List[string]
+$script:EndOfInput = 'MYX_HET_DAU_VAO'
 $script:BackupDir  = $null
 $script:Target     = $null   # thư mục bộ MyExcel chuẩn được chọn
 $script:Installs   = @()     # mọi thư mục có MyExcel.xlam tìm thấy (kể cả bản sao lẻ)
 $script:AddinMap   = @{}     # tên file .xlam (chữ thường) -> đường dẫn trong bộ chuẩn
 $script:Manifest   = [ordered]@{
+    Format = 2; Version = $script:Version
     Time = (Get-Date).ToString('dd/MM/yyyy HH:mm:ss'); User = $env:USERNAME; Computer = $env:COMPUTERNAME
     Target = $null; RegBase = $script:RegBase
     RegExcel = @(); RegVB = $null; NewKeys = @(); ResetKeys = @(); Folders = @(); Workbooks = @()
@@ -60,7 +73,8 @@ function Say([string]$Text = '', [string]$Color = 'Gray') { Write-Host (Txt $Tex
 function Step([string]$Title) { Say ''; Say ('=' * 74) 'DarkCyan'; Say "  $Title" 'Cyan'; Say ('=' * 74) 'DarkCyan' }
 function Done([string]$Text) { Say "  [ĐÃ SỬA]  $Text" 'Green'; $script:Changes++ }
 function Skip([string]$Text) { Say "  [BỎ QUA]  $Text" 'DarkGray' }
-function Warn([string]$Text) { Say "  [!]       $Text" 'Yellow'; $script:Problems++ }
+function Warn([string]$Text) { Say "  [!]       $Text" 'Yellow'; $script:Problems++; $script:Warnings.Add($Text) }
+function Set-Result([int]$Code, [string]$Reason, [string]$Text) { $script:ExitCode = $Code; $script:Reason = $Reason; $script:ReasonText = $Text }
 function Note([string]$Text) { Say "            $Text" 'Gray' }
 function Set-NoDau {
     $script:NoDau = -not $script:NoDau
@@ -77,10 +91,22 @@ function Show-FontHint {
     }
     Say '  (Nhật ký và file .txt luôn ghi tiếng Việt đầy đủ, không bị ảnh hưởng.)' 'DarkGray'
 }
+function Read-Line([string]$Prompt) {
+    # Không có cửa sổ dòng lệnh thật (đầu vào bị chuyển hướng): Read-Host trả về rỗng ngay nên vòng hỏi chạy mãi,
+    # ăn 100% CPU. Khi đó đọc thẳng từng dòng; hết dòng thì dừng hẳn (main bắt $script:EndOfInput, mã thoát 2/3).
+    $redirected = $false
+    try { $redirected = [Console]::IsInputRedirected } catch {}
+    if (-not $redirected) { return (Read-Host (Txt $Prompt)) }
+    Write-Host ((Txt $Prompt) + ': ') -NoNewline
+    $line = [Console]::In.ReadLine()
+    if ($null -eq $line) { Write-Host ''; throw $script:EndOfInput }
+    Write-Host $line
+    return $line
+}
 function Ask([string]$Question) {
     if ($script:Auto) { Say "  $Question (Y/N): Y  [tự động]" 'White'; return $true }
     while ($true) {
-        $a = Read-Host (Txt "  $Question (Y/N)")
+        $a = Read-Line "  $Question (Y/N)"
         if ($a -match '^\s*kd') { Set-NoDau; continue }
         if ($a -match '^\s*[YC]') { $script:Log.Add("  $Question => Y"); return $true }
         if ($a -match '^\s*[NK]') { $script:Log.Add("  $Question => N"); return $false }
@@ -90,7 +116,7 @@ function Choose([string]$Question, [string[]]$Options, [int]$Default = 1) {
     for ($i = 0; $i -lt $Options.Count; $i++) { Say ("    {0}) {1}" -f ($i + 1), $Options[$i]) 'White' }
     if ($script:Auto) { Say "  $Question $Default  [tự động]" 'White'; return $Default }
     while ($true) {
-        $a = Read-Host (Txt "  $Question (1-$($Options.Count), Enter = $Default)")
+        $a = Read-Line "  $Question (1-$($Options.Count), Enter = $Default)"
         if ($a -match '^\s*$') { $script:Log.Add("  $Question => $Default"); return $Default }
         if ($a -match '^\s*kd') { Set-NoDau; for ($i = 0; $i -lt $Options.Count; $i++) { Write-Host (Txt ("    {0}) {1}" -f ($i + 1), $Options[$i])) -ForegroundColor White }; continue }
         if ($a -match '^\s*(\d+)\s*$') {
@@ -181,12 +207,48 @@ function Wait-ExcelClosed {
         }
         Say "  Excel đang mở trong profile này ($($mine.Count) tiến trình). Hãy LƯU và ĐÓNG hết Excel." 'Yellow'
         if ($script:Auto) { return $false }
-        $a = Read-Host (Txt '  Nhấn Enter khi đã đóng Excel (gõ Q để thoát)')
+        $a = Read-Line '  Nhấn Enter khi đã đóng Excel (gõ Q để thoát)'
         if ($a -match '^\s*[Qq]') { return $false }
     }
 }
 function Save-Manifest {
     if (-not $script:BackupDir) { return }
     $json = $script:Manifest | ConvertTo-Json -Depth 5
-    [IO.File]::WriteAllText((Join-Path $script:BackupDir 'manifest.json'), $json, (New-Object Text.UTF8Encoding $false))
+    # Ghi ra file tạm rồi thay: cửa sổ bị đóng giữa chừng không để lại manifest.json dở dang
+    $path = Join-Path $script:BackupDir 'manifest.json'
+    $tmp = "$path.tmp"
+    [IO.File]::WriteAllText($tmp, $json, (New-Object Text.UTF8Encoding $false))
+    if (-not (Test-Path -LiteralPath $path)) { [IO.File]::Move($tmp, $path); return }
+    try { [IO.File]::Replace($tmp, $path, $null) } catch { [IO.File]::Copy($tmp, $path, $true); [IO.File]::Delete($tmp) }   # ổ mạng/FAT không hỗ trợ Replace
+}
+function Get-Sha256([string]$Path) {
+    try { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash } catch { return $null }
+}
+function Get-ResultDir {
+    if ($env:MYX_OUT) { return $env:MYX_OUT }
+    return (Join-Path $env:PUBLIC 'Documents\MyExcelCheck')
+}
+function Save-ResultJson([string]$LogPath) {
+    # Kết quả máy đọc được cho Trạm Tool: trạng thái, mã lý do ổn định, cảnh báo, nơi sao lưu
+    $mode = if ($script:UndoMode) { 'hoan-tac' } else { 'sua' }
+    $state = switch ($script:ExitCode) { 0 { 'xong' } 2 { 'thieu-dieu-kien' } 3 { 'mot-phan' } default { 'loi' } }
+    $real = if ($null -ne $script:ChangesAtBackup) { $script:Changes - $script:ChangesAtBackup } else { 0 }
+    $r = [ordered]@{
+        congCu = 'myexcelfix'; cheDo = $mode; phienBan = $script:Version
+        may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
+        batDau = $script:Started.ToString('s'); ketThuc = (Get-Date).ToString('s')
+        maThoat = $script:ExitCode; trangThai = $state; ma = $script:Reason; thongDiep = $script:ReasonText
+        soThayDoi = $real; soCanhBao = $script:Problems; canhBao = @($script:Warnings)
+        giuLai = @($script:KeptFiles)
+        thuMucSaoLuu = $(if ($script:UndoMode) { $script:UndoDir } else { $script:BackupDir })
+        nhatKy = $LogPath
+    }
+    $name = 'KetQua_MyExcel_{0}_{1}_{2}_{3}.json' -f $(if ($script:UndoMode) { 'HoanTac' } else { 'Sua' }), $env:COMPUTERNAME, ($env:USERNAME -replace '[^\w\.-]', '_'), $script:Stamp
+    try {
+        $dir = Get-ResultDir
+        if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null }
+        $path = Join-Path $dir $name
+        [IO.File]::WriteAllText($path, ($r | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
+        Say "  Kết quả (JSON): $path" 'DarkGray'
+    } catch { Say "  Không ghi được file kết quả JSON: $($_.Exception.Message)" 'DarkGray' }
 }

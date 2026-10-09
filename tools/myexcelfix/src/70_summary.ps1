@@ -15,7 +15,10 @@ try {
         Note '   Lần chạy thứ 2 sẽ tự in ra bảng khác biệt giữa 2 profile tại mục này.'
     }
     foreach ($of in $others) {
-        $o = Get-Content -LiteralPath $of.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+        # Một snapshot hỏng (ghi dở, sửa tay) chỉ bỏ qua file đó, không chặn so sánh và lưu snapshot của lần này
+        try { $o = Get-Content -LiteralPath $of.FullName -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop }
+        catch { Note "Bỏ qua snapshot hỏng $($of.Name): $($_.Exception.Message)"; continue }
+        if (-not $o) { Note "Bỏ qua snapshot rỗng $($of.Name)"; continue }
         $oName = $o.'_User'
         Out-Line ''
         Out-Line ("  >> Khác biệt: profile NÀY ({0})  vs  profile '{1}' (chạy lúc {2})" -f $env:USERNAME, $oName, $o.'_Time') 'White'
@@ -37,7 +40,8 @@ try {
     }
     $script:Snap['_User'] = $env:USERNAME
     $script:Snap['_Time'] = $script:Started.ToString('dd/MM/yyyy HH:mm')
-    [IO.File]::WriteAllText($snapFile, ($script:Snap | ConvertTo-Json -Depth 3), (New-Object Text.UTF8Encoding $false))
+    [IO.File]::WriteAllText("$snapFile.tmp", ($script:Snap | ConvertTo-Json -Depth 3), (New-Object Text.UTF8Encoding $false))
+    Move-Item -LiteralPath "$snapFile.tmp" -Destination $snapFile -Force -ErrorAction Stop
 } catch { Note "Lỗi khi so sánh profile: $($_.Exception.Message)" }
 
 # ----------------------------------------------------------------------------
@@ -54,7 +58,7 @@ foreach ($f in $sorted) {
     $label = switch ($f.Level) { 'LOI' { '[LỖI]' } 'CANHBAO' { '[CẢNH BÁO]' } default { '[THÔNG TIN]' } }
     $color = switch ($f.Level) { 'LOI' { 'Red' } 'CANHBAO' { 'Yellow' } default { 'DarkYellow' } }
     Out-Line ''
-    Out-Line ("  {0}. {1} {2}" -f $i, $label, $f.Title) $color
+    Out-Line ("  {0}. {1} {2}  ({3})" -f $i, $label, $f.Title, $f.Code) $color
     Out-Line ("     => Cách xử lý: {0}" -f $f.Fix) 'Green'
 }
 if ($sorted.Count -eq 0) { Ok 'Không phát hiện bất thường ở các mục đã kiểm tra.' }
@@ -87,10 +91,18 @@ $steps = @(
 foreach ($s in $steps) { Out-Line "  $s" }
 
 # ----------------------------------------------------------------------------
+# Mã thoát: 0 kiểm tra xong (kể cả khi có phát hiện), 1 không ghi được báo cáo, 2 chạy sai tài khoản (kết quả không dùng được)
+$exitCode = 0
+$reason = 'XONG'; $reasonText = 'Đã kiểm tra xong.'
+if (@($script:Findings | Where-Object Code -eq 'SAI_TAI_KHOAN').Count -gt 0) {
+    $exitCode = 2; $reason = 'SAI_TAI_KHOAN'; $reasonText = 'Chạy sai tài khoản Windows nên kết quả không phải của profile bị lỗi.'
+}
+$reportPath = $null
 try {
     $elapsed = [math]::Round(((Get-Date) - $script:Started).TotalSeconds, 0)
     Out-Line ''
     Out-Line "  (Thời gian kiểm tra: $elapsed giây)" 'DarkGray'
+    if (-not (Test-Path -LiteralPath $outDir)) { New-Item -ItemType Directory -Path $outDir -Force -ErrorAction Stop | Out-Null }
     $reportName = "BaoCao_MyExcel_{0}_{1}_{2}.txt" -f $env:COMPUTERNAME, $safeUser, $stamp
     $reportPath = Join-Path $outDir $reportName
     $utf8Bom = New-Object Text.UTF8Encoding $true
@@ -108,4 +120,29 @@ try {
     Write-Host (Txt '  => Gửi file báo cáo này (của CẢ profile lỗi và profile mới nếu có) cho kỹ thuật.') -ForegroundColor Cyan
     Write-Host '  (Chu tieng Viet tren man hinh bi loi font? Mo file bao cao bang Notepad - file luon dung chinh ta.)' -ForegroundColor DarkGray
     if (-not $env:MYX_NO_NOTEPAD) { Start-Process notepad.exe -ArgumentList "`"$reportPath`"" }
-} catch { Write-Host (Txt "Không ghi được báo cáo: $($_.Exception.Message)") -ForegroundColor Red }
+} catch {
+    Write-Host (Txt "Không ghi được báo cáo: $($_.Exception.Message)") -ForegroundColor Red
+    $exitCode = 1; $reason = 'BAO_CAO_LOI'; $reasonText = "Không ghi được báo cáo: $($_.Exception.Message)"
+    $reportPath = $null
+}
+
+# Kết quả máy đọc được cho Trạm Tool: mỗi phát hiện có mã ổn định, mức độ, cách sửa
+$levelMap = @{ 'LOI' = 'loi'; 'CANHBAO' = 'canh-bao'; 'THONGTIN' = 'thong-tin' }
+$result = [ordered]@{
+    congCu = 'myexcelfix'; cheDo = 'kiem-tra'; phienBan = $script:Version
+    may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
+    batDau = $script:Started.ToString('s'); ketThuc = (Get-Date).ToString('s')
+    maThoat = $exitCode; trangThai = $(switch ($exitCode) { 0 { 'xong' } 2 { 'thieu-dieu-kien' } default { 'loi' } })
+    ma = $reason; thongDiep = $reasonText
+    tomTat = [ordered]@{ loi = $nLoi; canhBao = $nWarn; thongTin = ($sorted.Count - $nLoi - $nWarn) }
+    phatHien = @($sorted | ForEach-Object { [ordered]@{ ma = $_.Code; mucDo = $levelMap[$_.Level]; tieuDe = $_.Title; cachSua = $_.Fix } })
+    baoCao = $reportPath
+}
+try {
+    if (-not (Test-Path -LiteralPath $outDir)) { New-Item -ItemType Directory -Path $outDir -Force -ErrorAction Stop | Out-Null }
+    $jsonPath = Join-Path $outDir ("KetQua_MyExcel_KiemTra_{0}_{1}_{2}.json" -f $env:COMPUTERNAME, $safeUser, $stamp)
+    [IO.File]::WriteAllText($jsonPath, ($result | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
+    Write-Host (Txt "  Kết quả (JSON): $jsonPath") -ForegroundColor DarkGray
+} catch { Write-Host (Txt "  Không ghi được file kết quả JSON: $($_.Exception.Message)") -ForegroundColor DarkGray }
+if ($exitCode -eq 2) { Write-Host (Txt '  => Kết quả này KHÔNG dùng được: chạy lại bằng double-click trong đúng profile bị lỗi.') -ForegroundColor Red }
+exit $exitCode

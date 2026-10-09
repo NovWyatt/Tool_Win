@@ -4,17 +4,20 @@ rem ==========================================================================
 rem  MyExcel VietQR - script kiem tra loi theo profile Windows (chi DOC, khong sua)
 rem  Cach dung: copy file nay sang may bi loi, DOUBLE-CLICK trong profile bi loi.
 rem  KHONG "Run as administrator" bang tai khoan khac (se doc sai HKCU).
+rem  Ma thoat: 0 kiem tra xong, 1 khong ghi duoc bao cao, 2 chay sai tai khoan.
+rem  Phien ban: 2026.10.1
 rem ==========================================================================
 chcp 65001 >nul
-title MyExcel VietQR - Kiem tra loi
+title MyExcel VietQR - Kiem tra loi (2026.10.1)
 set "MYX_SELF=%~f0"
 set "MYX_PS=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" set "MYX_PS=%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
 "%MYX_PS%" -NoProfile -ExecutionPolicy Bypass -Command "$s=[IO.File]::ReadAllText($env:MYX_SELF,[Text.Encoding]::UTF8); iex $s"
+set "MYX_RC=%ERRORLEVEL%"
 echo.
-echo Da xong. Bao cao da duoc mo bang Notepad va luu trong C:\Users\Public\Documents\MyExcelCheck
+if "%MYX_RC%"=="0" echo Da xong. Bao cao da duoc mo bang Notepad va luu trong C:\Users\Public\Documents\MyExcelCheck
 if not defined MYX_NOPAUSE pause
-exit /b
+exit /b %MYX_RC%
 #>
 
 # ============================================================================
@@ -53,6 +56,7 @@ function Test-VietConsole {
 }
 function Txt([string]$Text) { if ($script:NoDau) { return (Remove-Diacritics $Text) }; return $Text }
 $script:NoDau = -not (Test-VietConsole)
+$script:Version  = '2026.10.1'   # build.ps1 thay bằng version trong tool.json
 $script:Report   = New-Object System.Collections.Generic.List[string]
 $script:Findings = New-Object System.Collections.Generic.List[object]
 $script:Snap     = [ordered]@{}
@@ -87,9 +91,10 @@ function Info([string]$Label, $Value) {
 }
 function Ok([string]$Text)   { Out-Line "  [OK]  $Text" 'Green' }
 function Note([string]$Text) { Out-Line "        $Text" 'DarkGray' }
-function Add-Finding([string]$Level, [string]$Title, [string]$Fix) {
+function Add-Finding([string]$Code, [string]$Level, [string]$Title, [string]$Fix) {
+    # Code: mã ổn định cho Trạm Tool (không đổi khi sửa câu chữ; cùng một nguyên nhân có thể ở mức khác nhau)
     # Level: LOI (nhiều khả năng là nguyên nhân) | CANHBAO (có thể) | THONGTIN
-    $script:Findings.Add([pscustomobject]@{ Level = $Level; Title = $Title; Fix = $Fix; Idx = $script:Findings.Count })
+    $script:Findings.Add([pscustomobject]@{ Code = $Code; Level = $Level; Title = $Title; Fix = $Fix; Idx = $script:Findings.Count })
     switch ($Level) {
         'LOI'     { Out-Line "  [LỖI] $Title" 'Red' }
         'CANHBAO' { Out-Line "  [!]   $Title" 'Yellow' }
@@ -201,6 +206,7 @@ try {
     $me = [Security.Principal.WindowsIdentity]::GetCurrent()
     $script:IsElevated = ([Security.Principal.WindowsPrincipal]$me).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     $script:IsAdminMember = [bool]((whoami /groups) -match 'S-1-5-32-544')
+    Info 'Phiên bản công cụ' $script:Version
     Info 'Thời điểm chạy' ($script:Started.ToString('dd/MM/yyyy HH:mm:ss'))
     Info 'Tên máy' $env:COMPUTERNAME
     Info 'Tài khoản chạy script' $me.Name
@@ -222,12 +228,12 @@ try {
             $desk = "$($o.Domain)\$($o.User)"
             Info 'User đang đăng nhập màn hình' $desk
             if ($desk -ine $me.Name) {
-                Add-Finding 'LOI' "Script đang chạy bằng '$($me.Name)' nhưng màn hình là của '$desk' => kết quả HKCU/AppData KHÔNG phải của profile bị lỗi" 'Chạy lại file .bat bằng cách double-click trong profile bị lỗi, không dùng Run as administrator bằng tài khoản khác.'
+                Add-Finding 'SAI_TAI_KHOAN' 'LOI' "Script đang chạy bằng '$($me.Name)' nhưng màn hình là của '$desk' => kết quả HKCU/AppData KHÔNG phải của profile bị lỗi" 'Chạy lại file .bat bằng cách double-click trong profile bị lỗi, không dùng Run as administrator bằng tài khoản khác.'
             }
         }
     }
     if ($env:USERPROFILE -match '\\TEMP(\.|$)') {
-        Add-Finding 'LOI' "Windows đang dùng profile TẠM ($env:USERPROFILE) - mọi cài đặt sẽ mất khi đăng xuất" 'Profile gốc bị hỏng; cần sửa ProfileList trong registry hoặc chuyển dữ liệu sang profile mới.'
+        Add-Finding 'PROFILE_TAM' 'LOI' "Windows đang dùng profile TẠM ($env:USERPROFILE) - mọi cài đặt sẽ mất khi đăng xuất" 'Profile gốc bị hỏng; cần sửa ProfileList trong registry hoặc chuyển dữ liệu sang profile mới.'
     }
 } catch { Note "Lỗi khi đọc thông tin tài khoản: $($_.Exception.Message)" }
 
@@ -240,7 +246,7 @@ try {
         $free = [math]::Round($d.FreeSpace / 1GB, 1)
         Info "Ổ đĩa $($d.DeviceID) còn trống" "$free GB / $([math]::Round($d.Size / 1GB, 0)) GB"
         if ($d.DeviceID -eq $env:SystemDrive -and $free -lt 3) {
-            Add-Finding 'CANHBAO' "Ổ $($d.DeviceID) chỉ còn $free GB trống" 'Dọn ổ C (Disk Cleanup, xóa TEMP) để Excel tạo được file tạm/ảnh QR.'
+            Add-Finding 'O_HE_THONG_DAY' 'CANHBAO' "Ổ $($d.DeviceID) chỉ còn $free GB trống" 'Dọn ổ C (Disk Cleanup, xóa TEMP) để Excel tạo được file tạm/ảnh QR.'
         }
     }
 } catch { Note "Lỗi khi đọc thông tin Windows: $($_.Exception.Message)" }
@@ -266,10 +272,10 @@ try {
     Snap 'Region.sList' $lst
     Snap 'Region.sShortDate' $sd
     if ($dec -ne '.' -or $tho -ne ',') {
-        Add-Finding 'CANHBAO' ("Profile này dùng dấu thập phân '{0}' và nhóm số '{1}' (khác kiểu Mỹ '.' ','). Profile mới thường là mặc định => một số macro xử lý số tiền VietQR có thể lỗi" -f $dec, $tho) 'Thử: Settings > Time & language > Language & region > Regional format = English (United States), hoặc Control Panel > Region > Additional settings: Decimal = "."  Digit grouping = ","; sau đó mở lại Excel và thử tạo VietQR.'
+        Add-Finding 'DINH_DANG_SO' 'CANHBAO' ("Profile này dùng dấu thập phân '{0}' và nhóm số '{1}' (khác kiểu Mỹ '.' ','). Profile mới thường là mặc định => một số macro xử lý số tiền VietQR có thể lỗi" -f $dec, $tho) 'Thử: Settings > Time & language > Language & region > Regional format = English (United States), hoặc Control Panel > Region > Additional settings: Decimal = "."  Digit grouping = ","; sau đó mở lại Excel và thử tạo VietQR.'
     }
     if ($lst -ne ',' -and $lst -ne ';') {
-        Add-Finding 'CANHBAO' "Ký tự phân cách danh sách (List separator) lạ: '$lst'" 'Đặt lại List separator về "," (hoặc ";") trong Region > Additional settings.'
+        Add-Finding 'PHAN_CACH_DANH_SACH' 'CANHBAO' "Ký tự phân cách danh sách (List separator) lạ: '$lst'" 'Đặt lại List separator về "," (hoặc ";") trong Region > Additional settings.'
     }
 } catch { Note "Lỗi khi đọc Region: $($_.Exception.Message)" }
 
@@ -291,7 +297,7 @@ try {
     }
     Snap 'Path.UnicodeVars' ($badPath -join ',')
     if ($badPath.Count -gt 0) {
-        Add-Finding 'LOI' ("Đường dẫn {0} chứa ký tự có dấu/Unicode mà code page {1} không biểu diễn được. VBA (MyExcel) dùng API ANSI nên không tạo/lưu được file ảnh QR tạm. Profile mới tên không dấu nên chạy được" -f ($badPath -join ', '), $script:AnsiEnc.CodePage) 'Cho riêng user này: tạo thư mục C:\Temp rồi chạy trong CMD:  setx TEMP C:\Temp  và  setx TMP C:\Temp  => đăng xuất/đăng nhập lại => thử VietQR. (Nếu chính USERPROFILE có dấu thì cách triệt để là dùng profile tên không dấu.)'
+        Add-Finding 'DUONG_DAN_UNICODE' 'LOI' ("Đường dẫn {0} chứa ký tự có dấu/Unicode mà code page {1} không biểu diễn được. VBA (MyExcel) dùng API ANSI nên không tạo/lưu được file ảnh QR tạm. Profile mới tên không dấu nên chạy được" -f ($badPath -join ', '), $script:AnsiEnc.CodePage) 'Cho riêng user này: tạo thư mục C:\Temp rồi chạy trong CMD:  setx TEMP C:\Temp  và  setx TMP C:\Temp  => đăng xuất/đăng nhập lại => thử VietQR. (Nếu chính USERPROFILE có dấu thì cách triệt để là dùng profile tên không dấu.)'
     }
     $userEnv = Get-RegValues 'HKCU:\Environment'
     foreach ($e in $userEnv) {
@@ -336,7 +342,7 @@ try {
         Snap 'Office.ExcelVersion' (Get-Item -LiteralPath $excel).VersionInfo.ProductVersion
         Snap 'Office.Bitness' $bit
     } else {
-        Add-Finding 'LOI' 'Không tìm thấy EXCEL.EXE' 'Kiểm tra lại bộ Office trên máy.'
+        Add-Finding 'KHONG_CO_EXCEL' 'LOI' 'Không tìm thấy EXCEL.EXE' 'Kiểm tra lại bộ Office trên máy.'
     }
     $c2r = 'HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration'
     if (Test-Path $c2r) {
@@ -367,11 +373,11 @@ try {
         Sort-Object DisplayName -Unique
     foreach ($a in $offs) { Info 'Sản phẩm Office trong Programs' ("{0}  {1}" -f $a.DisplayName, $a.DisplayVersion) }
     if (@($offs).Count -gt 1) {
-        Add-Finding 'CANHBAO' 'Có nhiều bộ Office cùng cài trên máy' 'Nhiều phiên bản Office song song dễ làm add-in/đăng ký COM bị lẫn. Nên gỡ bộ không dùng.'
+        Add-Finding 'NHIEU_BO_OFFICE' 'CANHBAO' 'Có nhiều bộ Office cùng cài trên máy' 'Nhiều phiên bản Office song song dễ làm add-in/đăng ký COM bị lẫn. Nên gỡ bộ không dùng.'
     }
     if (($apps | Where-Object { $_.DisplayName -match 'Office 2016|Excel 2016' }) -and -not (Test-Path $c2r)) {
         if (-not ($apps | Where-Object { $_.DisplayName -match 'KB4484305' })) {
-            Add-Finding 'CANHBAO' 'Office 2016 bản MSI chưa thấy bản vá KB4484305 (lỗi khởi động MyExcel do Windows Update)' 'Cài bản vá theo https://myexcel.vn/loi-khoi-dong-myexcel-do-window/ rồi khởi động lại máy.'
+            Add-Finding 'THIEU_KB4484305' 'CANHBAO' 'Office 2016 bản MSI chưa thấy bản vá KB4484305 (lỗi khởi động MyExcel do Windows Update)' 'Cài bản vá theo https://myexcel.vn/loi-khoi-dong-myexcel-do-window/ rồi khởi động lại máy.'
         }
     }
 } catch { Note "Lỗi khi đọc thông tin Office: $($_.Exception.Message)" }
@@ -382,10 +388,10 @@ try {
     foreach ($p in $xl) {
         Note ("PID {0} session {1}: {2}" -f $p.ProcessId, $p.SessionId, $p.CommandLine)
         if ($p.CommandLine -match '(?i)/safe') {
-            Add-Finding 'LOI' "Excel (PID $($p.ProcessId)) đang chạy ở chế độ /safe => add-in không được nạp" 'Đóng Excel, mở lại bình thường (không dùng /safe, không giữ Ctrl khi mở).'
+            Add-Finding 'EXCEL_SAFE_MODE' 'LOI' "Excel (PID $($p.ProcessId)) đang chạy ở chế độ /safe => add-in không được nạp" 'Đóng Excel, mở lại bình thường (không dùng /safe, không giữ Ctrl khi mở).'
         }
         if ($p.CommandLine -match '(?i)/automation|-embedding') {
-            Add-Finding 'CANHBAO' "Có Excel chạy ẩn (PID $($p.ProcessId), /automation hoặc -Embedding)" 'Đóng hết Excel, mở Task Manager kết thúc mọi EXCEL.EXE còn sót rồi mới thử lại.'
+            Add-Finding 'EXCEL_CHAY_AN' 'CANHBAO' "Có Excel chạy ẩn (PID $($p.ProcessId), /automation hoặc -Embedding)" 'Đóng hết Excel, mở Task Manager kết thúc mọi EXCEL.EXE còn sót rồi mới thử lại.'
         }
     }
     if ($xl.Count -gt 0) { Note 'Nên ĐÓNG Excel khi chạy script để kết quả chính xác nhất.' }
@@ -449,14 +455,14 @@ try {
         $loaded = @($script:AddinEntries | Where-Object { $_.Source -eq 'OPEN' -and $_.Path -match '(?i)myexcel[^\\]*\.xlam$' } | ForEach-Object { $_.Path })
         $loadedTxt = if ($loaded.Count -gt 0) { $loaded -join ' ; ' } else { 'chưa nạp bộ nào' }
         $lv = if (@($loaded | Where-Object { -not (Test-UnderPath $_ 'C:\MyExcel') }).Count -gt 0) { 'LOI' } else { 'CANHBAO' }
-        Add-Finding $lv ("Máy có {0} bộ MyExcel ({1}); profile này đang nạp: {2}" -f $installs.Count, ($installs -join ', '), $loadedTxt) 'Chỉ dùng 1 bộ ở C:\MyExcel như hướng dẫn MyExcel. Chạy FixMyExcel_VietQR.bat trong profile này: tự chọn bộ chuẩn, hỏi trước khi cất bộ thừa, có sao lưu và file hoàn tác.'
+        Add-Finding 'NHIEU_BO_MYEXCEL' $lv ("Máy có {0} bộ MyExcel ({1}); profile này đang nạp: {2}" -f $installs.Count, ($installs -join ', '), $loadedTxt) 'Chỉ dùng 1 bộ ở C:\MyExcel như hướng dẫn MyExcel. Chạy FixMyExcel_VietQR.bat trong profile này: tự chọn bộ chuẩn, hỏi trước khi cất bộ thừa, có sao lưu và file hoàn tác.'
     }
 
     if ($script:MyxRoots.Count -eq 0) {
-        Add-Finding 'LOI' 'Không tìm thấy thư mục cài MyExcel (C:\MyExcel) và không có add-in MyExcel nào được đăng ký' 'Cài lại MyExcel theo https://myexcel.vn/download/ (giải nén, copy thư mục MyExcel vào ổ C:).'
+        Add-Finding 'KHONG_CO_MYEXCEL' 'LOI' 'Không tìm thấy thư mục cài MyExcel (C:\MyExcel) và không có add-in MyExcel nào được đăng ký' 'Cài lại MyExcel theo https://myexcel.vn/download/ (giải nén, copy thư mục MyExcel vào ổ C:).'
     }
     if ($script:MyxRoots.Count -gt 0 -and -not ($script:MyxRoots | Where-Object { Test-SamePath $_ 'C:\MyExcel' })) {
-        Add-Finding 'CANHBAO' ("MyExcel không nằm ở C:\MyExcel mà ở: {0}" -f ($script:MyxRoots -join ', ')) 'MyExcel khuyến nghị cài đúng C:\MyExcel, nếu không file tạo từ máy khác sẽ lỗi #NAME / lỗi nút bấm.'
+        Add-Finding 'MYEXCEL_SAI_CHO' 'CANHBAO' ("MyExcel không nằm ở C:\MyExcel mà ở: {0}" -f ($script:MyxRoots -join ', ')) 'MyExcel khuyến nghị cài đúng C:\MyExcel, nếu không file tạo từ máy khác sẽ lỗi #NAME / lỗi nút bấm.'
     }
 
     $execExt = '(?i)\.(xlam|xla|xll|xlsm|xlsb|xls|xltm|dll|ocx|exe|tlb)$'
@@ -470,7 +476,7 @@ try {
         Info 'User này ghi được vào thư mục' $canWrite
         Snap "MyExcel.Writable[$root]" $canWrite
         if (-not $canWrite) {
-            Add-Finding 'CANHBAO' "User này KHÔNG ghi được vào $root (nếu profile mới là tài khoản admin thì ghi được => khác biệt)" "Mở CMD bằng quyền Admin chạy:  icacls `"$root`" /grant *S-1-5-32-545:(OI)(CI)M /T  (cấp quyền Modify cho nhóm Users) rồi thử lại."
+            Add-Finding 'THU_MUC_KHONG_GHI_DUOC' 'CANHBAO' "User này KHÔNG ghi được vào $root (nếu profile mới là tài khoản admin thì ghi được => khác biệt)" "Mở CMD bằng quyền Admin chạy:  icacls `"$root`" /grant *S-1-5-32-545:(OI)(CI)M /T  (cấp quyền Modify cho nhóm Users) rồi thử lại."
         }
         $blocked = @()
         $shown = 0
@@ -498,18 +504,18 @@ try {
         if ($untrustedQr.Count -gt 0) {
             $lv = if ($isActive) { 'LOI' } else { 'CANHBAO' }
             $note = if ($isActive) { '' } else { ' (bộ này profile không nạp)' }
-            Add-Finding $lv ("File QR Code trong {0} bị Windows chặn (Mark of the Web) và KHÔNG nằm trong Trusted Locations{1}: {2}" -f $root, $note, (($untrustedQr | ForEach-Object { $_.Name } | Sort-Object -Unique) -join ', ')) "Đúng lỗi MyExcel đã hướng dẫn: đóng Excel > chuột phải từng file QR Code > Properties > tích Unblock > OK. Hoặc mở PowerShell chạy:  $unblockCmd"
+            Add-Finding 'QR_BI_CHAN' $lv ("File QR Code trong {0} bị Windows chặn (Mark of the Web) và KHÔNG nằm trong Trusted Locations{1}: {2}" -f $root, $note, (($untrustedQr | ForEach-Object { $_.Name } | Sort-Object -Unique) -join ', ')) "Đúng lỗi MyExcel đã hướng dẫn: đóng Excel > chuột phải từng file QR Code > Properties > tích Unblock > OK. Hoặc mở PowerShell chạy:  $unblockCmd"
         } elseif ($blocked.Count -gt 0 -and (Test-TrustedDir $root -WithSubfolders)) {
-            Add-Finding 'THONGTIN' ("{0} file trong {1} còn dấu chặn của Windows (MOTW) nhưng thư mục nằm trong Trusted Locations (có thư mục con) nên macro vẫn chạy - không phải nguyên nhân" -f $blocked.Count, $root) "Vẫn nên Unblock cho sạch: đóng Excel, mở PowerShell chạy:  $unblockCmd"
+            Add-Finding 'MOTW_DA_TIN_CAY' 'THONGTIN' ("{0} file trong {1} còn dấu chặn của Windows (MOTW) nhưng thư mục nằm trong Trusted Locations (có thư mục con) nên macro vẫn chạy - không phải nguyên nhân" -f $blocked.Count, $root) "Vẫn nên Unblock cho sạch: đóng Excel, mở PowerShell chạy:  $unblockCmd"
         } elseif ($blocked.Count -gt 0) {
-            Add-Finding 'CANHBAO' "$($blocked.Count) file trong $root đang bị Windows chặn (MOTW) và thư mục chưa được tin cậy hết" "Đóng Excel, mở PowerShell chạy:  $unblockCmd  rồi thêm $root vào Trusted Locations (tích thư mục con)."
+            Add-Finding 'FILE_BI_CHAN' 'CANHBAO' "$($blocked.Count) file trong $root đang bị Windows chặn (MOTW) và thư mục chưa được tin cậy hết" "Đóng Excel, mở PowerShell chạy:  $unblockCmd  rồi thêm $root vào Trusted Locations (tích thư mục con)."
         }
         if (-not ($files | Where-Object { $_.Name -match '(?i)^myexcel.*\.xlam$' })) {
-            Add-Finding 'LOI' "Không thấy file MyExcel*.xlam trong $root" 'File có thể bị phần mềm diệt virus xóa. Thêm thư mục MyExcel vào danh sách loại trừ rồi giải nén/copy lại bộ cài.'
+            Add-Finding 'THIEU_XLAM' 'LOI' "Không thấy file MyExcel*.xlam trong $root" 'File có thể bị phần mềm diệt virus xóa. Thêm thư mục MyExcel vào danh sách loại trừ rồi giải nén/copy lại bộ cài.'
         }
     }
     if ($script:MyxRoots.Count -gt 0 -and $script:QrAddinCount -eq 0) {
-        Add-Finding 'LOI' 'Không thấy file nào tên QR Code trong thư mục MyExcel (Mini Tool)' 'Nhiều khả năng file QR Code đã bị antivirus xóa/cách ly. Kiểm tra lịch sử bảo vệ của Windows Security, thêm C:\MyExcel vào Exclusions, rồi copy lại thư mục MiniTool từ bộ cài.'
+        Add-Finding 'THIEU_FILE_QR' 'LOI' 'Không thấy file nào tên QR Code trong thư mục MyExcel (Mini Tool)' 'Nhiều khả năng file QR Code đã bị antivirus xóa/cách ly. Kiểm tra lịch sử bảo vệ của Windows Security, thêm C:\MyExcel vào Exclusions, rồi copy lại thư mục MiniTool từ bộ cài.'
     }
     foreach ($q in $script:QrFiles) {
         $qd = Split-Path $q -Parent
@@ -547,7 +553,7 @@ try {
     }
     $addinCopies = @($copies | Where-Object { $_.Extension -match '(?i)\.(xlam|xla|xll)$' })
     if ($addinCopies.Count -gt 0) {
-        Add-Finding 'CANHBAO' ("Có {0} file add-in MyExcel/QR nằm ngoài thư mục cài (VD: {1})" -f $addinCopies.Count, $addinCopies[0].FullName) 'Nếu Excel đang nạp bản sao này (xem mục 5) thì bản sao thiếu các file đi kèm => chức năng QR lỗi. Gỡ tích bản sao trong Excel Add-ins, di chuyển file đó ra chỗ khác, rồi Browse lại đúng C:\MyExcel.'
+        Add-Finding 'BAN_SAO_ADDIN' 'CANHBAO' ("Có {0} file add-in MyExcel/QR nằm ngoài thư mục cài (VD: {1})" -f $addinCopies.Count, $addinCopies[0].FullName) 'Nếu Excel đang nạp bản sao này (xem mục 5) thì bản sao thiếu các file đi kèm => chức năng QR lỗi. Gỡ tích bản sao trong Excel Add-ins, di chuyển file đó ra chỗ khác, rồi Browse lại đúng C:\MyExcel.'
     }
     Snap 'MyExcel.CopiesOutside' (($copies | ForEach-Object { $_.FullName }) -join ' | ')
 } catch { Note "Lỗi khi tìm bản sao: $($_.Exception.Message)" }
@@ -571,7 +577,7 @@ try {
         if ($a.Source -eq 'OPEN' -and $rel) { $openRelated += $a }
         if (-not $exists -and $a.Source -eq 'OPEN') {
             $lv = if ($rel) { 'LOI' } else { 'CANHBAO' }
-            Add-Finding $lv "Excel đang cố nạp add-in không còn tồn tại: $($a.Raw)" 'Excel > File > Options > Add-ins > Manage: Excel Add-ins > Go > bỏ tích mục đó (Excel sẽ hỏi xóa khỏi danh sách => Yes).'
+            Add-Finding 'ADDIN_MAT_FILE' $lv "Excel đang cố nạp add-in không còn tồn tại: $($a.Raw)" 'Excel > File > Options > Add-ins > Manage: Excel Add-ins > Go > bỏ tích mục đó (Excel sẽ hỏi xóa khỏi danh sách => Yes).'
         }
     }
     Snap 'AddIns.OPEN' ((@($script:AddinEntries | Where-Object Source -eq 'OPEN') | ForEach-Object { $_.Raw }) -join ' | ')
@@ -579,11 +585,11 @@ try {
 
     $main = @($openRelated | Where-Object { $_.Path -match '(?i)myexcel[^\\]*\.xlam$' })
     if ($script:MyxRoots.Count -gt 0 -and $main.Count -eq 0) {
-        Add-Finding 'LOI' 'Add-in MyExcel.xlam CHƯA được bật trong profile này' 'Excel > File > Options > Add-ins > Manage: Excel Add-ins > Go > Browse > C:\MyExcel > chọn MyExcel > OK. Nếu Excel hỏi "Copy to Addins folder?" thì chọn NO.'
+        Add-Finding 'ADDIN_CHUA_BAT' 'LOI' 'Add-in MyExcel.xlam CHƯA được bật trong profile này' 'Excel > File > Options > Add-ins > Manage: Excel Add-ins > Go > Browse > C:\MyExcel > chọn MyExcel > OK. Nếu Excel hỏi "Copy to Addins folder?" thì chọn NO.'
     }
     foreach ($m in $openRelated) {
         if ($script:MyxRoots.Count -gt 0 -and -not ($script:MyxRoots | Where-Object { Test-UnderPath $m.Path $_ })) {
-            Add-Finding 'LOI' "Excel đang nạp MyExcel/QR từ vị trí lạ (không phải thư mục cài): $($m.Path)" 'Đây là lỗi hay gặp ở profile cũ: bản sao add-in (thường trong AppData\Roaming\Microsoft\AddIns hoặc Downloads) thiếu file đi kèm. Bỏ tích bản đó trong Add-ins, di chuyển file sao chép đi nơi khác, rồi Browse lại C:\MyExcel\MyExcel.xlam (trả lời NO khi hỏi copy).'
+            Add-Finding 'ADDIN_SAI_CHO' 'LOI' "Excel đang nạp MyExcel/QR từ vị trí lạ (không phải thư mục cài): $($m.Path)" 'Đây là lỗi hay gặp ở profile cũ: bản sao add-in (thường trong AppData\Roaming\Microsoft\AddIns hoặc Downloads) thiếu file đi kèm. Bỏ tích bản đó trong Add-ins, di chuyển file sao chép đi nơi khác, rồi Browse lại C:\MyExcel\MyExcel.xlam (trả lời NO khi hỏi copy).'
         }
     }
     $byLeaf = $script:AddinEntries | Where-Object { -not $_.Automation } | Group-Object { (Split-Path $_.Path -Leaf).ToLowerInvariant() }
@@ -591,7 +597,7 @@ try {
         $paths = @($g.Group | ForEach-Object { $_.Path } | Sort-Object -Unique)
         if ($paths.Count -gt 1) {
             $lv = if (Test-Related $g.Name) { 'LOI' } else { 'CANHBAO' }
-            Add-Finding $lv ("Add-in '{0}' được đăng ký từ {1} đường dẫn khác nhau: {2}" -f $g.Name, $paths.Count, ($paths -join ' ; ')) 'Chỉ giữ 1 bản đúng trong C:\MyExcel. Trong Excel Add-ins bỏ tích các bản còn lại, đổi tên/di chuyển file thừa rồi mở lại Excel.'
+            Add-Finding 'ADDIN_TRUNG' $lv ("Add-in '{0}' được đăng ký từ {1} đường dẫn khác nhau: {2}" -f $g.Name, $paths.Count, ($paths -join ' ; ')) 'Chỉ giữ 1 bản đúng trong C:\MyExcel. Trong Excel Add-ins bỏ tích các bản còn lại, đổi tên/di chuyển file thừa rồi mở lại Excel.'
         }
     }
 } catch { Note "Lỗi khi phân tích add-in: $($_.Exception.Message)" }
@@ -606,7 +612,7 @@ try {
                 $txt = [Text.Encoding]::Unicode.GetString($it.Value, 12, $it.Value.Length - 12) -replace '[\x00-\x1F]+', ' | '
             }
             $lv = if (Test-Related $txt) { 'LOI' } else { 'CANHBAO' }
-            Add-Finding $lv "Excel $ver đã VÔ HIỆU HÓA (Disabled Items): $txt" 'Excel > File > Options > Add-ins > Manage: Disabled Items > Go > chọn mục đó > Enable > đóng mở lại Excel.'
+            Add-Finding 'ADDIN_BI_VO_HIEU' $lv "Excel $ver đã VÔ HIỆU HÓA (Disabled Items): $txt" 'Excel > File > Options > Add-ins > Manage: Disabled Items > Go > chọn mục đó > Enable > đóng mở lại Excel.'
         }
         Snap "AddIns.DisabledItems[$ver]" @($items).Count
         if (@($items).Count -eq 0) { Ok "Excel $ver không có Disabled Items" }
@@ -621,7 +627,7 @@ try {
         Snap "Excel.UseSystemSeparators[$ver]" ("$use|$dsep|$tsep")
         $alt = Get-RegValue $opt 'AltStartup'
         if ($alt) {
-            Add-Finding 'CANHBAO' "Excel $ver có thư mục khởi động phụ (AltStartup): $alt" 'File trong thư mục này tự mở cùng Excel và có thể xung đột. Kiểm tra File > Options > Advanced > General > "At startup, open all files in".'
+            Add-Finding 'ALT_STARTUP' 'CANHBAO' "Excel $ver có thư mục khởi động phụ (AltStartup): $alt" 'File trong thư mục này tự mở cùng Excel và có thể xung đột. Kiểm tra File > Options > Advanced > General > "At startup, open all files in".'
         }
     }
 } catch { Note "Lỗi khi đọc Disabled Items: $($_.Exception.Message)" }
@@ -641,7 +647,7 @@ try {
     }
     Snap 'Excel.XLSTART' (($startFiles | ForEach-Object { $_.Name }) -join ' | ')
     if ($startFiles.Count -gt 0) {
-        Add-Finding 'CANHBAO' ("Có file tự mở cùng Excel trong XLSTART: {0}" -f (($startFiles | ForEach-Object { $_.Name }) -join ', ')) 'Profile mới không có các file này. PERSONAL.XLSB có thể đặt chế độ tính toán Manual (hàm VietQR không cập nhật) hoặc trùng tên macro. Thử: Formulas > Calculation Options = Automatic; hoặc tạm di chuyển file ra khỏi XLSTART rồi mở lại Excel.'
+        Add-Finding 'XLSTART_CO_FILE' 'CANHBAO' ("Có file tự mở cùng Excel trong XLSTART: {0}" -f (($startFiles | ForEach-Object { $_.Name }) -join ', ')) 'Profile mới không có các file này. PERSONAL.XLSB có thể đặt chế độ tính toán Manual (hàm VietQR không cập nhật) hoặc trùng tên macro. Thử: Formulas > Calculation Options = Automatic; hoặc tạm di chuyển file ra khỏi XLSTART rồi mở lại Excel.'
     }
     $xlb = @(Get-ChildItem -LiteralPath (Join-Path $env:APPDATA 'Microsoft\Excel') -Filter '*.xlb' -File -ErrorAction SilentlyContinue)
     foreach ($x in $xlb) { Note ("File thanh công cụ: {0} ({1:N0} KB)" -f $x.FullName, ($x.Length / 1KB)) }
@@ -694,9 +700,9 @@ try {
     Info 'Macro Settings' "$txt$src"
     Snap 'Sec.VBAWarnings' "$eff$src"
     if ($eff -ne 1 -and $myxTrusted) {
-        Add-Finding 'THONGTIN' "Macro Settings đang là '$txt' nhưng thư mục MyExcel nằm trong Trusted Locations nên macro MyExcel/QR vẫn chạy - không phải nguyên nhân" 'Chỉ file .xlsm nằm ngoài Trusted Locations mới phải bấm Enable Content. Muốn đúng hướng dẫn MyExcel: Trust Center > Macro Settings > "Enable VBA macros".'
+        Add-Finding 'MACRO_DA_TIN_CAY' 'THONGTIN' "Macro Settings đang là '$txt' nhưng thư mục MyExcel nằm trong Trusted Locations nên macro MyExcel/QR vẫn chạy - không phải nguyên nhân" 'Chỉ file .xlsm nằm ngoài Trusted Locations mới phải bấm Enable Content. Muốn đúng hướng dẫn MyExcel: Trust Center > Macro Settings > "Enable VBA macros".'
     } elseif ($eff -ne 1) {
-        Add-Finding 'LOI' "Macro Settings đang là '$txt' và thư mục MyExcel chưa nằm hết trong Trusted Locations => macro MyExcel/QR bị chặn" 'Excel > File > Options > Trust Center > Trust Center Settings > Macro Settings > chọn "Enable VBA macros" (mục cuối), hoặc thêm C:\MyExcel vào Trusted Locations (tích thư mục con) > OK > đóng mở lại Excel.'
+        Add-Finding 'MACRO_BI_CHAN' 'LOI' "Macro Settings đang là '$txt' và thư mục MyExcel chưa nằm hết trong Trusted Locations => macro MyExcel/QR bị chặn" 'Excel > File > Options > Trust Center > Trust Center Settings > Macro Settings > chọn "Enable VBA macros" (mục cuối), hoặc thêm C:\MyExcel vào Trusted Locations (tích thư mục con) > OK > đóng mở lại Excel.'
     } else { Ok 'Macro Settings = Enable VBA macros' }
 
     $vbom = Get-RegValue $sec 'AccessVBOM'; $vbomp = Get-RegValue $pol 'AccessVBOM'
@@ -704,7 +710,7 @@ try {
     Info 'Trust access to VBA project object model' ($(if ($vbomEff -eq 1) { 'bật' } else { 'TẮT' }))
     Snap 'Sec.AccessVBOM' $vbomEff
     if ($vbomEff -ne 1) {
-        Add-Finding 'THONGTIN' 'Chưa tích "Trust access to the VBA project object model" (mặc định, không cần cho VietQR)' 'Chỉ bật khi tính năng tạo nút/code của MyExcel báo lỗi: Trust Center > Macro Settings > tích "Trust access to the VBA project object model".'
+        Add-Finding 'VBA_OM_CHUA_BAT' 'THONGTIN' 'Chưa tích "Trust access to the VBA project object model" (mặc định, không cần cho VietQR)' 'Chỉ bật khi tính năng tạo nút/code của MyExcel báo lỗi: Trust Center > Macro Settings > tích "Trust access to the VBA project object model".'
     }
 
     # --- Protected View
@@ -720,9 +726,9 @@ try {
         if ($on) { $pvOn += $pvNames[$n]; $pvOnKeys += $n }
     }
     if (@($pvOnKeys | Where-Object { $_ -ne 'DisableAttachementsInPV' }).Count -gt 0) {
-        Add-Finding 'CANHBAO' ("Protected View còn bật: {0}. File Excel tải về (Zalo/Mail/Internet) mở ở chế độ bảo vệ, phải bấm Enable Editing thì hàm QR mới tính; không làm hỏng việc bật hàm QR" -f ($pvOn -join ', ')) 'Trust Center > Protected View > bỏ các dấu tích > OK (đúng hướng dẫn của MyExcel).'
+        Add-Finding 'PROTECTED_VIEW' 'CANHBAO' ("Protected View còn bật: {0}. File Excel tải về (Zalo/Mail/Internet) mở ở chế độ bảo vệ, phải bấm Enable Editing thì hàm QR mới tính; không làm hỏng việc bật hàm QR" -f ($pvOn -join ', ')) 'Trust Center > Protected View > bỏ các dấu tích > OK (đúng hướng dẫn của MyExcel).'
     } elseif ($pvOn.Count -gt 0) {
-        Add-Finding 'THONGTIN' 'Protected View chỉ còn bật cho file đính kèm Outlook - không liên quan VietQR' 'Không cần xử lý.'
+        Add-Finding 'PROTECTED_VIEW_OUTLOOK' 'THONGTIN' 'Protected View chỉ còn bật cho file đính kèm Outlook - không liên quan VietQR' 'Không cần xử lý.'
     } else { Ok 'Protected View đã tắt cả 3 mục' }
 
     # --- ActiveX
@@ -734,9 +740,9 @@ try {
     Info 'ActiveX Settings' $axTxt
     Snap 'Sec.ActiveX' "DisableAll=$dis;UFI=$ufi"
     if ($dis -eq 1) {
-        Add-Finding 'LOI' 'ActiveX đang CHẶN tất cả control => form Khai báo/Tạo QR của MyExcel báo lỗi' 'Trust Center > ActiveX Settings > chọn "Enable all controls without restrictions and without prompting" > OK (https://myexcel.vn/loi-khai-bao-activex-setting-myexcel/).'
+        Add-Finding 'ACTIVEX_CHAN_HET' 'LOI' 'ActiveX đang CHẶN tất cả control => form Khai báo/Tạo QR của MyExcel báo lỗi' 'Trust Center > ActiveX Settings > chọn "Enable all controls without restrictions and without prompting" > OK (https://myexcel.vn/loi-khai-bao-activex-setting-myexcel/).'
     } elseif ($ufi -ne 1) {
-        Add-Finding 'CANHBAO' 'ActiveX chưa đặt "Enable all controls without restrictions" như hướng dẫn cài MyExcel' 'Trust Center > ActiveX Settings > chọn "Enable all controls without restrictions and without prompting" > OK.'
+        Add-Finding 'ACTIVEX_CHUA_MO' 'CANHBAO' 'ActiveX chưa đặt "Enable all controls without restrictions" như hướng dẫn cài MyExcel' 'Trust Center > ActiveX Settings > chọn "Enable all controls without restrictions and without prompting" > OK.'
     } else { Ok 'ActiveX = Enable all controls' }
 
     # --- Trust Center > Add-ins
@@ -746,10 +752,10 @@ try {
     Info 'Add-ins: Disable all Application Add-ins' ($(if ($disAdd -eq 1) { 'CÓ' } else { 'không' }))
     Snap 'Sec.AddinsPolicy' "RequireSig=$reqSig;DisableAll=$disAdd"
     if ($disAdd -eq 1) {
-        Add-Finding 'LOI' 'Trust Center đang bật "Disable all Application Add-ins" => mọi add-in (kể cả MyExcel/QR) bị tắt' 'Trust Center > Add-ins > bỏ tích "Disable all Application Add-ins" > OK > mở lại Excel.'
+        Add-Finding 'ADDIN_TAT_HET' 'LOI' 'Trust Center đang bật "Disable all Application Add-ins" => mọi add-in (kể cả MyExcel/QR) bị tắt' 'Trust Center > Add-ins > bỏ tích "Disable all Application Add-ins" > OK > mở lại Excel.'
     }
     if ($reqSig -eq 1) {
-        Add-Finding 'CANHBAO' 'Trust Center bắt buộc add-in phải có chữ ký số (MyExcel không ký số)' 'Trust Center > Add-ins > bỏ tích "Require Application Add-ins to be signed by Trusted Publisher".'
+        Add-Finding 'ADDIN_CAN_KY_SO' 'CANHBAO' 'Trust Center bắt buộc add-in phải có chữ ký số (MyExcel không ký số)' 'Trust Center > Add-ins > bỏ tích "Require Application Add-ins to be signed by Trusted Publisher".'
     }
 } catch { Note "Lỗi khi đọc Macro/PV/ActiveX: $($_.Exception.Message)" }
 
@@ -761,7 +767,7 @@ try {
     Info 'Disable all Trusted Locations' ($(if ($allDis -eq 1) { 'ĐANG BẬT (mọi vị trí tin cậy bị vô hiệu)' } else { 'không' }))
     Info 'Allow Trusted Locations on network' ($(if ($allowNet -eq 1) { 'có' } else { 'không' }))
     if ($allDis -eq 1) {
-        Add-Finding 'LOI' 'Đang tích "Disable all Trusted Locations" => C:\MyExcel không được tin cậy' 'Trust Center > Trusted Locations > bỏ tích "Disable all Trusted Locations".'
+        Add-Finding 'TRUSTED_LOC_TAT' 'LOI' 'Đang tích "Disable all Trusted Locations" => C:\MyExcel không được tin cậy' 'Trust Center > Trusted Locations > bỏ tích "Disable all Trusted Locations".'
     }
     $locs = @($script:TlLocs)
     foreach ($l in $locs) {
@@ -771,7 +777,7 @@ try {
     Snap 'Sec.TrustedLocations' (($locs | ForEach-Object { "$($_.Path)[sub=$($_.Sub)]" }) -join ' | ')
     $polUserLoc = Get-RegValue "HKCU:\Software\Policies\Microsoft\Office\$ver\Common\Security\Trusted Locations" 'Allow User Locations'
     if (($locs | Where-Object Policy) -and $polUserLoc -ne 1) {
-        Add-Finding 'CANHBAO' 'Group Policy đặt Trusted Locations riêng và có thể bỏ qua vị trí do user tự thêm' 'Cần admin/IT thêm C:\MyExcel vào policy Trusted Locations hoặc bật "Allow mix of policy and user locations".'
+        Add-Finding 'TRUSTED_LOC_POLICY' 'CANHBAO' 'Group Policy đặt Trusted Locations riêng và có thể bỏ qua vị trí do user tự thêm' 'Cần admin/IT thêm C:\MyExcel vào policy Trusted Locations hoặc bật "Allow mix of policy and user locations".'
     }
 
     foreach ($root in $script:MyxRoots) {
@@ -785,11 +791,11 @@ try {
         }
         if ($qrDirs.Count -gt 0 -and $qrOk) { $script:TlCoversQr = $true }
         if (-not $cov) {
-            Add-Finding 'LOI' "Thư mục $root CHƯA nằm trong Trusted Locations của profile này (profile mới đã khai báo nên chạy được)" "Trust Center > Trusted Locations > Add new location > Browse chọn $root > TÍCH 'Subfolders of this location are also trusted' > OK."
+            Add-Finding 'THU_MUC_CHUA_TIN_CAY' 'LOI' "Thư mục $root CHƯA nằm trong Trusted Locations của profile này (profile mới đã khai báo nên chạy được)" "Trust Center > Trusted Locations > Add new location > Browse chọn $root > TÍCH 'Subfolders of this location are also trusted' > OK."
         } elseif (-not $qrOk) {
-            Add-Finding 'LOI' "Đã khai báo $root nhưng KHÔNG tích 'Subfolders of this location are also trusted' => file QR Code trong thư mục con (Mini Tool) không được tin cậy" "Trust Center > Trusted Locations > chọn dòng $root > Modify > tích 'Subfolders of this location are also trusted' > OK."
+            Add-Finding 'THU_MUC_CON_CHUA_TIN_CAY' 'LOI' "Đã khai báo $root nhưng KHÔNG tích 'Subfolders of this location are also trusted' => file QR Code trong thư mục con (Mini Tool) không được tin cậy" "Trust Center > Trusted Locations > chọn dòng $root > Modify > tích 'Subfolders of this location are also trusted' > OK."
         } elseif (-not $covSub) {
-            Add-Finding 'CANHBAO' "Đã khai báo $root nhưng không tích 'Subfolders of this location are also trusted'" "Trust Center > Trusted Locations > chọn dòng $root > Modify > tích 'Subfolders of this location are also trusted' > OK."
+            Add-Finding 'THU_MUC_CON_CHUA_TIN_CAY' 'CANHBAO' "Đã khai báo $root nhưng không tích 'Subfolders of this location are also trusted'" "Trust Center > Trusted Locations > chọn dòng $root > Modify > tích 'Subfolders of this location are also trusted' > OK."
         } else { Ok "Trusted Locations đã gồm $root và thư mục con" }
     }
     Snap 'Sec.TL.CoversMyExcel' "$($script:TlCoversRoot)|QR=$($script:TlCoversQr)"
@@ -802,7 +808,7 @@ try {
     foreach ($f in $fbOn) { Note "File Block: $($f.Name) = $($f.Value)" }
     Snap 'Sec.FileBlock' (($fbOn | ForEach-Object { "$($_.Name)=$($_.Value)" }) -join ' | ')
     if ($fbOn.Count -gt 0) {
-        Add-Finding 'CANHBAO' ("Trust Center > File Block Settings đang chặn một số loại file: {0}" -f (($fbOn | ForEach-Object { $_.Name }) -join ', ')) 'Trust Center > File Block Settings > bỏ tích Open/Save của các loại Excel Add-in / Excel 97-2003 rồi OK.'
+        Add-Finding 'FILE_BLOCK' 'CANHBAO' ("Trust Center > File Block Settings đang chặn một số loại file: {0}" -f (($fbOn | ForEach-Object { $_.Name }) -join ', ')) 'Trust Center > File Block Settings > bỏ tích Open/Save của các loại Excel Add-in / Excel 97-2003 rồi OK.'
     }
     $blk = Get-RegValue $pol 'blockcontentexecutionfrominternet'
     Info 'Policy chặn macro file từ Internet' ($(if ($null -eq $blk) { 'không đặt (Office vẫn chặn file có MOTW)' } else { $blk }))
@@ -824,7 +830,7 @@ try {
         }
     }
     if ($polLines.Count -gt 0) {
-        Add-Finding 'THONGTIN' "Máy có $($polLines.Count) giá trị Group Policy cho Office (liệt kê bên dưới)" 'Policy có thể ghi đè cài đặt Trust Center; cần quyền admin để đổi.'
+        Add-Finding 'GROUP_POLICY_OFFICE' 'THONGTIN' "Máy có $($polLines.Count) giá trị Group Policy cho Office (liệt kê bên dưới)" 'Policy có thể ghi đè cài đặt Trust Center; cần quyền admin để đổi.'
         foreach ($l in ($polLines | Select-Object -First 60)) { Note $l }
     }
     Snap 'Sec.OfficePolicies' ($polLines -join ' | ')
@@ -858,7 +864,7 @@ try {
                 Note ("{0} = {1}" -f $n, $d)
             }
         }
-        Add-Finding 'THONGTIN' "Có dữ liệu VBA lưu theo user ở nhánh [$($app.PSChildName)] (có thể là tài khoản ngân hàng/cài đặt QR của MyExcel)" 'Profile mới chỉ có dữ liệu này sau khi dùng MyExcel. Nếu mọi mục LỖI đã xử lý mà vẫn lỗi: chạy FixMyExcel_VietQR.bat, ở bước 9 chọn đặt lại dữ liệu MyExcel (có sao lưu), rồi khai báo lại tài khoản ngân hàng.'
+        Add-Finding 'DU_LIEU_VBA_USER' 'THONGTIN' "Có dữ liệu VBA lưu theo user ở nhánh [$($app.PSChildName)] (có thể là tài khoản ngân hàng/cài đặt QR của MyExcel)" 'Profile mới chỉ có dữ liệu này sau khi dùng MyExcel. Nếu mọi mục LỖI đã xử lý mà vẫn lỗi: chạy FixMyExcel_VietQR.bat, ở bước 9 chọn đặt lại dữ liệu MyExcel (có sao lưu), rồi khai báo lại tài khoản ngân hàng.'
     }
     Snap 'VBA.SaveSettingKeys' ($names -join ' | ')
 
@@ -877,7 +883,7 @@ try {
             $xlamDate = (Get-Item -LiteralPath $xlams[0] -Force).LastWriteTime
             Info 'Dữ liệu MyExcel tạo từ bản' ('{0} (bộ MyExcel đang dùng: {1})' -f $dataDate.ToString('dd/MM/yyyy'), $xlamDate.ToString('dd/MM/yyyy'))
             if (($xlamDate - $dataDate).TotalDays -gt 30) {
-                Add-Finding 'LOI' ('Dữ liệu MyExcel của profile tạo từ bản {0}, cũ hơn bộ MyExcel đang dùng ({1}) - đúng kiểu lỗi đã gặp: profile cũ không bật/tạo được VietQR, profile mới thì được' -f $dataDate.ToString('dd/MM/yyyy'), $xlamDate.ToString('dd/MM/yyyy')) 'Chạy FixMyExcel_VietQR.bat trong profile này, ở bước 9 chọn "Đặt lại dữ liệu MyExcel ngay" (có sao lưu và file hoàn tác), rồi khai báo lại tài khoản ngân hàng.'
+                Add-Finding 'DU_LIEU_MYEXCEL_CU' 'LOI' ('Dữ liệu MyExcel của profile tạo từ bản {0}, cũ hơn bộ MyExcel đang dùng ({1}) - đúng kiểu lỗi đã gặp: profile cũ không bật/tạo được VietQR, profile mới thì được' -f $dataDate.ToString('dd/MM/yyyy'), $xlamDate.ToString('dd/MM/yyyy')) 'Chạy FixMyExcel_VietQR.bat trong profile này, ở bước 9 chọn "Đặt lại dữ liệu MyExcel ngay" (có sao lưu và file hoàn tác), rồi khai báo lại tài khoản ngân hàng.'
             }
         }
     }
@@ -892,7 +898,7 @@ try {
     Info 'TEMP tồn tại / ghi được' "$exists / $writable"
     Snap 'Temp.Writable' $writable
     if (-not $exists -or -not $writable) {
-        Add-Finding 'LOI' "Thư mục TEMP của user ($t) không tồn tại hoặc không ghi được => VBA không tạo được file ảnh QR tạm" 'Tạo lại thư mục TEMP hoặc đặt lại biến: setx TEMP "%USERPROFILE%\AppData\Local\Temp" và setx TMP "%USERPROFILE%\AppData\Local\Temp", đăng xuất/đăng nhập lại.'
+        Add-Finding 'TEMP_HONG' 'LOI' "Thư mục TEMP của user ($t) không tồn tại hoặc không ghi được => VBA không tạo được file ảnh QR tạm" 'Tạo lại thư mục TEMP hoặc đặt lại biến: setx TEMP "%USERPROFILE%\AppData\Local\Temp" và setx TMP "%USERPROFILE%\AppData\Local\Temp", đăng xuất/đăng nhập lại.'
     } else {
         $cnt = 0; $tmpCnt = 0
         foreach ($f in [IO.Directory]::EnumerateFiles($t)) {
@@ -903,9 +909,9 @@ try {
         Info 'Số file trong TEMP (cấp 1) / file .tmp' "$cnt / $tmpCnt"
         Snap 'Temp.FileCountBucket' ($(if ($cnt -gt 20000) { '>20000' } elseif ($cnt -gt 2000) { '>2000' } else { '<=2000' }))
         if ($tmpCnt -gt 30000) {
-            Add-Finding 'LOI' "TEMP có $tmpCnt file .tmp (Windows giới hạn 65535) => Excel/VBA có thể không tạo được file tạm" 'Đóng Excel, Win+R gõ %TEMP% > Ctrl+A > Delete (bỏ qua file đang dùng).'
+            Add-Finding 'TEMP_QUA_NHIEU_TMP' 'LOI' "TEMP có $tmpCnt file .tmp (Windows giới hạn 65535) => Excel/VBA có thể không tạo được file tạm" 'Đóng Excel, Win+R gõ %TEMP% > Ctrl+A > Delete (bỏ qua file đang dùng).'
         } elseif ($cnt -gt 5000) {
-            Add-Finding 'CANHBAO' "TEMP có $cnt file" 'Đóng Excel, Win+R gõ %TEMP% > xóa bớt file tạm.'
+            Add-Finding 'TEMP_NHIEU_FILE' 'CANHBAO' "TEMP có $cnt file" 'Đóng Excel, Win+R gõ %TEMP% > xóa bớt file tạm.'
         }
     }
 
@@ -922,9 +928,9 @@ try {
     if ($script:ExcelDir -and (Test-Path -LiteralPath (Join-Path $script:ExcelDir 'EXCEL.EXE'))) { $exeTime = (Get-Item -LiteralPath (Join-Path $script:ExcelDir 'EXCEL.EXE')).LastWriteTime }
     $staleExd = @($exd | Where-Object { $exeTime -and $_.LastWriteTime -lt $exeTime })
     if ($staleExd.Count -gt 0) {
-        Add-Finding 'CANHBAO' ("Có {0} file cache ActiveX (.exd) cũ hơn bản Excel đang cài ({1}) - cache cũ có thể làm form/nút VBA lỗi sau khi Office cập nhật (Office tự tạo lại nên profile nào dùng lâu cũng có)" -f $staleExd.Count, $exeTime.ToString('dd/MM/yyyy')) $exdFix
+        Add-Finding 'EXD_CU' 'CANHBAO' ("Có {0} file cache ActiveX (.exd) cũ hơn bản Excel đang cài ({1}) - cache cũ có thể làm form/nút VBA lỗi sau khi Office cập nhật (Office tự tạo lại nên profile nào dùng lâu cũng có)" -f $staleExd.Count, $exeTime.ToString('dd/MM/yyyy')) $exdFix
     } elseif ($exd.Count -gt 0) {
-        Add-Finding 'THONGTIN' "Có $($exd.Count) file cache ActiveX (.exd), không cũ hơn bản Excel đang cài - bình thường" "Chỉ cần xóa nếu form/nút VBA báo lỗi. $exdFix"
+        Add-Finding 'EXD_BINH_THUONG' 'THONGTIN' "Có $($exd.Count) file cache ActiveX (.exd), không cũ hơn bản Excel đang cài - bình thường" "Chỉ cần xóa nếu form/nút VBA báo lỗi. $exdFix"
     } else { Ok 'Không có file .exd' }
 } catch { Note "Lỗi khi kiểm tra TEMP: $($_.Exception.Message)" }
 
@@ -938,7 +944,7 @@ try {
     foreach ($o in $od) { Info 'OneDrive đăng nhập' $o }
     Snap 'OneDrive.KFM' (($desk -match '(?i)onedrive') -or ($docs -match '(?i)onedrive'))
     if ($desk -match '(?i)onedrive' -or $docs -match '(?i)onedrive') {
-        Add-Finding 'CANHBAO' 'Desktop/Documents đang đồng bộ OneDrive: file Excel mở từ đó có đường dẫn dạng https:// nên macro lưu/chèn ảnh QR có thể lỗi' 'Copy file Excel cần tạo VietQR ra thư mục thường (VD C:\Data) rồi mở và thử lại. Nếu chạy được => tắt backup Desktop/Documents của OneDrive hoặc làm việc ngoài OneDrive.'
+        Add-Finding 'ONEDRIVE_DONG_BO' 'CANHBAO' 'Desktop/Documents đang đồng bộ OneDrive: file Excel mở từ đó có đường dẫn dạng https:// nên macro lưu/chèn ảnh QR có thể lỗi' 'Copy file Excel cần tạo VietQR ra thư mục thường (VD C:\Data) rồi mở và thử lại. Nếu chạy được => tắt backup Desktop/Documents của OneDrive hoặc làm việc ngoài OneDrive.'
     }
 } catch { Note "Lỗi khi kiểm tra OneDrive: $($_.Exception.Message)" }
 
@@ -950,11 +956,11 @@ try {
         Info 'Máy in mặc định của user' ("{0} (offline: {1}, mạng: {2})" -f $def.Name, $def.WorkOffline, $def.Network)
         Snap 'Printer.Default' $def.Name
         if ($def.WorkOffline) {
-            Add-Finding 'CANHBAO' "Máy in mặc định '$($def.Name)' đang offline - VBA đụng tới PageSetup/In sẽ treo hoặc báo lỗi" 'Đặt "Microsoft Print to PDF" làm máy in mặc định rồi thử lại.'
+            Add-Finding 'MAY_IN_OFFLINE' 'CANHBAO' "Máy in mặc định '$($def.Name)' đang offline - VBA đụng tới PageSetup/In sẽ treo hoặc báo lỗi" 'Đặt "Microsoft Print to PDF" làm máy in mặc định rồi thử lại.'
         }
     } else {
         Snap 'Printer.Default' ''
-        Add-Finding 'CANHBAO' 'User này không có máy in mặc định' 'Settings > Bluetooth & devices > Printers & scanners > tắt "Let Windows manage my default printer" > chọn Microsoft Print to PDF > Set as default.'
+        Add-Finding 'KHONG_CO_MAY_IN' 'CANHBAO' 'User này không có máy in mặc định' 'Settings > Bluetooth & devices > Printers & scanners > tắt "Let Windows manage my default printer" > chọn Microsoft Print to PDF > Set as default.'
     }
 } catch { Note "Không đọc được danh sách máy in: $($_.Exception.Message)" }
 
@@ -966,7 +972,7 @@ try {
     Info 'Phần mềm điều khiển từ xa' ($rem -join ', ')
     Snap 'Proc.IME' ($ime -join ',')
     if ($ime.Count -gt 0) {
-        Add-Finding 'THONGTIN' "Bộ gõ $($ime -join ', ') đang chạy" 'Khi gõ công thức =QrBank_Sotien_Noidung(...) hoặc khai báo tài khoản, chuyển bộ gõ sang chế độ E (tiếng Anh) để tránh bị bỏ dấu/đổi ký tự.'
+        Add-Finding 'BO_GO_DANG_CHAY' 'THONGTIN' "Bộ gõ $($ime -join ', ') đang chạy" 'Khi gõ công thức =QrBank_Sotien_Noidung(...) hoặc khai báo tài khoản, chuyển bộ gõ sang chế độ E (tiếng Anh) để tránh bị bỏ dấu/đổi ký tự.'
     }
     $clip = Get-RegValue 'HKCU:\Software\Microsoft\Clipboard' 'EnableClipboardHistory'
     Info 'Clipboard history (Win+V)' ($(if ($clip -eq 1) { 'bật' } else { 'tắt' }))
@@ -995,7 +1001,7 @@ try {
     }
     Snap 'COM.Fail' ($fails -join ',')
     if ($fails.Count -gt 0) {
-        Add-Finding 'CANHBAO' ("Không tạo được đối tượng COM: {0}" -f ($fails -join ', ')) 'Nếu profile mới tạo được còn profile này thì không => đăng ký COM theo user bị hỏng (xem danh sách HKCU bên dưới). Nếu cả máy đều lỗi => mở CMD (Admin) chạy: regsvr32 scrrun.dll  /  regsvr32 vbscript.dll  /  regsvr32 wiaaut.dll.'
+        Add-Finding 'COM_LOI' 'CANHBAO' ("Không tạo được đối tượng COM: {0}" -f ($fails -join ', ')) 'Nếu profile mới tạo được còn profile này thì không => đăng ký COM theo user bị hỏng (xem danh sách HKCU bên dưới). Nếu cả máy đều lỗi => mở CMD (Admin) chạy: regsvr32 scrrun.dll  /  regsvr32 vbscript.dll  /  regsvr32 wiaaut.dll.'
     }
 } catch { Note "Lỗi khi thử COM: $($_.Exception.Message)" }
 
@@ -1026,7 +1032,7 @@ try {
     if ($vbaBroken.Count -gt 0) {
         $coreRx = '(?i)0D452EE1-E08F-101A-852E-02608C4D0BB4|2DF8D04C-5BFA-101B-BDE5-00AA0044DE52|000204EF-0000-0000-C000-000000000046|0002E157-0000-0000-C000-000000000046|00020813-0000-0000-C000-000000000046|00020430-0000-0000-C000-000000000046|fm20|vbe7'
         $lv = if ($vbaBroken | Where-Object { $_ -match $coreRx }) { 'LOI' } else { 'CANHBAO' }
-        Add-Finding $lv "Có $($vbaBroken.Count) đăng ký COM/TypeLib của VBA/Office trong HKCU trỏ tới file không tồn tại (VBA báo lỗi thư viện/ActiveX, profile mới không bị)" 'Mở regedit, Export rồi xóa đúng các key GUID được liệt kê ở trên trong HKCU\Software\Classes (CLSID/TypeLib), sau đó mở lại Excel. Đăng ký ở cấp máy (HKLM) vẫn còn nên Excel dùng lại bản đúng.'
+        Add-Finding 'COM_VBA_HONG' $lv "Có $($vbaBroken.Count) đăng ký COM/TypeLib của VBA/Office trong HKCU trỏ tới file không tồn tại (VBA báo lỗi thư viện/ActiveX, profile mới không bị)" 'Mở regedit, Export rồi xóa đúng các key GUID được liệt kê ở trên trong HKCU\Software\Classes (CLSID/TypeLib), sau đó mở lại Excel. Đăng ký ở cấp máy (HKLM) vẫn còn nên Excel dùng lại bản đúng.'
     }
 } catch { Note "Lỗi khi quét HKCU\Software\Classes: $($_.Exception.Message)" }
 
@@ -1041,7 +1047,7 @@ try {
     }
     $third = @($avs | Where-Object { $_.displayName -notmatch '(?i)windows defender|microsoft defender' })
     if ($third.Count -gt 0) {
-        Add-Finding 'THONGTIN' ("Có phần mềm diệt virus bên thứ 3: {0}" -f (($third | ForEach-Object { $_.displayName }) -join ', ')) 'Thêm C:\MyExcel vào danh sách loại trừ (Exclusions) của phần mềm này; kiểm tra khu cách ly (Quarantine) xem có file QR Code/xlam không.'
+        Add-Finding 'AV_BEN_THU_BA' 'THONGTIN' ("Có phần mềm diệt virus bên thứ 3: {0}" -f (($third | ForEach-Object { $_.displayName }) -join ', ')) 'Thêm C:\MyExcel vào danh sách loại trừ (Exclusions) của phần mềm này; kiểm tra khu cách ly (Quarantine) xem có file QR Code/xlam không.'
     }
 } catch {}
 try {
@@ -1054,12 +1060,12 @@ try {
     } else {
         Info 'Defender Exclusions' ($ex -join ' | ')
         if ($mp.RealTimeProtectionEnabled -and -not ($ex | Where-Object { "$_" -match '(?i)myexcel' })) {
-            Add-Finding 'CANHBAO' 'Chưa thêm thư mục MyExcel vào Exclusions của Windows Security' 'Windows Security > Virus & threat protection > Manage settings > Exclusions > Add or remove exclusions > Add folder > C:\MyExcel (bước 7 hướng dẫn cài MyExcel).'
+            Add-Finding 'CHUA_LOAI_TRU_DEFENDER' 'CANHBAO' 'Chưa thêm thư mục MyExcel vào Exclusions của Windows Security' 'Windows Security > Virus & threat protection > Manage settings > Exclusions > Add or remove exclusions > Add folder > C:\MyExcel (bước 7 hướng dẫn cài MyExcel).'
         }
     }
     Info 'Controlled folder access' ($(switch ($pref.EnableControlledFolderAccess) { 1 { 'BẬT' } 2 { 'audit' } default { 'tắt' } }))
     if ($pref.EnableControlledFolderAccess -eq 1) {
-        Add-Finding 'CANHBAO' 'Controlled folder access đang bật: Excel có thể bị chặn ghi file vào Documents/Desktop' 'Windows Security > Ransomware protection > Allow an app through Controlled folder access > thêm EXCEL.EXE.'
+        Add-Finding 'CFA_BAT' 'CANHBAO' 'Controlled folder access đang bật: Excel có thể bị chặn ghi file vào Documents/Desktop' 'Windows Security > Ransomware protection > Allow an app through Controlled folder access > thêm EXCEL.EXE.'
     }
     $asrNames = @{
         '92E97FA1-2EDF-4476-BDD6-9DD0B4DDDC7B' = 'Chặn macro Office gọi Win32 API'
@@ -1071,7 +1077,7 @@ try {
     for ($i = 0; $i -lt $ids.Count; $i++) {
         $n = $asrNames[[string]$ids[$i]]
         if ($n -and $acts[$i] -eq 1) {
-            Add-Finding 'CANHBAO' "Defender ASR đang bật luật: $n" 'Luật này có thể chặn macro MyExcel (áp dụng cả máy). Cần admin tắt/đặt Audit hoặc thêm loại trừ ASR cho C:\MyExcel.'
+            Add-Finding 'ASR_BAT' 'CANHBAO' "Defender ASR đang bật luật: $n" 'Luật này có thể chặn macro MyExcel (áp dụng cả máy). Cần admin tắt/đặt Audit hoặc thêm loại trừ ASR cho C:\MyExcel.'
         }
     }
 } catch { Note "Không đọc được Defender: $($_.Exception.Message)" }
@@ -1079,7 +1085,7 @@ try {
     $det = @(Get-MpThreatDetection -ErrorAction Stop | Where-Object { ($_.Resources -join ';') -match '(?i)myexcel|qr.?code|\.xlam|\.xla\b' })
     foreach ($d in ($det | Select-Object -First 10)) { Note ("{0}  {1}" -f $d.InitialDetectionTime, ($d.Resources -join '; ')) }
     if ($det.Count -gt 0) {
-        Add-Finding 'LOI' "Windows Defender từng phát hiện/xử lý $($det.Count) lần trên file MyExcel/add-in" 'Windows Security > Protection history > chọn mục MyExcel > Actions > Allow/Restore; thêm C:\MyExcel vào Exclusions; copy lại file bị xóa từ bộ cài.'
+        Add-Finding 'DEFENDER_DA_XU_LY' 'LOI' "Windows Defender từng phát hiện/xử lý $($det.Count) lần trên file MyExcel/add-in" 'Windows Security > Protection history > chọn mục MyExcel > Actions > Allow/Restore; thêm C:\MyExcel vào Exclusions; copy lại file bị xóa từ bộ cài.'
     } else { Ok 'Defender không ghi nhận phát hiện nào trên file MyExcel' }
 } catch { Note 'Không đọc được lịch sử Defender (thường cần quyền admin).' }
 
@@ -1107,7 +1113,7 @@ try {
         Note ("{0}  Event {1}  {2}" -f $e.TimeCreated.ToString('dd/MM HH:mm'), $e.Id, $mod)
     }
     if ($cr.Count -ge 3) {
-        Add-Finding 'CANHBAO' "Excel bị crash/treo $($cr.Count) lần trong 30 ngày" 'Sửa Office: Settings > Apps > Microsoft 365/Office > Modify > Quick Repair (nếu vẫn lỗi thì Online Repair).'
+        Add-Finding 'EXCEL_CRASH' 'CANHBAO' "Excel bị crash/treo $($cr.Count) lần trong 30 ngày" 'Sửa Office: Settings > Apps > Microsoft 365/Office > Modify > Quick Repair (nếu vẫn lỗi thì Online Repair).'
     }
 } catch { Note 'Không đọc được nhật ký Application.' }
 
@@ -1119,7 +1125,7 @@ try {
     Info 'Proxy của user' ("bật={0} server={1} pac={2}" -f ($pe -eq 1), $ps, $pac)
     Snap 'Net.Proxy' "$pe|$ps|$pac"
     if ($pe -eq 1 -or $pac) {
-        Add-Finding 'CANHBAO' "Profile này đặt proxy ($ps$pac) - profile mới thì không" 'Settings > Network & internet > Proxy > tắt "Use a proxy server"/"Use setup script" nếu không cần.'
+        Add-Finding 'PROXY_BAT' 'CANHBAO' "Profile này đặt proxy ($ps$pac) - profile mới thì không" 'Settings > Network & internet > Proxy > tắt "Use a proxy server"/"Use setup script" nếu không cần.'
     }
     $sp = Get-RegValue $is 'SecureProtocols'
     if ($null -ne $sp) {
@@ -1127,7 +1133,7 @@ try {
         Info 'TLS 1.2 trong Internet Options' $tls12
         Snap 'Net.SecureProtocols' $sp
         if (-not $tls12) {
-            Add-Finding 'CANHBAO' 'Internet Options của user đang tắt TLS 1.2' 'Control Panel > Internet Options > Advanced > tích Use TLS 1.2 (và 1.3) > OK.'
+            Add-Finding 'TLS12_TAT' 'CANHBAO' 'Internet Options của user đang tắt TLS 1.2' 'Control Panel > Internet Options > Advanced > tích Use TLS 1.2 (và 1.3) > OK.'
         }
     }
     $wh = (netsh winhttp show proxy) -join ' '
@@ -1140,7 +1146,7 @@ try {
         } catch {
             if ($_.Exception.Response) { Ok "$u -> HTTP $([int]$_.Exception.Response.StatusCode) (có kết nối)" }
             else {
-                Add-Finding 'CANHBAO' "Không kết nối được $u : $($_.Exception.Message)" 'Kiểm tra mạng/tường lửa/proxy (chỉ ảnh hưởng chức năng cần Internet như kích hoạt bản quyền).'
+                Add-Finding 'KHONG_KET_NOI' 'CANHBAO' "Không kết nối được $u : $($_.Exception.Message)" 'Kiểm tra mạng/tường lửa/proxy (chỉ ảnh hưởng chức năng cần Internet như kích hoạt bản quyền).'
             }
         }
     }
@@ -1162,7 +1168,10 @@ try {
         Note '   Lần chạy thứ 2 sẽ tự in ra bảng khác biệt giữa 2 profile tại mục này.'
     }
     foreach ($of in $others) {
-        $o = Get-Content -LiteralPath $of.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+        # Một snapshot hỏng (ghi dở, sửa tay) chỉ bỏ qua file đó, không chặn so sánh và lưu snapshot của lần này
+        try { $o = Get-Content -LiteralPath $of.FullName -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop }
+        catch { Note "Bỏ qua snapshot hỏng $($of.Name): $($_.Exception.Message)"; continue }
+        if (-not $o) { Note "Bỏ qua snapshot rỗng $($of.Name)"; continue }
         $oName = $o.'_User'
         Out-Line ''
         Out-Line ("  >> Khác biệt: profile NÀY ({0})  vs  profile '{1}' (chạy lúc {2})" -f $env:USERNAME, $oName, $o.'_Time') 'White'
@@ -1184,7 +1193,8 @@ try {
     }
     $script:Snap['_User'] = $env:USERNAME
     $script:Snap['_Time'] = $script:Started.ToString('dd/MM/yyyy HH:mm')
-    [IO.File]::WriteAllText($snapFile, ($script:Snap | ConvertTo-Json -Depth 3), (New-Object Text.UTF8Encoding $false))
+    [IO.File]::WriteAllText("$snapFile.tmp", ($script:Snap | ConvertTo-Json -Depth 3), (New-Object Text.UTF8Encoding $false))
+    Move-Item -LiteralPath "$snapFile.tmp" -Destination $snapFile -Force -ErrorAction Stop
 } catch { Note "Lỗi khi so sánh profile: $($_.Exception.Message)" }
 
 # ----------------------------------------------------------------------------
@@ -1201,7 +1211,7 @@ foreach ($f in $sorted) {
     $label = switch ($f.Level) { 'LOI' { '[LỖI]' } 'CANHBAO' { '[CẢNH BÁO]' } default { '[THÔNG TIN]' } }
     $color = switch ($f.Level) { 'LOI' { 'Red' } 'CANHBAO' { 'Yellow' } default { 'DarkYellow' } }
     Out-Line ''
-    Out-Line ("  {0}. {1} {2}" -f $i, $label, $f.Title) $color
+    Out-Line ("  {0}. {1} {2}  ({3})" -f $i, $label, $f.Title, $f.Code) $color
     Out-Line ("     => Cách xử lý: {0}" -f $f.Fix) 'Green'
 }
 if ($sorted.Count -eq 0) { Ok 'Không phát hiện bất thường ở các mục đã kiểm tra.' }
@@ -1234,10 +1244,18 @@ $steps = @(
 foreach ($s in $steps) { Out-Line "  $s" }
 
 # ----------------------------------------------------------------------------
+# Mã thoát: 0 kiểm tra xong (kể cả khi có phát hiện), 1 không ghi được báo cáo, 2 chạy sai tài khoản (kết quả không dùng được)
+$exitCode = 0
+$reason = 'XONG'; $reasonText = 'Đã kiểm tra xong.'
+if (@($script:Findings | Where-Object Code -eq 'SAI_TAI_KHOAN').Count -gt 0) {
+    $exitCode = 2; $reason = 'SAI_TAI_KHOAN'; $reasonText = 'Chạy sai tài khoản Windows nên kết quả không phải của profile bị lỗi.'
+}
+$reportPath = $null
 try {
     $elapsed = [math]::Round(((Get-Date) - $script:Started).TotalSeconds, 0)
     Out-Line ''
     Out-Line "  (Thời gian kiểm tra: $elapsed giây)" 'DarkGray'
+    if (-not (Test-Path -LiteralPath $outDir)) { New-Item -ItemType Directory -Path $outDir -Force -ErrorAction Stop | Out-Null }
     $reportName = "BaoCao_MyExcel_{0}_{1}_{2}.txt" -f $env:COMPUTERNAME, $safeUser, $stamp
     $reportPath = Join-Path $outDir $reportName
     $utf8Bom = New-Object Text.UTF8Encoding $true
@@ -1255,4 +1273,29 @@ try {
     Write-Host (Txt '  => Gửi file báo cáo này (của CẢ profile lỗi và profile mới nếu có) cho kỹ thuật.') -ForegroundColor Cyan
     Write-Host '  (Chu tieng Viet tren man hinh bi loi font? Mo file bao cao bang Notepad - file luon dung chinh ta.)' -ForegroundColor DarkGray
     if (-not $env:MYX_NO_NOTEPAD) { Start-Process notepad.exe -ArgumentList "`"$reportPath`"" }
-} catch { Write-Host (Txt "Không ghi được báo cáo: $($_.Exception.Message)") -ForegroundColor Red }
+} catch {
+    Write-Host (Txt "Không ghi được báo cáo: $($_.Exception.Message)") -ForegroundColor Red
+    $exitCode = 1; $reason = 'BAO_CAO_LOI'; $reasonText = "Không ghi được báo cáo: $($_.Exception.Message)"
+    $reportPath = $null
+}
+
+# Kết quả máy đọc được cho Trạm Tool: mỗi phát hiện có mã ổn định, mức độ, cách sửa
+$levelMap = @{ 'LOI' = 'loi'; 'CANHBAO' = 'canh-bao'; 'THONGTIN' = 'thong-tin' }
+$result = [ordered]@{
+    congCu = 'myexcelfix'; cheDo = 'kiem-tra'; phienBan = $script:Version
+    may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
+    batDau = $script:Started.ToString('s'); ketThuc = (Get-Date).ToString('s')
+    maThoat = $exitCode; trangThai = $(switch ($exitCode) { 0 { 'xong' } 2 { 'thieu-dieu-kien' } default { 'loi' } })
+    ma = $reason; thongDiep = $reasonText
+    tomTat = [ordered]@{ loi = $nLoi; canhBao = $nWarn; thongTin = ($sorted.Count - $nLoi - $nWarn) }
+    phatHien = @($sorted | ForEach-Object { [ordered]@{ ma = $_.Code; mucDo = $levelMap[$_.Level]; tieuDe = $_.Title; cachSua = $_.Fix } })
+    baoCao = $reportPath
+}
+try {
+    if (-not (Test-Path -LiteralPath $outDir)) { New-Item -ItemType Directory -Path $outDir -Force -ErrorAction Stop | Out-Null }
+    $jsonPath = Join-Path $outDir ("KetQua_MyExcel_KiemTra_{0}_{1}_{2}.json" -f $env:COMPUTERNAME, $safeUser, $stamp)
+    [IO.File]::WriteAllText($jsonPath, ($result | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
+    Write-Host (Txt "  Kết quả (JSON): $jsonPath") -ForegroundColor DarkGray
+} catch { Write-Host (Txt "  Không ghi được file kết quả JSON: $($_.Exception.Message)") -ForegroundColor DarkGray }
+if ($exitCode -eq 2) { Write-Host (Txt '  => Kết quả này KHÔNG dùng được: chạy lại bằng double-click trong đúng profile bị lỗi.') -ForegroundColor Red }
+exit $exitCode

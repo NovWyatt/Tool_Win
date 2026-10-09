@@ -10,7 +10,7 @@ try {
     }
     $third = @($avs | Where-Object { $_.displayName -notmatch '(?i)windows defender|microsoft defender' })
     if ($third.Count -gt 0) {
-        Add-Finding 'THONGTIN' ("Có phần mềm diệt virus bên thứ 3: {0}" -f (($third | ForEach-Object { $_.displayName }) -join ', ')) 'Thêm C:\MyExcel vào danh sách loại trừ (Exclusions) của phần mềm này; kiểm tra khu cách ly (Quarantine) xem có file QR Code/xlam không.'
+        Add-Finding 'AV_BEN_THU_BA' 'THONGTIN' ("Có phần mềm diệt virus bên thứ 3: {0}" -f (($third | ForEach-Object { $_.displayName }) -join ', ')) 'Thêm C:\MyExcel vào danh sách loại trừ (Exclusions) của phần mềm này; kiểm tra khu cách ly (Quarantine) xem có file QR Code/xlam không.'
     }
 } catch {}
 try {
@@ -23,12 +23,12 @@ try {
     } else {
         Info 'Defender Exclusions' ($ex -join ' | ')
         if ($mp.RealTimeProtectionEnabled -and -not ($ex | Where-Object { "$_" -match '(?i)myexcel' })) {
-            Add-Finding 'CANHBAO' 'Chưa thêm thư mục MyExcel vào Exclusions của Windows Security' 'Windows Security > Virus & threat protection > Manage settings > Exclusions > Add or remove exclusions > Add folder > C:\MyExcel (bước 7 hướng dẫn cài MyExcel).'
+            Add-Finding 'CHUA_LOAI_TRU_DEFENDER' 'CANHBAO' 'Chưa thêm thư mục MyExcel vào Exclusions của Windows Security' 'Windows Security > Virus & threat protection > Manage settings > Exclusions > Add or remove exclusions > Add folder > C:\MyExcel (bước 7 hướng dẫn cài MyExcel).'
         }
     }
     Info 'Controlled folder access' ($(switch ($pref.EnableControlledFolderAccess) { 1 { 'BẬT' } 2 { 'audit' } default { 'tắt' } }))
     if ($pref.EnableControlledFolderAccess -eq 1) {
-        Add-Finding 'CANHBAO' 'Controlled folder access đang bật: Excel có thể bị chặn ghi file vào Documents/Desktop' 'Windows Security > Ransomware protection > Allow an app through Controlled folder access > thêm EXCEL.EXE.'
+        Add-Finding 'CFA_BAT' 'CANHBAO' 'Controlled folder access đang bật: Excel có thể bị chặn ghi file vào Documents/Desktop' 'Windows Security > Ransomware protection > Allow an app through Controlled folder access > thêm EXCEL.EXE.'
     }
     $asrNames = @{
         '92E97FA1-2EDF-4476-BDD6-9DD0B4DDDC7B' = 'Chặn macro Office gọi Win32 API'
@@ -40,7 +40,7 @@ try {
     for ($i = 0; $i -lt $ids.Count; $i++) {
         $n = $asrNames[[string]$ids[$i]]
         if ($n -and $acts[$i] -eq 1) {
-            Add-Finding 'CANHBAO' "Defender ASR đang bật luật: $n" 'Luật này có thể chặn macro MyExcel (áp dụng cả máy). Cần admin tắt/đặt Audit hoặc thêm loại trừ ASR cho C:\MyExcel.'
+            Add-Finding 'ASR_BAT' 'CANHBAO' "Defender ASR đang bật luật: $n" 'Luật này có thể chặn macro MyExcel (áp dụng cả máy). Cần admin tắt/đặt Audit hoặc thêm loại trừ ASR cho C:\MyExcel.'
         }
     }
 } catch { Note "Không đọc được Defender: $($_.Exception.Message)" }
@@ -48,7 +48,7 @@ try {
     $det = @(Get-MpThreatDetection -ErrorAction Stop | Where-Object { ($_.Resources -join ';') -match '(?i)myexcel|qr.?code|\.xlam|\.xla\b' })
     foreach ($d in ($det | Select-Object -First 10)) { Note ("{0}  {1}" -f $d.InitialDetectionTime, ($d.Resources -join '; ')) }
     if ($det.Count -gt 0) {
-        Add-Finding 'LOI' "Windows Defender từng phát hiện/xử lý $($det.Count) lần trên file MyExcel/add-in" 'Windows Security > Protection history > chọn mục MyExcel > Actions > Allow/Restore; thêm C:\MyExcel vào Exclusions; copy lại file bị xóa từ bộ cài.'
+        Add-Finding 'DEFENDER_DA_XU_LY' 'LOI' "Windows Defender từng phát hiện/xử lý $($det.Count) lần trên file MyExcel/add-in" 'Windows Security > Protection history > chọn mục MyExcel > Actions > Allow/Restore; thêm C:\MyExcel vào Exclusions; copy lại file bị xóa từ bộ cài.'
     } else { Ok 'Defender không ghi nhận phát hiện nào trên file MyExcel' }
 } catch { Note 'Không đọc được lịch sử Defender (thường cần quyền admin).' }
 
@@ -76,7 +76,7 @@ try {
         Note ("{0}  Event {1}  {2}" -f $e.TimeCreated.ToString('dd/MM HH:mm'), $e.Id, $mod)
     }
     if ($cr.Count -ge 3) {
-        Add-Finding 'CANHBAO' "Excel bị crash/treo $($cr.Count) lần trong 30 ngày" 'Sửa Office: Settings > Apps > Microsoft 365/Office > Modify > Quick Repair (nếu vẫn lỗi thì Online Repair).'
+        Add-Finding 'EXCEL_CRASH' 'CANHBAO' "Excel bị crash/treo $($cr.Count) lần trong 30 ngày" 'Sửa Office: Settings > Apps > Microsoft 365/Office > Modify > Quick Repair (nếu vẫn lỗi thì Online Repair).'
     }
 } catch { Note 'Không đọc được nhật ký Application.' }
 
@@ -88,7 +88,7 @@ try {
     Info 'Proxy của user' ("bật={0} server={1} pac={2}" -f ($pe -eq 1), $ps, $pac)
     Snap 'Net.Proxy' "$pe|$ps|$pac"
     if ($pe -eq 1 -or $pac) {
-        Add-Finding 'CANHBAO' "Profile này đặt proxy ($ps$pac) - profile mới thì không" 'Settings > Network & internet > Proxy > tắt "Use a proxy server"/"Use setup script" nếu không cần.'
+        Add-Finding 'PROXY_BAT' 'CANHBAO' "Profile này đặt proxy ($ps$pac) - profile mới thì không" 'Settings > Network & internet > Proxy > tắt "Use a proxy server"/"Use setup script" nếu không cần.'
     }
     $sp = Get-RegValue $is 'SecureProtocols'
     if ($null -ne $sp) {
@@ -96,7 +96,7 @@ try {
         Info 'TLS 1.2 trong Internet Options' $tls12
         Snap 'Net.SecureProtocols' $sp
         if (-not $tls12) {
-            Add-Finding 'CANHBAO' 'Internet Options của user đang tắt TLS 1.2' 'Control Panel > Internet Options > Advanced > tích Use TLS 1.2 (và 1.3) > OK.'
+            Add-Finding 'TLS12_TAT' 'CANHBAO' 'Internet Options của user đang tắt TLS 1.2' 'Control Panel > Internet Options > Advanced > tích Use TLS 1.2 (và 1.3) > OK.'
         }
     }
     $wh = (netsh winhttp show proxy) -join ' '
@@ -109,7 +109,7 @@ try {
         } catch {
             if ($_.Exception.Response) { Ok "$u -> HTTP $([int]$_.Exception.Response.StatusCode) (có kết nối)" }
             else {
-                Add-Finding 'CANHBAO' "Không kết nối được $u : $($_.Exception.Message)" 'Kiểm tra mạng/tường lửa/proxy (chỉ ảnh hưởng chức năng cần Internet như kích hoạt bản quyền).'
+                Add-Finding 'KHONG_KET_NOI' 'CANHBAO' "Không kết nối được $u : $($_.Exception.Message)" 'Kiểm tra mạng/tường lửa/proxy (chỉ ảnh hưởng chức năng cần Internet như kích hoạt bản quyền).'
             }
         }
     }

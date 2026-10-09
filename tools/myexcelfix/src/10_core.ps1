@@ -35,6 +35,7 @@ function Test-VietConsole {
 }
 function Txt([string]$Text) { if ($script:NoDau) { return (Remove-Diacritics $Text) }; return $Text }
 $script:NoDau = -not (Test-VietConsole)
+$script:Version  = '__MYX_VERSION__'   # build.ps1 thay bằng version trong tool.json
 $script:Report   = New-Object System.Collections.Generic.List[string]
 $script:Findings = New-Object System.Collections.Generic.List[object]
 $script:Snap     = [ordered]@{}
@@ -69,9 +70,10 @@ function Info([string]$Label, $Value) {
 }
 function Ok([string]$Text)   { Out-Line "  [OK]  $Text" 'Green' }
 function Note([string]$Text) { Out-Line "        $Text" 'DarkGray' }
-function Add-Finding([string]$Level, [string]$Title, [string]$Fix) {
+function Add-Finding([string]$Code, [string]$Level, [string]$Title, [string]$Fix) {
+    # Code: mã ổn định cho Trạm Tool (không đổi khi sửa câu chữ; cùng một nguyên nhân có thể ở mức khác nhau)
     # Level: LOI (nhiều khả năng là nguyên nhân) | CANHBAO (có thể) | THONGTIN
-    $script:Findings.Add([pscustomobject]@{ Level = $Level; Title = $Title; Fix = $Fix; Idx = $script:Findings.Count })
+    $script:Findings.Add([pscustomobject]@{ Code = $Code; Level = $Level; Title = $Title; Fix = $Fix; Idx = $script:Findings.Count })
     switch ($Level) {
         'LOI'     { Out-Line "  [LỖI] $Title" 'Red' }
         'CANHBAO' { Out-Line "  [!]   $Title" 'Yellow' }
@@ -183,6 +185,7 @@ try {
     $me = [Security.Principal.WindowsIdentity]::GetCurrent()
     $script:IsElevated = ([Security.Principal.WindowsPrincipal]$me).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     $script:IsAdminMember = [bool]((whoami /groups) -match 'S-1-5-32-544')
+    Info 'Phiên bản công cụ' $script:Version
     Info 'Thời điểm chạy' ($script:Started.ToString('dd/MM/yyyy HH:mm:ss'))
     Info 'Tên máy' $env:COMPUTERNAME
     Info 'Tài khoản chạy script' $me.Name
@@ -204,12 +207,12 @@ try {
             $desk = "$($o.Domain)\$($o.User)"
             Info 'User đang đăng nhập màn hình' $desk
             if ($desk -ine $me.Name) {
-                Add-Finding 'LOI' "Script đang chạy bằng '$($me.Name)' nhưng màn hình là của '$desk' => kết quả HKCU/AppData KHÔNG phải của profile bị lỗi" 'Chạy lại file .bat bằng cách double-click trong profile bị lỗi, không dùng Run as administrator bằng tài khoản khác.'
+                Add-Finding 'SAI_TAI_KHOAN' 'LOI' "Script đang chạy bằng '$($me.Name)' nhưng màn hình là của '$desk' => kết quả HKCU/AppData KHÔNG phải của profile bị lỗi" 'Chạy lại file .bat bằng cách double-click trong profile bị lỗi, không dùng Run as administrator bằng tài khoản khác.'
             }
         }
     }
     if ($env:USERPROFILE -match '\\TEMP(\.|$)') {
-        Add-Finding 'LOI' "Windows đang dùng profile TẠM ($env:USERPROFILE) - mọi cài đặt sẽ mất khi đăng xuất" 'Profile gốc bị hỏng; cần sửa ProfileList trong registry hoặc chuyển dữ liệu sang profile mới.'
+        Add-Finding 'PROFILE_TAM' 'LOI' "Windows đang dùng profile TẠM ($env:USERPROFILE) - mọi cài đặt sẽ mất khi đăng xuất" 'Profile gốc bị hỏng; cần sửa ProfileList trong registry hoặc chuyển dữ liệu sang profile mới.'
     }
 } catch { Note "Lỗi khi đọc thông tin tài khoản: $($_.Exception.Message)" }
 
@@ -222,7 +225,7 @@ try {
         $free = [math]::Round($d.FreeSpace / 1GB, 1)
         Info "Ổ đĩa $($d.DeviceID) còn trống" "$free GB / $([math]::Round($d.Size / 1GB, 0)) GB"
         if ($d.DeviceID -eq $env:SystemDrive -and $free -lt 3) {
-            Add-Finding 'CANHBAO' "Ổ $($d.DeviceID) chỉ còn $free GB trống" 'Dọn ổ C (Disk Cleanup, xóa TEMP) để Excel tạo được file tạm/ảnh QR.'
+            Add-Finding 'O_HE_THONG_DAY' 'CANHBAO' "Ổ $($d.DeviceID) chỉ còn $free GB trống" 'Dọn ổ C (Disk Cleanup, xóa TEMP) để Excel tạo được file tạm/ảnh QR.'
         }
     }
 } catch { Note "Lỗi khi đọc thông tin Windows: $($_.Exception.Message)" }
