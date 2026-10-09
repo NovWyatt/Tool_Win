@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "health-report",
   "name": "Báo cáo sức khoẻ máy (ra Desktop)",
-  "version": "1.0",
+  "version": "1.1",
   "category": "chan-doan",
   "icon": "heart-pulse",
   "audience": "all",
@@ -26,9 +26,7 @@
     { "label": "Báo cáo sức khoẻ", "dir": "{Desktop}", "glob": "health_report_%COMPUTERNAME%_*.txt" }
   ],
   "issues": [
-    "Trùng phần lớn với CheckWinFix > Thu thập thông tin nhưng ít cảnh báo tự động hơn; phần kết luận vẫn bảo gửi file cho ChatGPT.",
-    "Không có sự kiện nào thì in '[LOI] No events were found', dễ hiểu nhầm là lỗi.",
-    "Tự nâng quyền bằng đường dẫn đặt trong dấu nháy đơn: thư mục có dấu ' làm hỏng lệnh."
+    "Trùng phần lớn với CheckWinFix > Thu thập thông tin nhưng ít cảnh báo tự động hơn."
   ],
   "upgrades": [
     "P1: Gộp vào CheckWinFix (Thu thập thông tin đã có các mục này), hoặc giữ làm bản 'nhanh' dùng chung lõi.",

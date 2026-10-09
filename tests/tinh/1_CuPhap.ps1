@@ -1,5 +1,6 @@
 ﻿# Mọi file PowerShell trong repo phải phân tích cú pháp được, kể cả phần PowerShell nhúng trong file .bat
-# (kiểu "#=====PS_START=====" của CheckWinFix và kiểu "<# :" của MyExcelFix). Chỉ đọc file.
+# (kiểu "#=====PS_START=====" của CheckWinFix, "### POWERSHELL_SCRIPT_BELOW ###" của health-report và kiểu "<# :" của
+# MyExcelFix). Chỉ đọc file.
 . "$PSScriptRoot\..\lib\KiemThu.ps1"
 . "$PSScriptRoot\_TepRepo.ps1"
 
@@ -18,9 +19,11 @@ $n = 0
 foreach ($f in (Get-RepoFiles '.bat', '.cmd')) {
     $t = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8)
     $mk = '#=====PS_START====='
+    $mk2 = '### POWERSHELL_SCRIPT_BELOW ###'   # health-report: lấy từ lần xuất hiện cuối như chính file .bat
     if ($t.Contains($mk)) { $n++; Test-Parse ((Get-RelPath $f) + ' (phần PowerShell)') $t.Substring($t.IndexOf($mk) + $mk.Length) }
+    elseif ($t.Contains($mk2)) { $n++; Test-Parse ((Get-RelPath $f) + ' (phần PowerShell)') $t.Substring($t.LastIndexOf($mk2) + $mk2.Length) }
     elseif ($t.TrimStart([char]0xFEFF).StartsWith('<# :')) { $n++; Test-Parse ((Get-RelPath $f) + ' (cả file)') $t }
 }
-Check ($n -ge 6) "tìm thấy $n file .bat có PowerShell nhúng"
+Check ($n -ge 7) "tìm thấy $n file .bat có PowerShell nhúng"
 
 Complete-Test

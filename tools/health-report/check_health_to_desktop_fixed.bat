@@ -3,21 +3,38 @@ setlocal EnableExtensions
 chcp 65001 >nul
 
 REM =============================================================
-REM Check Health - tao file TXT tren Desktop de gui chan doan
-REM Tao boi ChatGPT tu file check_health.ps1
+REM Bao cao suc khoe may - tao file TXT tren Desktop de gui chan doan
+REM Phan PowerShell nam cuoi file, sau dong danh dau POWERSHELL_SCRIPT_BELOW.
 REM =============================================================
 
-REM Tu yeu cau quyen Administrator de doc log he thong day du hon
-net session >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Dang yeu cau quyen Administrator...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
-    exit /b
-)
+REM Duong dan file nay di vao PowerShell qua bien moi truong SELF, khong dat trong dau nhay don:
+REM thu muc co dau ' (vd C:\Users\O'Brien) van chay duoc.
+set "SELF=%~f0"
 
+REM Tu yeu cau quyen Administrator de doc log he thong day du hon.
+REM fltmc chi chay duoc bang quyen Admin va khong can dich vu Server (net session thi can).
+fltmc >nul 2>&1
+if not errorlevel 1 goto :ADMIN_OK
+if /i "%~1"=="/danangquyen" goto :ERR_ADMIN
+echo Dang yeu cau quyen Administrator, vui long bam YES...
+powershell -NoProfile -Command "try { $p = Start-Process -FilePath $env:SELF -ArgumentList '/danangquyen' -Verb RunAs -Wait -PassThru -ErrorAction Stop; exit $p.ExitCode } catch { exit 1223 }"
+set "RC=%ERRORLEVEL%"
+if not "%RC%"=="1223" exit /b %RC%
+echo.
+echo Khong nang duoc quyen Admin (da bam No o hop thoai UAC?).
+echo Hay chuot phai vao file nay, chon "Run as administrator".
+pause
+exit /b 2
+
+:ERR_ADMIN
+echo Da mo lai bang quyen Admin ma van chua co quyen. Dung lai de khong hoi UAC mai.
+pause
+exit /b 2
+
+:ADMIN_OK
 set "TMPPS1=%TEMP%\check_health_%RANDOM%_%RANDOM%.ps1"
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$raw = Get-Content -LiteralPath '%~f0' -Raw -Encoding UTF8; $marker = '### POWERSHELL_SCRIPT_' + 'BELOW ###'; $idx = $raw.LastIndexOf($marker); if ($idx -lt 0) { throw 'Khong tim thay phan PowerShell trong file BAT.' }; $script = $raw.Substring($idx + $marker.Length); Set-Content -LiteralPath '%TMPPS1%' -Value $script -Encoding UTF8"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$raw = Get-Content -LiteralPath $env:SELF -Raw -Encoding UTF8; $marker = '### POWERSHELL_SCRIPT_' + 'BELOW ###'; $idx = $raw.LastIndexOf($marker); if ($idx -lt 0) { exit 1 }; [IO.File]::WriteAllText($env:TMPPS1, $raw.Substring($idx + $marker.Length), (New-Object Text.UTF8Encoding $true)); exit 0"
 
 if not exist "%TMPPS1%" (
     echo Khong tao duoc file PowerShell tam.
@@ -64,6 +81,29 @@ function Safe-Run {
         Write-Host "[LOI] $($_.Exception.Message)"
     }
 }
+
+function Format-EventMessage {
+    param($Message, [int]$Max)
+    $m = ([string]$Message) -replace "`r`n", " "
+    return $m.Substring(0, [Math]::Min($Max, $m.Length))
+}
+
+function Get-RecentEvents {
+    # Khong co su kien nao khop thi Get-WinEvent bao loi "No events were found that match the specified selection
+    # criteria" (ma NoMatchingEventsFound, khong doi theo ngon ngu). Do la tin tot, khong phai loi.
+    param([hashtable]$Filter, [int]$Max, [string]$NoneText)
+    try {
+        return @(Get-WinEvent -FilterHashtable $Filter -MaxEvents $Max -ErrorAction Stop)
+    } catch {
+        if ($_.FullyQualifiedErrorId -like 'NoMatchingEventsFound*') {
+            Write-Host "[OK] $NoneText"
+            return
+        }
+        throw
+    }
+}
+
+if ($env:TRAMTOOL_HEALTH_TEST) { return }   # bai thu nap cac ham roi tu goi
 
 $desktop = [Environment]::GetFolderPath('Desktop')
 if (-not $desktop -or -not (Test-Path $desktop)) {
@@ -143,16 +183,16 @@ try {
     Safe-Run "5) EVENT LOG QUAN TRONG - 7 NGAY GAN DAY" {
         $since = (Get-Date).AddDays(-7)
         Write-Host "Cac loi Critical/Error trong System:"
-        Get-WinEvent -FilterHashtable @{LogName='System'; Level=1,2; StartTime=$since} -MaxEvents 80 |
-            Select-Object TimeCreated, LevelDisplayName, Id, ProviderName, @{Name='Message';Expression={($_.Message -replace "`r`n"," ").Substring(0, [Math]::Min(500, ($_.Message -replace "`r`n"," ").Length))}} |
+        Get-RecentEvents @{LogName='System'; Level=1,2; StartTime=$since} 80 'Khong co loi Critical/Error nao trong 7 ngay.' |
+            Select-Object TimeCreated, LevelDisplayName, Id, ProviderName, @{Name='Message';Expression={Format-EventMessage $_.Message 500}} |
             Format-Table -Wrap -AutoSize
     }
 
     Safe-Run "6) LOG LIEN QUAN TU RESTART / BSOD / NGUON / PHAN CUNG" {
         $since = (Get-Date).AddDays(-14)
         $ids = 41, 1001, 6008, 1074, 18, 19, 47, 1, 14, 4101
-        Get-WinEvent -FilterHashtable @{LogName='System'; StartTime=$since; Id=$ids} -MaxEvents 120 |
-            Select-Object TimeCreated, Id, ProviderName, LevelDisplayName, @{Name='Message';Expression={($_.Message -replace "`r`n"," ").Substring(0, [Math]::Min(700, ($_.Message -replace "`r`n"," ").Length))}} |
+        Get-RecentEvents @{LogName='System'; StartTime=$since; Id=$ids} 120 'Khong co su kien restart bat ngo, BSOD, WHEA hay loi driver man hinh nao trong 14 ngay.' |
+            Select-Object TimeCreated, Id, ProviderName, LevelDisplayName, @{Name='Message';Expression={Format-EventMessage $_.Message 700}} |
             Format-Table -Wrap -AutoSize
         Write-Host ""
         Write-Host "Goi y doc nhanh:"
@@ -203,13 +243,13 @@ try {
         cmd /c "powercfg /a" 2>&1
         Write-Host ""
         Write-Host "Lan restart/shutdown gan day co ly do neu Windows ghi nhan:"
-        Get-WinEvent -FilterHashtable @{LogName='System'; Id=1074; StartTime=(Get-Date).AddDays(-30)} -MaxEvents 20 |
-            Select-Object TimeCreated, ProviderName, Id, @{Name='Message';Expression={($_.Message -replace "`r`n"," ").Substring(0, [Math]::Min(700, ($_.Message -replace "`r`n"," ").Length))}} |
+        Get-RecentEvents @{LogName='System'; Id=1074; StartTime=(Get-Date).AddDays(-30)} 20 'Windows khong ghi nhan lan restart/shutdown nao co ly do trong 30 ngay.' |
+            Select-Object TimeCreated, ProviderName, Id, @{Name='Message';Expression={Format-EventMessage $_.Message 700}} |
             Format-Table -Wrap -AutoSize
     }
 
     Safe-Run "12) KET LUAN SO BO / VIEC CAN GUI LAI" {
-        Write-Host "Da tao log xong. Hay gui file TXT nay cho ChatGPT de doc va chan doan tiep:"
+        Write-Host "Da tao log xong. Hay gui file TXT nay cho nguoi ho tro ky thuat de doc va chan doan tiep:"
         Write-Host $logPath
         Write-Host ""
         Write-Host "Neu may tu restart khi chay Canva/de lau, can dac biet xem cac dong: Kernel-Power 41, BugCheck 1001, WHEA-Logger, Display driver, SMART Pred Fail."
