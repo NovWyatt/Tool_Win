@@ -62,6 +62,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `may-in-lan/4_ChanDoanThat` | Chẩn đoán thật bằng quyền thường (mạng, dịch vụ, tường lửa, SMB, máy in, ổ mạng, nhật ký; không gọi máy khác), báo cáo và JSON kết quả vào thư mục tạm (`MIL_KET_QUA`) |
 | `tram/3_KhoiChay` | Máy in LAN `-ChayThu -KhongDung` dò máy này và 127.0.0.1 |
 | `checkwinfix/3_ThuThap` | chạy thật phần PowerShell của Thu thập thông tin bằng quyền thường (`-KhongHoi`, không mở Notepad), báo cáo và JSON vào thư mục tạm, khoảng 1,5 phút |
+| `don-o-c/2_ChayThat` | Xem ổ C thật (chỉ đọc, đo dung lượng), Dọn rác của bạn ở chế độ chạy thử (đo rồi dừng trước bước hỏi xoá); báo cáo và JSON kết quả vào thư mục tạm (`DOC_KET_QUA`) |
 | `gio-chu-ky-so/2_ChayThat` | Kiểm tra thật (hỏi máy chủ giờ qua mạng, đọc dịch vụ, đầu đọc thẻ, kho chứng thư của tài khoản; không hỏi PIN); Sửa giờ, Sửa token, Trả lại ở chế độ chạy thử; so cấu hình giờ, dịch vụ trước và sau |
 | `bo-ung-dung/2_ChayThat` | Kiểm tra thật (`winget export`, chỉ đọc); Cài, Cập nhật ở chế độ chạy thử (không hỏi UAC, không cài gì); cờ lạ, chế độ sai; so danh sách phần mềm đã cài trước và sau |
 | `toi-uu/3_ToiUu` | Kiểm tra dịch vụ nền thật (chỉ đọc); phần đồng hồ chạy `-ChayThu` nên không hỏi UAC, `bcdedit /enum` bị từ chối khi không có quyền Admin |
@@ -78,7 +79,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `myexcelfix` | sửa rồi hoàn tác trên bộ MyExcel giả, hết đầu vào giữa chừng, manifest cũ, kiểm tra chỉ đọc; JSON kết quả theo chuẩn của trạm (gợi ý chạy tiếp, trạm đọc lại khớp); nơi lưu riêng của tài khoản (sao lưu, báo cáo, chuyển file cũ khỏi Public Documents), che số và tên chủ tài khoản, `HOAN_TAC.bat` không tham số liệt kê bản sao lưu |
 | `office` | che khoá sản phẩm, đọc mẫu, gỡ, cài, kích hoạt (ODT, giấy phép, tiến trình đều giả) |
 | `bitlocker` | lưu khoá, tạm dừng, bật lại, mở khoá, giải mã, hoàn tác trên ổ giả; khoá không lọt vào báo cáo, nhật ký, JSON kết quả; mỗi phát hiện của Kiểm tra có mã riêng, nút gợi ý trỏ tới chế độ có thật |
-| `don-o-c` | danh sách cho phép xoá, xoá theo tuổi file, junction, trình duyệt, WinSxS (trong thư mục cát) |
+| `don-o-c` | danh sách cho phép xoá, xoá theo tuổi file, junction, trình duyệt, WinSxS (trong thư mục cát); mọi chỗ ghi phát hiện có mã, JSON kết quả (cùng mức thì mục lớn lên trước) |
 | `github-logout` | đọc `cmdkey /list` (cả Windows tiếng Việt), chia mục Git / GitHub CLI / ứng dụng khác, xoá, đọc lại, chạy thử (Credential Manager giả) |
 | `checkwinfix` | `3_ThuThap`: mọi cảnh báo có mã và mức, gợi ý chạy tiếp trỏ tới action có thật; lỗi ổ USB hoặc ổ đã rút chỉ là cảnh báo; kiểm tra sâu (DISM, chkdsk /scan giả); tham số từ trạm; JSON theo chuẩn mà trạm đọc được |
 | `toi-uu` | tắt/bật dịch vụ (sc.exe giả), đổi BCD (bcdedit giả), BitLocker; phát hiện có mã cho Kiểm tra chung; chuyển file trạng thái gốc từ chỗ cũ (`service-optimizer`); `ToiUu.ps1` gộp hai phần, mã thoát chung, gọi script con thật trong cùng cửa sổ |

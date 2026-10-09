@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "don-o-c",
   "name": "Dọn ổ C an toàn",
-  "version": "1.0",
+  "version": "1.1",
   "category": "toi-uu",
   "icon": "broom",
   "audience": "all",
@@ -20,7 +20,7 @@
       "risk": "read-only",
       "primary": true,
       "duration": "Dưới 1 phút",
-      "description": "Chỉ đọc. Ghi báo cáo ket_qua\\BaoCao_DonOC_<tên máy>_<thời gian>.txt: dung lượng trống, rác dọn được của bạn và của Windows, những thứ chiếm nhiều chỗ kèm cách xử lý; cuối báo cáo là nút nên chạy. Không có quyền Admin thì vài thư mục của Windows hiện dấu ?.",
+      "description": "Chỉ đọc. Ghi báo cáo ket_qua\\BaoCao_DonOC_<tên máy>_<thời gian>.txt: dung lượng trống, rác dọn được của bạn và của Windows, những thứ chiếm nhiều chỗ kèm cách xử lý; cuối báo cáo là nút nên chạy. Không có quyền Admin thì vài thư mục của Windows hiện dấu ?. Trạm hiện từng mục kèm nút dọn (file KetQua_DonOC_*.json).",
       "args": [
         { "id": "so-ngay", "type": "number", "flag": "-SoNgay", "label": "Tính file tạm cũ hơn (ngày)", "default": 7, "min": 1, "max": 365 }
       ]
@@ -107,7 +107,8 @@
   ],
   "outputs": [
     { "label": "Báo cáo dung lượng", "dir": "ket_qua", "glob": "BaoCao_DonOC_%COMPUTERNAME%_*.txt" },
-    { "label": "Nhật ký dọn", "dir": "ket_qua", "glob": "NhatKy_DonOC_%COMPUTERNAME%_*.txt" }
+    { "label": "Nhật ký dọn", "dir": "ket_qua", "glob": "NhatKy_DonOC_%COMPUTERNAME%_*.txt" },
+    { "label": "Kết quả", "dir": "ket_qua", "glob": "KetQua_DonOC_*_%COMPUTERNAME%_*.json", "ketQua": true }
   ],
   "pack": {
     "name": "DonOC",

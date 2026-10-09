@@ -19,7 +19,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $script:ToolDir = $PSScriptRoot
 $script:MainScript = $PSCommandPath
-$script:ToolVersion = '1.0'
+$script:ToolVersion = '1.1'
 . (Join-Path $PSScriptRoot 'lib\Chung.ps1')
 . (Join-Path $PSScriptRoot 'lib\Muc.ps1')
 . (Join-Path $PSScriptRoot 'lib\Don.ps1')
@@ -50,7 +50,7 @@ function Invoke-ModeSafe {
     # Chạy một chế độ; lỗi không lường trước thì in ra và trả mã 1 thay vì đóng cửa sổ.
     # Dọn thật (không phải chạy thử): ghi nhật ký ket_qua\NhatKy_DonOC_<máy>_<thời gian>.txt kể cả khi lỗi.
     param([string]$Id, [hashtable]$O)
-    $script:Report.Clear(); $script:Findings.Clear()
+    $script:Report.Clear(); $script:Findings.Clear(); $script:LastReport = ''
     $started = Get-Date
     $code = 1
     try {
@@ -59,13 +59,20 @@ function Invoke-ModeSafe {
     } catch {
         Write-Bad ('Lỗi không lường trước: {0}' -f $_.Exception.Message.Trim())
         Write-Sub (([string]$_.InvocationInfo.PositionMessage).Split("`n")[0])
+        Add-Finding -Ma 'LOI_KHONG_LUONG_TRUOC' bad ('Lỗi không lường trước: {0}' -f $_.Exception.Message.Trim()) -ChiKetQua
         $code = 1
     } finally {
         $log = $script:Modes[$Id].Log
         if ($log -and -not $O.ChayThu -and $code -ne 1223 -and $script:Report.Count) {
             Write-Out ''
             Write-Out ('Kết thúc {0:dd/MM/yyyy HH:mm}, mã {1}.' -f (Get-Date), $code)
-            [void](Save-Report $log $started)
+            $script:LastReport = Save-Report $log $started
+        }
+        # Người dùng thôi (1223) thì chưa làm gì: không ghi file kết quả.
+        if ($code -ne 1223) {
+            $files = @(if ($script:LastReport) { [ordered]@{ nhan = $(if ($Id -eq 'kiem-tra') { 'Báo cáo dung lượng' } else { 'Nhật ký dọn' }); duongDan = $script:LastReport } })
+            $msg = if ($code -eq 2 -and -not @($script:Findings).Count) { 'Chưa làm: thiếu điều kiện.' } elseif ($O.ChayThu -and $code -eq 0) { 'Chạy thử: chỉ đo, không xoá gì.' } else { '' }
+            [void](Save-RunResult -CheDo $Id -Code $code -Start $started -DryRun ([bool]$O.ChayThu) -Files $files -Message $msg)
         }
     }
     return $code

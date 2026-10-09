@@ -98,6 +98,7 @@ Windows tự xoá file tạm và thùng rác cũ khi ổ sắp đầy (hoặc th
 
 - Báo cáo: `ket_qua\BaoCao_DonOC_<tên máy>_<thời gian>.txt`.
 - Mỗi lần dọn thật ghi `ket_qua\NhatKy_DonOC_<tên máy>_<thời gian>.txt`: mục đã dọn, dung lượng, file để lại, dung lượng trống trước và sau. Chạy thử hoặc gõ K thì không ghi.
+- Mỗi lần chạy (trừ khi gõ K) ghi `ket_qua\KetQua_DonOC_<chế độ>_<tên máy>_<thời gian>.json` theo chuẩn `tramtool.ketqua/1` (xem `docs\THEM-CONG-CU.md`) để Trạm Tool hiện kết quả: Xem ổ C có mã cho từng điều (`O_GAN_DAY`, `RAC_CUA_BAN` kèm nút dọn, mục từ 1 GB như `WINDOWS_OLD`, `FILE_NGU_DONG`, `DU_LIEU_ZALO`); các nút dọn ghi đã dọn bao nhiêu (`DA_DON`), mục lỗi (`DON_LOI`), file đang dùng để lại.
 - Mã thoát: 0 xong; 1 lỗi; 2 thiếu điều kiện (thiếu quyền Admin, sai tài khoản, Windows đang cài cập nhật); 3 làm được một phần (có mục lỗi); 1223 bạn chọn không dọn hoặc từ chối UAC.
 
 ## Chạy không cần Trạm Tool

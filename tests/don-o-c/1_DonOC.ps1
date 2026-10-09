@@ -336,6 +336,47 @@ The operation completed successfully.
     Check 'T12a kiem-tra 0' ($r -eq 0) "r=$r"
     Check 'T12b no deletion' ((Test-Path "$t\old1.tmp") -and (Test-Path "$ch\Default\Cache\Cache_Data\f_000001") -and (Test-Path "$sb\Windows\MEMORY.DMP"))
     Check 'T12c sections' ($txt -match 'Rác của bạn' -and $txt -match 'Rác của Windows' -and $txt -match 'KẾT LUẬN')
+
+    # ---- T13 File kết quả cho Trạm Tool (chuẩn tramtool.ketqua/1)
+    $kq = Join-Path $TestRoot 'kq'
+    $env:DOC_KET_QUA = $kq
+    Add-Finding -Ma 'THUNG_RAC' info 'Thùng rác: 3 GB' -Hint 'Mở Thùng rác.' -Bytes 3GB -ChiKetQua
+    Add-Finding -Ma 'WINDOWS_OLD' info 'Windows.old: 20 GB' -Hint 'Settings.' -Bytes 20GB -ChiKetQua
+    Check 'T13a ChiKetQua: không in, không vào báo cáo' (($script:Report -join "`n") -notmatch 'Windows\.old: 20 GB')
+    $f = Save-RunResult -CheDo 'kiem-tra' -Code 0 -Start (Get-Date)
+    $j = [IO.File]::ReadAllText($f) | ConvertFrom-Json
+    $mas = @($j.phatHien | ForEach-Object { $_.ma })
+    Check 'T13b file theo chuẩn' ($j.chuan -eq 'tramtool.ketqua/1' -and $j.congCu -eq 'don-o-c' -and $j.cheDo -eq 'kiem-tra' -and (Split-Path $f -Leaf) -like "KetQua_DonOC_KiemTra_$($env:COMPUTERNAME)_*.json") (Split-Path $f -Leaf)
+    Check 'T13c ổ còn ít chỗ lên đầu, không kết luận ổn' ($mas[0] -eq 'O_IT_CHO_TRONG' -and $mas -notcontains 'DU_CHO_TRONG') ($mas -join ',')
+    $wi = [array]::IndexOf($mas, 'WINDOWS_OLD'); $tr = [array]::IndexOf($mas, 'THUNG_RAC')
+    Check 'T13d cùng mức: mục lớn lên trước' ($wi -ge 0 -and $tr -gt $wi) ($mas -join ',')
+    Check 'T13e mã đúng dạng' (-not @($mas | Where-Object { $_ -notmatch '^[A-Z][A-Z0-9_]+$' }).Count) ($mas -join ',')
+    Reset-Sandbox
+    $script:Report.Clear(); $script:Findings.Clear()
+    $r = Invoke-DonCuaToi -SoNgay 7 -DryRun
+    $d = @($script:Findings | Where-Object { $_.Ma -in 'DON_DUOC', 'KHONG_CO_GI_DE_DON' })
+    Check 'T13f chạy thử dọn: ghi dọn được bao nhiêu cho file kết quả' ($r -eq 0 -and $d.Count -eq 1) "r=$r"
+    $script:SameUser = $false; $script:Findings.Clear()
+    $r = Invoke-DonCuaToi -SoNgay 7 -DryRun
+    Check 'T13g sai tài khoản: mã 2, SAI_TAI_KHOAN' ($r -eq 2 -and @($script:Findings | Where-Object { $_.Ma -eq 'SAI_TAI_KHOAN' -and $_.Level -eq 'bad' }).Count -eq 1) "r=$r"
+    $script:SameUser = $true
+    Remove-Item Env:DOC_KET_QUA
+    # Mọi chỗ ghi phát hiện có -Ma: chuỗi CHU_HOA, hoặc $r.Ma của mục chiếm chỗ (mã đặt khi dựng danh sách mục).
+    $bad = @(); $cnt = 0
+    foreach ($fn in 'KiemTra.ps1', 'Don.ps1') {
+        $ast = [Management.Automation.Language.Parser]::ParseFile("$tool\lib\$fn", [ref]$null, [ref]$null)
+        foreach ($c in @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.CommandAst] -and $n.GetCommandName() -eq 'Add-Finding' }, $true))) {
+            $cnt++
+            $e = @($c.CommandElements)
+            $k = -1; for ($i = 1; $i -lt $e.Count; $i++) { if ($e[$i] -is [Management.Automation.Language.CommandParameterAst] -and $e[$i].ParameterName -eq 'Ma') { $k = $i } }
+            $v = if ($k -ge 0) { $e[$k + 1] } else { $null }
+            if (-not (($v -is [Management.Automation.Language.StringConstantExpressionAst] -and $v.Value -match '^[A-Z][A-Z0-9_]+$') -or ($v -and $v.Extent.Text -eq '$r.Ma'))) { $bad += "$fn`:$($c.Extent.StartLineNumber)" }
+        }
+    }
+    $src = [IO.File]::ReadAllText("$tool\lib\KiemTra.ps1")
+    $rowCodes = @([regex]::Matches($src, "& \`$add '([A-Z_]+)'|Ma = '([A-Z_]+)'") | ForEach-Object { if ($_.Groups[1].Success) { $_.Groups[1].Value } else { $_.Groups[2].Value } })
+    Check 'T13h mọi chỗ ghi phát hiện có -Ma' ($cnt -ge 20 -and $bad.Count -eq 0) ("$cnt chỗ; thiếu: " + ($bad -join ', '))
+    Check 'T13i mục chiếm chỗ có mã' ($rowCodes.Count -ge 9 -and $src -match "'THU_MUC_TAI_VE'" -and $src -match "'DU_LIEU_CA_NHAN'") ($rowCodes -join ',')
 } finally {
     if (Test-Path -LiteralPath "$sb\Users\u\AppData\Local\Temp\link") { [IO.Directory]::Delete("$sb\Users\u\AppData\Local\Temp\link", $false) }
 }
