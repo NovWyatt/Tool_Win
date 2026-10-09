@@ -58,6 +58,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `new-windows/4_TienTrinh` | chạy thử xuất (`-DryRun`): tên mạng Wi-Fi đã lưu, máy in, ổ đĩa; không đọc mật khẩu |
 | `myexcelfix/3_KiemTra` | Kiểm tra MyExcel (chỉ đọc), kết quả ghi vào thư mục tạm; thêm hai bộ MyExcel giả (`MYX_EXTRA_ROOT`) để máy nào cũng có lỗi gợi ý *Sửa lỗi* |
 | `myexcelfix/5_KiemTraNoiLuu` | Kiểm tra MyExcel (chỉ đọc) với `LOCALAPPDATA`, `PUBLIC`, Desktop trỏ vào thư mục tạm |
+| `may-in-lan/4_ChanDoanThat` | Chẩn đoán thật bằng quyền thường (mạng, dịch vụ, tường lửa, SMB, máy in, ổ mạng, nhật ký; không gọi máy khác), báo cáo và JSON kết quả vào thư mục tạm (`MIL_KET_QUA`) |
 | `tram/3_KhoiChay` | Máy in LAN `-ChayThu -KhongDung` dò máy này và 127.0.0.1 |
 | `checkwinfix/3_ThuThap` | chạy thật phần PowerShell của Thu thập thông tin bằng quyền thường (`-KhongHoi`, không mở Notepad), báo cáo và JSON vào thư mục tạm, khoảng 1,5 phút |
 | `gio-chu-ky-so/2_ChayThat` | Kiểm tra thật (hỏi máy chủ giờ qua mạng, đọc dịch vụ, đầu đọc thẻ, kho chứng thư của tài khoản; không hỏi PIN); Sửa giờ, Sửa token, Trả lại ở chế độ chạy thử; so cấu hình giờ, dịch vụ trước và sau |
@@ -83,7 +84,8 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `gio-chu-ky-so` | độ lệch giờ, múi giờ, dịch vụ, token, chứng thư (giả lập); sửa giờ (đặt giờ khi đồng bộ xong vẫn lệch, máy trong domain không đổi cấu hình), sửa dịch vụ token, trả lại như cũ, giữ giá trị của lần sửa đầu; JSON kết quả mà trạm đọc được |
 | `bo-ung-dung` | danh sách `DanhSach.json` khớp ô chọn trong `tool.json`, khoá không trùng tiền tố tham số của script; chọn bằng cờ; cài (bỏ qua ứng dụng đã có, bộ gõ cùng nhóm chỉ cài một, đọc lại danh sách đã cài thay vì tin mã thoát, cần khởi động lại), cập nhật (đã mới nhất, lỗi); winget giả; JSON kết quả mà trạm đọc được |
 | `ghi-am-sang-word` | tên kết quả giữ đuôi file gốc, nhận kết quả bản cũ, `--ra` (Python của máy, không nạp mô hình) |
-| các bộ khác | `fix-win`, `may-in-lan`, `the-xe-nt` |
+| `may-in-lan` | mã lỗi Windows và cách xử lý, tách UNC, máy in bản sao; nhật ký hoàn tác (registry thử); mỗi phát hiện của Chẩn đoán có mã cố định, nút sửa trỏ tới action có thật, JSON kết quả mà trạm đọc được |
+| các bộ khác | `fix-win`, `the-xe-nt` |
 | `mdf2sql` | `1_ChayTool`: hai `.bat` với `python.exe` giả (lối tắt Store, thiếu pyodbc, pip lỗi); `tools\mdf2sql\tests` (unittest): doctor, cổng riêng, `/api/health`, `/api/shutdown`, từ chối khi thiếu mã vẫn trả 403 (không mất câu trả lời), `doctor --ket-qua` theo chuẩn của trạm, hộp thoại chọn file trong tiến trình con, CLI |
 
 ## Viết bài thử mới

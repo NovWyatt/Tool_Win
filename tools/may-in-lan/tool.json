@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "may-in-lan",
   "name": "Máy in mạng LAN và thư mục chia sẻ",
-  "version": "1.0",
+  "version": "1.1",
   "category": "sua-loi",
   "icon": "print",
   "audience": "all",
@@ -20,7 +20,7 @@
       "risk": "read-only",
       "primary": true,
       "duration": "Dưới 1 phút",
-      "description": "Chỉ đọc. Ghi báo cáo ket_qua\\BaoCao_MayIn_<tên máy>_<thời gian>.txt; cuối báo cáo là danh sách lỗi theo thứ tự nên xử lý và nút cần chạy.",
+      "description": "Chỉ đọc. Ghi báo cáo ket_qua\\BaoCao_MayIn_<tên máy>_<thời gian>.txt; cuối báo cáo là danh sách lỗi theo thứ tự nên xử lý và nút cần chạy. Trạm hiện từng lỗi kèm nút sửa (file KetQua_MayIn_ChanDoan_*.json).",
       "args": [
         {
           "id": "may-chu", "type": "text", "flag": "-MayChu", "label": "Kiểm tra thêm một máy (không bắt buộc)",
@@ -235,6 +235,7 @@
   ],
   "outputs": [
     { "label": "Báo cáo chẩn đoán", "dir": "ket_qua", "glob": "BaoCao_MayIn_%COMPUTERNAME%_*.txt" },
+    { "label": "Kết quả chẩn đoán", "dir": "ket_qua", "glob": "KetQua_MayIn_ChanDoan_%COMPUTERNAME%_*.json", "ketQua": true },
     {
       "label": "Nhật ký để hoàn tác", "dir": "ket_qua\\hoan-tac", "glob": "HoanTac_*.json",
       "deleteNote": "\"Hoàn tác lần sửa trước\" cần file này để trả máy về như trước lần sửa. Xoá rồi thì không hoàn tác được lần sửa đó nữa."

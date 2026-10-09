@@ -23,11 +23,54 @@ function Write-Info { param([string]$Text) Write-Out "  [i]  $Text" 'Gray' }
 function Write-Plan { param([string]$Text) Write-Out "   ->  $Text" 'White' }
 
 function Add-Finding {
-    # Vấn đề tìm thấy khi chẩn đoán. Fix: chế độ nên chạy để sửa (để trống nếu phải làm tay).
-    param([ValidateSet('bad', 'warn', 'info')][string]$Level, [string]$Text, [string]$Fix = '', [string]$Hint = '')
-    [void]$script:Findings.Add([pscustomobject]@{ Level = $Level; Text = $Text; Fix = $Fix; Hint = $Hint })
+    # Vấn đề tìm thấy khi chẩn đoán. Ma: mã cố định (CHU_HOA) cho file kết quả của Trạm Tool.
+    # Fix: chế độ nên chạy để sửa (để trống nếu phải làm tay).
+    param([string]$Ma, [ValidateSet('bad', 'warn', 'info')][string]$Level, [string]$Text, [string]$Fix = '', [string]$Hint = '')
+    [void]$script:Findings.Add([pscustomobject]@{ Ma = $Ma; Level = $Level; Text = $Text; Fix = $Fix; Hint = $Hint })
     switch ($Level) { 'bad' { Write-Bad $Text } 'warn' { Write-Warn $Text } default { Write-Info $Text } }
     if ($Hint) { Write-Sub $Hint }
+}
+
+# ---------------------------------------------------------------- kết quả cho Trạm Tool
+$script:ResultLevel = @{ bad = 'loi'; warn = 'canh-bao'; info = 'thong-tin'; ok = 'ok' }
+
+function Save-RunResult {
+    # Ghi ket_qua\KetQua_MayIn_<chế độ>_<máy>_<giờ>.json theo chuẩn tramtool.ketqua/1: Trạm Tool hiện từng phát hiện
+    # kèm nút chạy chế độ sửa. Ghi lỗi thì chỉ cảnh báo, không đổi mã thoát. Trả đường dẫn file (hoặc '').
+    param([string]$CheDo, [int]$Code, [datetime]$Start, [string]$Message = '', [bool]$DryRun = $false, [object[]]$Files = @())
+    $rank = @{ loi = 0; 'canh-bao' = 1; 'thong-tin' = 2; ok = 3 }
+    $i = 0
+    $items = @(foreach ($f in @($script:Findings)) {
+            $muc = $script:ResultLevel[[string]$f.Level]
+            $o = [ordered]@{ ma = [string]$f.Ma; mucDo = $muc; tieuDe = [string]$f.Text; chiTiet = ''; cachSua = [string]$f.Hint }
+            if ($f.Fix -and $script:Modes -and $script:Modes.Contains([string]$f.Fix)) {
+                $o.cachSua = ('Chạy "{0}".{1}' -f $script:Modes[$f.Fix].Label, $(if ($f.Hint) { ' ' + $f.Hint } else { '' }))
+                $o['chayTiep'] = [ordered]@{ congCu = 'may-in-lan'; action = [string]$f.Fix }
+            }
+            [pscustomobject]@{ F = $o; L = $rank[$muc]; I = $i++ }
+        })
+    $sorted = @($items | Sort-Object L, I | ForEach-Object { $_.F })
+    $n = @{}
+    foreach ($k in 'loi', 'canh-bao', 'thong-tin') { $n[$k] = @($sorted | Where-Object { $_.mucDo -eq $k }).Count }
+    if (-not $Message) { $Message = if ($n['loi'] + $n['canh-bao']) { 'Có {0} lỗi, {1} cảnh báo; xem chi tiết.' -f $n['loi'], $n['canh-bao'] } else { 'Xong, không có lỗi.' } }
+    $r = [ordered]@{
+        chuan = 'tramtool.ketqua/1'; congCu = 'may-in-lan'; cheDo = $CheDo; phienBan = $script:ToolVersion
+        may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
+        batDau = $Start.ToString('s'); ketThuc = (Get-Date).ToString('s')
+        maThoat = $Code; trangThai = @{ 0 = 'xong'; 1 = 'loi'; 2 = 'thieu-dieu-kien'; 3 = 'mot-phan' }[$Code]
+        chayThu = $DryRun
+        ma = $(if ($n['loi']) { 'CO_LOI' } elseif ($n['canh-bao']) { 'CO_CANH_BAO' } else { 'KHONG_CO_LOI' })
+        thongDiep = $Message
+        tomTat = [ordered]@{ loi = $n['loi']; canhBao = $n['canh-bao']; thongTin = $n['thong-tin'] }
+        phatHien = $sorted
+        tep = @($Files)
+    }
+    try {
+        $f = Join-Path (Get-ResultDir) ('KetQua_MayIn_{0}_{1}_{2:yyyyMMdd_HHmmss}.json' -f ((($CheDo -split '-') | ForEach-Object { $_.Substring(0, 1).ToUpperInvariant() + $_.Substring(1) }) -join ''), $env:COMPUTERNAME, $Start)
+        [IO.File]::WriteAllText("$f.tmp", ($r | ConvertTo-Json -Depth 8), $script:Utf8NoBom)
+        Move-Item -LiteralPath "$f.tmp" -Destination $f -Force
+        return $f
+    } catch { Write-Host "  Không ghi được file kết quả cho Trạm Tool: $($_.Exception.Message.Trim())" -ForegroundColor Yellow; return '' }
 }
 
 # ---------------------------------------------------------------- hỏi người dùng
@@ -96,7 +139,8 @@ function Get-ConsoleUser {
 
 function Get-ResultDir {
     # ket_qua\ trong thư mục công cụ; thư mục công cụ không ghi được (vd giải nén vào chỗ chỉ đọc) thì ra Desktop.
-    $d = Join-Path $script:ToolDir 'ket_qua'
+    # MIL_KET_QUA: thư mục khác (bài thử).
+    $d = if ($env:MIL_KET_QUA) { $env:MIL_KET_QUA } else { Join-Path $script:ToolDir 'ket_qua' }
     try {
         if (-not (Test-Path -LiteralPath $d)) { [void](New-Item -ItemType Directory -Path $d -ErrorAction Stop) }
         return $d

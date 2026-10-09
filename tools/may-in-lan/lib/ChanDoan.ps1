@@ -45,17 +45,24 @@ function Invoke-ChanDoan {
     }
     Invoke-Section 'Nhật ký sự kiện 7 ngày' { Show-EventSection }
     Show-Conclusion
+    if (-not @($script:Findings | Where-Object { $_.Level -in 'bad', 'warn' }).Count) {
+        # chỉ cho file kết quả: phần kết luận đã in dòng [OK]
+        [void]$script:Findings.Add([pscustomobject]@{ Ma = 'KHONG_THAY_LOI'; Level = 'ok'; Text = 'Không thấy lỗi cấu hình nào về máy in và chia sẻ mạng.'; Fix = ''; Hint = 'Vẫn không in được: kiểm tra máy in (giấy, mực, đèn báo lỗi), dây mạng hoặc Wi-Fi của máy in.' })
+    }
 
     $path = Join-Path (Get-ResultDir) ('BaoCao_MayIn_{0}_{1:yyyyMMdd_HHmmss}.txt' -f $env:COMPUTERNAME, $started)
+    $code = 0
     try {
         [IO.File]::WriteAllLines($path, $script:Report, $script:Utf8Bom)
         Write-Host ''
         Write-Host "  Báo cáo đã lưu: $path" -ForegroundColor Green
     } catch {
         Write-Host "  Không lưu được báo cáo: $($_.Exception.Message)" -ForegroundColor Red
-        return 1
+        $path = ''; $code = 1
     }
-    return 0
+    $files = @(if ($path) { [ordered]@{ nhan = 'Báo cáo chẩn đoán'; duongDan = $path } })
+    [void](Save-RunResult -CheDo 'chan-doan' -Code $code -Start $started -Files $files -Message $(if ($code) { 'Không lưu được báo cáo chẩn đoán.' } else { '' }))
+    return $code
 }
 
 # ---------------------------------------------------------------- các phần của báo cáo
@@ -70,7 +77,7 @@ function Show-MachineSection {
     Write-Line ('Chạy bằng: {0} ({1})' -f $me, $(if ($script:Diag.Admin) { 'quyền Admin' } else { 'không có quyền Admin' }))
     $console = [string]$cs.UserName
     if ($console -and $console -ne $me) {
-        Add-Finding warn "Đang chạy bằng tài khoản khác người đang dùng máy ($console): ổ mạng, máy in riêng của người đó có thể không hiện trong báo cáo."
+        Add-Finding -Ma 'TAI_KHOAN_KHAC' warn "Đang chạy bằng tài khoản khác người đang dùng máy ($console): ổ mạng, máy in riêng của người đó có thể không hiện trong báo cáo."
     }
     if (-not $script:Diag.Admin) {
         Write-Info 'Không có quyền Admin nên bỏ qua thư mục hàng đợi in và nhật ký SMB. Chạy từ Trạm Tool (hoặc chọn "Có" ở hộp UAC) để xem đủ.'
@@ -80,7 +87,7 @@ function Show-MachineSection {
 function Show-NetworkSection {
     $profiles = @(Get-NetConnectionProfile -ErrorAction SilentlyContinue)
     $script:Diag.Profiles = $profiles
-    if (-not $profiles) { Add-Finding bad 'Máy không kết nối mạng nào.' -Hint 'Kiểm tra dây mạng, Wi-Fi.'; return }
+    if (-not $profiles) { Add-Finding -Ma 'KHONG_CO_MANG' bad 'Máy không kết nối mạng nào.' -Hint 'Kiểm tra dây mạng, Wi-Fi.'; return }
     $catText = @{ Public = 'Public (công cộng)'; Private = 'Private (riêng tư)'; DomainAuthenticated = 'Domain' }
     foreach ($np in $profiles) {
         $ipc = Get-NetIPConfiguration -InterfaceIndex $np.InterfaceIndex -ErrorAction SilentlyContinue
@@ -88,18 +95,18 @@ function Show-NetworkSection {
         $gw = @($ipc.IPv4DefaultGateway | Where-Object { $_ } | ForEach-Object { $_.NextHop })
         Write-Line ("{0}: mạng '{1}', {2}, IP {3}{4}" -f $np.InterfaceAlias, $np.Name, $catText[[string]$np.NetworkCategory], $(if ($ips) { $ips -join ', ' } else { 'chưa có' }), $(if ($gw) { ', router ' + ($gw -join ', ') } else { '' }))
         if ([string]$np.NetworkCategory -eq 'Public') {
-            Add-Finding warn ("Mạng '{0}' ({1}) đang để Public: Windows ẩn máy này và chặn chia sẻ thư mục, máy in." -f $np.Name, $np.InterfaceAlias) -Fix 'bat-chia-se' -Hint 'Chỉ đổi sang Private khi đây là mạng ở văn phòng hoặc nhà mà bạn tin cậy.'
+            Add-Finding -Ma 'MANG_PUBLIC' warn ("Mạng '{0}' ({1}) đang để Public: Windows ẩn máy này và chặn chia sẻ thư mục, máy in." -f $np.Name, $np.InterfaceAlias) -Fix 'bat-chia-se' -Hint 'Chỉ đổi sang Private khi đây là mạng ở văn phòng hoặc nhà mà bạn tin cậy.'
         }
         if ($ips | Where-Object { $_ -like '169.254.*' }) {
-            Add-Finding bad ("{0} không nhận được IP từ router (169.254.x.x): máy coi như mất mạng nội bộ." -f $np.InterfaceAlias) -Hint 'Khởi động lại router hoặc dùng công cụ "Kiểm tra và sửa lỗi Wi-Fi".'
+            Add-Finding -Ma 'KHONG_NHAN_IP' bad ("{0} không nhận được IP từ router (169.254.x.x): máy coi như mất mạng nội bộ." -f $np.InterfaceAlias) -Hint 'Khởi động lại router hoặc dùng công cụ "Kiểm tra và sửa lỗi Wi-Fi".'
         }
     }
     $aliases = @($profiles | ForEach-Object { $_.InterfaceAlias })
     foreach ($b in @(Get-NetAdapterBinding -ComponentID ms_msclient, ms_server -ErrorAction SilentlyContinue | Where-Object { $_.Name -in $aliases -and -not $_.Enabled })) {
         if ($b.ComponentID -eq 'ms_msclient') {
-            Add-Finding bad ("Card {0} đang tắt '{1}': máy này không vào được thư mục, máy in chia sẻ." -f $b.Name, $b.DisplayName) -Fix 'bat-chia-se'
+            Add-Finding -Ma 'CARD_TAT_CLIENT' bad ("Card {0} đang tắt '{1}': máy này không vào được thư mục, máy in chia sẻ." -f $b.Name, $b.DisplayName) -Fix 'bat-chia-se'
         } else {
-            Add-Finding warn ("Card {0} đang tắt '{1}': máy khác không vào được thư mục, máy in chia sẻ trên máy này." -f $b.Name, $b.DisplayName) -Fix 'bat-chia-se'
+            Add-Finding -Ma 'CARD_TAT_SERVER' warn ("Card {0} đang tắt '{1}': máy khác không vào được thư mục, máy in chia sẻ trên máy này." -f $b.Name, $b.DisplayName) -Fix 'bat-chia-se'
         }
     }
 }
@@ -124,22 +131,22 @@ function Show-ServiceSection {
     }
     $script:Diag.Services = $st
     $sp = $st['Spooler']
-    if (-not $sp -or $sp.StartMode -eq 'Disabled') { Add-Finding bad 'Dịch vụ in (Print Spooler) bị vô hiệu hoá: không in được, không thêm được máy in.' -Fix 'sua-hang-doi' }
-    elseif (-not $sp.Running) { Add-Finding bad 'Dịch vụ in (Print Spooler) đang dừng: không in được.' -Fix 'sua-hang-doi' }
+    if (-not $sp -or $sp.StartMode -eq 'Disabled') { Add-Finding -Ma 'SPOOLER_VO_HIEU' bad 'Dịch vụ in (Print Spooler) bị vô hiệu hoá: không in được, không thêm được máy in.' -Fix 'sua-hang-doi' }
+    elseif (-not $sp.Running) { Add-Finding -Ma 'SPOOLER_DUNG' bad 'Dịch vụ in (Print Spooler) đang dừng: không in được.' -Fix 'sua-hang-doi' }
     if ($st['LanmanWorkstation'] -and -not $st['LanmanWorkstation'].Running) {
-        Add-Finding bad 'Dịch vụ Workstation đang dừng: máy này không vào được thư mục, máy in chia sẻ.' -Fix 'bat-chia-se'
+        Add-Finding -Ma 'WORKSTATION_DUNG' bad 'Dịch vụ Workstation đang dừng: máy này không vào được thư mục, máy in chia sẻ.' -Fix 'bat-chia-se'
     }
     if ($st['LanmanServer'] -and -not $st['LanmanServer'].Running) {
-        Add-Finding warn 'Dịch vụ Server đang dừng: máy khác không vào được thư mục, máy in chia sẻ trên máy này.' -Fix 'bat-chia-se'
+        Add-Finding -Ma 'SERVER_DUNG' warn 'Dịch vụ Server đang dừng: máy khác không vào được thư mục, máy in chia sẻ trên máy này.' -Fix 'bat-chia-se'
     }
     if ($st['FDResPub'] -and -not $st['FDResPub'].Running) {
-        Add-Finding info 'Máy khác không thấy máy này trong mục Network (vẫn vào được bằng \\tên-máy hoặc \\IP).' -Fix 'bat-chia-se'
+        Add-Finding -Ma 'MAY_NAY_AN_TRONG_NETWORK' info 'Máy khác không thấy máy này trong mục Network (vẫn vào được bằng \\tên-máy hoặc \\IP).' -Fix 'bat-chia-se'
     }
     foreach ($n in 'fdPHost', 'SSDPSRV', 'upnphost') {
-        if ($st[$n] -and $st[$n].StartMode -eq 'Disabled') { Add-Finding warn "Dịch vụ $($st[$n].DisplayName) bị vô hiệu hoá: mục Network không hiện đủ máy, máy in." -Fix 'bat-chia-se' }
+        if ($st[$n] -and $st[$n].StartMode -eq 'Disabled') { Add-Finding -Ma 'DICH_VU_TIM_MANG_TAT' warn "Dịch vụ $($st[$n].DisplayName) bị vô hiệu hoá: mục Network không hiện đủ máy, máy in." -Fix 'bat-chia-se' }
     }
     if ($st['MpsSvc'] -and -not $st['MpsSvc'].Running) {
-        Add-Finding warn 'Tường lửa Windows đang tắt: máy khác kết nối máy in chia sẻ từ máy này sẽ báo lỗi 0x000006D9.' -Hint 'Bật lại trong Windows Security > Firewall & network protection. Chia sẻ không cần tắt tường lửa.'
+        Add-Finding -Ma 'TUONG_LUA_TAT' warn 'Tường lửa Windows đang tắt: máy khác kết nối máy in chia sẻ từ máy này sẽ báo lỗi 0x000006D9.' -Hint 'Bật lại trong Windows Security > Firewall & network protection. Chia sẻ không cần tắt tường lửa.'
     }
 }
 
@@ -164,11 +171,13 @@ function Show-FirewallSection {
             Write-Line ("{0}, mạng {1}: bật {2}/{3} quy tắc nhận kết nối vào." -f $g.Name, $cat, $on.Count, $applies.Count)
             if ($cat -eq 'Public') {
                 if ($g.Id -eq '@FirewallAPI.dll,-28502' -and $on.Count) {
-                    Add-Finding warn 'Chia sẻ file và máy in đang mở cả trên mạng Public: nguy hiểm khi dùng Wi-Fi công cộng.' -Hint 'Tắt ở Settings > Network & internet > Advanced network settings > Advanced sharing settings > Public networks.'
+                    Add-Finding -Ma 'CHIA_SE_MO_TREN_PUBLIC' warn 'Chia sẻ file và máy in đang mở cả trên mạng Public: nguy hiểm khi dùng Wi-Fi công cộng.' -Hint 'Tắt ở Settings > Network & internet > Advanced network settings > Advanced sharing settings > Public networks.'
                 }
             } elseif (-not $on.Count) {
                 $level = if ($g.Id -eq '@FirewallAPI.dll,-28502' -and -not $sharing) { 'info' } else { 'warn' }
-                Add-Finding $level ("Tường lửa chặn '{0}' trên mạng {1}: {2}." -f $g.Name, $cat, $g.Off) -Fix 'bat-chia-se'
+                $text = "Tường lửa chặn '{0}' trên mạng {1}: {2}." -f $g.Name, $cat, $g.Off
+                if ($g.Id -eq '@FirewallAPI.dll,-28502') { Add-Finding -Ma 'TUONG_LUA_CHAN_CHIA_SE' $level $text -Fix 'bat-chia-se' }
+                else { Add-Finding -Ma 'TUONG_LUA_CHAN_PHAT_HIEN' $level $text -Fix 'bat-chia-se' }
             }
         }
     }
@@ -188,13 +197,13 @@ function Show-SmbSection {
         Write-Info 'Cho đăng nhập khách nhưng vẫn bắt buộc ký SMB: vào thư mục không mật khẩu vẫn bị từ chối, vì khách không ký được.'
     }
     if (Test-Path 'HKLM:\SYSTEM\CurrentControlSet\Services\mrxsmb10') {
-        Add-Finding warn 'Máy đang cài SMB1 (giao thức cũ, mã độc tống tiền lây qua nó).' -Hint 'Gỡ ở Turn Windows features on or off > SMB 1.0/CIFS khi không còn thiết bị nào bắt buộc SMB1.'
+        Add-Finding -Ma 'SMB1_DA_CAI' warn 'Máy đang cài SMB1 (giao thức cũ, mã độc tống tiền lây qua nó).' -Hint 'Gỡ ở Turn Windows features on or off > SMB 1.0/CIFS khi không còn thiết bị nào bắt buộc SMB1.'
     } else {
         Write-Line 'SMB1: chưa cài (đúng khuyến nghị). Thiết bị chỉ hỗ trợ SMB1 cần cập nhật firmware, không bật lại SMB1.'
     }
     $srv = Get-SmbServerConfiguration -ErrorAction Stop
     Write-Line ('Khi máy khác vào máy này: bắt buộc ký SMB = {0}, SMB1 = {1}' -f (Format-YesNo $srv.RequireSecuritySignature), (Format-YesNo $srv.EnableSMB1Protocol))
-    if ($srv.EnableSMB1Protocol) { Add-Finding warn 'Máy này đang nhận kết nối SMB1.' -Hint 'Tắt bằng PowerShell Admin: Set-SmbServerConfiguration -EnableSMB1Protocol $false' }
+    if ($srv.EnableSMB1Protocol) { Add-Finding -Ma 'SMB1_MAY_NAY_NHAN' warn 'Máy này đang nhận kết nối SMB1.' -Hint 'Tắt bằng PowerShell Admin: Set-SmbServerConfiguration -EnableSMB1Protocol $false' }
     if ($srv.RequireSecuritySignature -and $script:Diag.LocalShares) {
         Write-Info 'Máy này bắt buộc ký SMB: máy photocopy quét vào thư mục (scan to folder) đời cũ có thể không ghi được vào thư mục chia sẻ trên máy này.'
     }
@@ -235,11 +244,11 @@ function Show-PrinterSection {
         $state = if ($port) { $reach["$($p.Address)|$port"] } else { $null }
         if ($state -eq 'open') { Write-Sub 'Kết nối tới máy in: được.' }
         elseif ($state -and $p.Kind -eq 'connection') {
-            Add-Finding bad ("Máy in '{0}': không vào được máy chia sẻ {1} ({2})." -f $p.Name, $p.Address, $(if ($state -eq 'noname') { 'không tìm thấy tên máy' } else { 'cổng 445 ' + $script:PortStateText[$state] })) -Hint 'Máy đó phải đang bật, cùng mạng; trên máy đó chạy "Bật chia sẻ file và máy in".'
+            Add-Finding -Ma 'MAY_IN_KHONG_VAO_MAY_CHIA_SE' bad ("Máy in '{0}': không vào được máy chia sẻ {1} ({2})." -f $p.Name, $p.Address, $(if ($state -eq 'noname') { 'không tìm thấy tên máy' } else { 'cổng 445 ' + $script:PortStateText[$state] })) -Hint 'Máy đó phải đang bật, cùng mạng; trên máy đó chạy "Bật chia sẻ file và máy in".'
         } elseif ($state -eq 'closed') {
-            Add-Finding warn ("Máy in '{0}': {1} có trả lời nhưng cổng {2} đóng, IP có thể đã thuộc thiết bị khác." -f $p.Name, $p.Address, $port) -Fix 'them-may-in-ip' -Hint 'Xem IP trên màn hình máy in hoặc in trang cấu hình mạng, rồi thêm lại bằng IP đó.'
+            Add-Finding -Ma 'MAY_IN_CONG_DONG' warn ("Máy in '{0}': {1} có trả lời nhưng cổng {2} đóng, IP có thể đã thuộc thiết bị khác." -f $p.Name, $p.Address, $port) -Fix 'them-may-in-ip' -Hint 'Xem IP trên màn hình máy in hoặc in trang cấu hình mạng, rồi thêm lại bằng IP đó.'
         } elseif ($state) {
-            Add-Finding bad ("Máy in '{0}': không kết nối được {1}:{2} (máy in tắt, đã đổi IP, hoặc khác mạng)." -f $p.Name, $p.Address, $port) -Fix 'them-may-in-ip' -Hint 'Xem IP trên màn hình máy in hoặc in trang cấu hình mạng, rồi thêm lại bằng IP đó.'
+            Add-Finding -Ma 'MAY_IN_KHONG_KET_NOI' bad ("Máy in '{0}': không kết nối được {1}:{2} (máy in tắt, đã đổi IP, hoặc khác mạng)." -f $p.Name, $p.Address, $port) -Fix 'them-may-in-ip' -Hint 'Xem IP trên màn hình máy in hoặc in trang cấu hình mạng, rồi thêm lại bằng IP đó.'
         }
 
         if (-not ($p.Kind -eq 'connection' -and $state -ne 'open')) {
@@ -249,22 +258,22 @@ function Show-PrinterSection {
                 $old = @($jobs | Where-Object { $_.SubmittedTime -and $_.SubmittedTime -lt (Get-Date).AddMinutes(-30) })
                 $err = @($jobs | Where-Object { [string]$_.JobStatus -match 'Error|Deleting|Blocked|Offline|PaperOut|UserIntervention' })
                 Write-Sub ('Hàng đợi: {0} lệnh in{1}{2}.' -f $jobs.Count, $(if ($err) { ", $($err.Count) lệnh báo lỗi" } else { '' }), $(if ($old) { ", $($old.Count) lệnh chờ quá 30 phút" } else { '' }))
-                if ($err -or $old) { Add-Finding warn ("Máy in '{0}' có lệnh in bị kẹt." -f $p.Name) -Fix 'sua-hang-doi' }
+                if ($err -or $old) { Add-Finding -Ma 'LENH_IN_KET' warn ("Máy in '{0}' có lệnh in bị kẹt." -f $p.Name) -Fix 'sua-hang-doi' }
             }
         }
         if (Get-CopyBaseName $p.Name $names) { $copies += $p.Name }
-        if ($p.WorkOffline) { Add-Finding warn ("Máy in '{0}' đang bật 'Dùng máy in ngoại tuyến' (Use Printer Offline): lệnh in chỉ nằm chờ." -f $p.Name) -Fix 'sua-hang-doi' }
+        if ($p.WorkOffline) { Add-Finding -Ma 'MAY_IN_NGOAI_TUYEN' warn ("Máy in '{0}' đang bật 'Dùng máy in ngoại tuyến' (Use Printer Offline): lệnh in chỉ nằm chờ." -f $p.Name) -Fix 'sua-hang-doi' }
         $flags = @(($p.Status -split ',\s*') | Where-Object { $_ -in $script:PrinterBadStatus })
-        if ($flags -contains 'Paused') { Add-Finding warn ("Máy in '{0}' đang tạm dừng (Pause)." -f $p.Name) -Fix 'sua-hang-doi' }
-        elseif ($flags) { Add-Finding warn ("Máy in '{0}' báo: {1}." -f $p.Name, (Get-PrinterStatusText $p.Status)) -Hint 'Kiểm tra giấy, mực, nắp và đèn báo trên máy in.' }
+        if ($flags -contains 'Paused') { Add-Finding -Ma 'MAY_IN_TAM_DUNG' warn ("Máy in '{0}' đang tạm dừng (Pause)." -f $p.Name) -Fix 'sua-hang-doi' }
+        elseif ($flags) { Add-Finding -Ma 'MAY_IN_BAO_LOI' warn ("Máy in '{0}' báo: {1}." -f $p.Name, (Get-PrinterStatusText $p.Status)) -Hint 'Kiểm tra giấy, mực, nắp và đèn báo trên máy in.' }
         if ($p.Kind -eq 'wsd') {
-            Add-Finding info ("Máy in '{0}' dùng cổng WSD (tự dò): hay mất kết nối khi máy in đổi IP hoặc ngủ." -f $p.Name) -Fix 'them-may-in-ip' -Hint 'Nên đặt IP cố định cho máy in rồi thêm lại bằng IP.'
+            Add-Finding -Ma 'MAY_IN_CONG_WSD' info ("Máy in '{0}' dùng cổng WSD (tự dò): hay mất kết nối khi máy in đổi IP hoặc ngủ." -f $p.Name) -Fix 'them-may-in-ip' -Hint 'Nên đặt IP cố định cho máy in rồi thêm lại bằng IP.'
         }
         if ($p.Snmp -and $p.Status -match 'Offline') {
-            Add-Finding info ("Máy in '{0}' báo Offline và cổng đang bật SNMP: máy in không trả lời SNMP thì Windows báo Offline dù vẫn in được." -f $p.Name) -Hint 'Thuộc tính máy in > Ports > Configure Port > bỏ chọn "SNMP Status Enabled".'
+            Add-Finding -Ma 'MAY_IN_SNMP_OFFLINE' info ("Máy in '{0}' báo Offline và cổng đang bật SNMP: máy in không trả lời SNMP thì Windows báo Offline dù vẫn in được." -f $p.Name) -Hint 'Thuộc tính máy in > Ports > Configure Port > bỏ chọn "SNMP Status Enabled".'
         }
     }
-    if ($copies) { Add-Finding warn ('Có {0} máy in trùng: {1}.' -f $copies.Count, ($copies -join '; ')) -Fix 'xoa-may-in-trung' }
+    if ($copies) { Add-Finding -Ma 'MAY_IN_TRUNG' warn ('Có {0} máy in trùng: {1}.' -f $copies.Count, ($copies -join '; ')) -Fix 'xoa-may-in-trung' }
     if (-not $real) { Write-Info 'Chưa có máy in thật nào, chỉ có máy in ảo (Microsoft Print to PDF...).' }
     elseif ($real.Count -ge 2 -and (Get-RegValue 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Windows' 'LegacyDefaultPrinterMode') -ne 1) {
         Write-Info 'Windows tự đổi máy in mặc định theo máy in dùng gần nhất. Tắt ở Settings > Printers & scanners > "Let Windows manage my default printer".'
@@ -275,7 +284,7 @@ function Show-PrinterSection {
         $files = @(Get-ChildItem -LiteralPath $spool -File -ErrorAction Stop)
         $mb = ($files | Measure-Object Length -Sum).Sum / 1MB
         Write-Line ('Thư mục hàng đợi {0}: {1} file ({2:N1} MB).' -f $spool, $files.Count, $mb)
-        if ($files.Count -and -not $jobsAll) { Add-Finding warn ('Thư mục hàng đợi còn {0} file sót dù không có lệnh in nào.' -f $files.Count) -Fix 'sua-hang-doi' }
+        if ($files.Count -and -not $jobsAll) { Add-Finding -Ma 'HANG_DOI_FILE_SOT' warn ('Thư mục hàng đợi còn {0} file sót dù không có lệnh in nào.' -f $files.Count) -Fix 'sua-hang-doi' }
     } catch { Write-Info 'Không xem được thư mục hàng đợi in (cần quyền Admin).' }
 
     $drivers = @(Get-PrinterDriver -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch $script:VirtualDrivers } | ForEach-Object { '{0} (v{1})' -f $_.Name, $_.MajorVersion } | Select-Object -Unique)
@@ -286,14 +295,14 @@ function Show-PointAndPrintSection {
     $pp = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Printers\PointAndPrint'
     $restrict = Get-RegValue $pp 'RestrictDriverInstallationToAdministrators'
     if ($restrict -eq 0) {
-        Add-Finding warn 'Đã tắt yêu cầu quyền Admin khi cài driver máy in qua mạng (RestrictDriverInstallationToAdministrators = 0): mở lại lỗ hổng PrintNightmare.' -Hint 'Xoá giá trị này (registry hoặc Group Policy) khi không còn cần.'
+        Add-Finding -Ma 'CAI_DRIVER_KHONG_CAN_ADMIN' warn 'Đã tắt yêu cầu quyền Admin khi cài driver máy in qua mạng (RestrictDriverInstallationToAdministrators = 0): mở lại lỗ hổng PrintNightmare.' -Hint 'Xoá giá trị này (registry hoặc Group Policy) khi không còn cần.'
     } else {
         Write-Line 'Cài driver khi kết nối máy in chia sẻ: chỉ Admin được cài (mặc định an toàn từ 2021).'
         Write-Sub 'Người dùng thường hay gặp lỗi 0x00000BCB hoặc hộp hỏi mật khẩu Admin: dùng "Kết nối máy in chia sẻ" của công cụ (chạy quyền Admin).'
     }
     $rpc = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC'
     if ((Get-RegValue $rpc 'RpcUseNamedPipeProtocol') -eq 1) {
-        Add-Finding info 'Đang nới: kết nối máy in chia sẻ dùng RPC qua named pipe (RpcUseNamedPipeProtocol = 1).' -Hint 'Chỉ cần khi máy chia sẻ là Windows cũ. Bỏ bằng "Hoàn tác" khi không còn cần.'
+        Add-Finding -Ma 'DANG_NOI_RPC_NAMED_PIPE' info 'Đang nới: kết nối máy in chia sẻ dùng RPC qua named pipe (RpcUseNamedPipeProtocol = 1).' -Hint 'Chỉ cần khi máy chia sẻ là Windows cũ. Bỏ bằng "Hoàn tác" khi không còn cần.'
     } else {
         Write-Line 'Kết nối máy in chia sẻ: RPC qua TCP (mặc định từ Windows 11 22H2).'
     }
@@ -302,7 +311,7 @@ function Show-PointAndPrintSection {
         if ($null -ne $v) { Write-Sub "Chính sách $n = $v" }
     }
     if ((Get-RegValue 'HKLM:\SYSTEM\CurrentControlSet\Control\Print' 'RpcAuthnLevelPrivacyEnabled') -eq 0) {
-        Add-Finding info 'Đang nới: tắt mã hoá RPC khi máy khác in qua máy này (RpcAuthnLevelPrivacyEnabled = 0, cách tạm cho lỗi 0x0000011B).' -Hint 'Bỏ bằng "Hoàn tác" khi các máy khác đã cập nhật Windows.'
+        Add-Finding -Ma 'DANG_TAT_MA_HOA_RPC' info 'Đang nới: tắt mã hoá RPC khi máy khác in qua máy này (RpcAuthnLevelPrivacyEnabled = 0, cách tạm cho lỗi 0x0000011B).' -Hint 'Bỏ bằng "Hoàn tác" khi các máy khác đã cập nhật Windows.'
     } else {
         Write-Line 'Mã hoá RPC khi máy khác in qua máy này: bật (mặc định).'
     }
@@ -328,13 +337,13 @@ function Show-MappingSection {
             if ($live[$m.Letter]) { $extra += "trạng thái $($live[$m.Letter])" }
             Write-Line ('{0} → {1}{2}' -f $m.Letter, $m.Remote, $(if ($extra) { ' (' + ($extra -join ', ') + ')' } else { '' }))
             if ($st -and $st -ne 'open') {
-                Add-Finding warn ("Ổ {0}: không vào được máy {1} ({2})." -f $m.Letter, $u.Host, $(if ($st -eq 'noname') { 'không tìm thấy tên máy' } else { 'cổng 445 ' + $script:PortStateText[$st] })) -Hint 'Máy đó phải đang bật và cùng mạng. Tên máy không tìm được thì gắn lại ổ bằng IP.'
+                Add-Finding -Ma 'O_MANG_KHONG_VAO_DUOC' warn ("Ổ {0}: không vào được máy {1} ({2})." -f $m.Letter, $u.Host, $(if ($st -eq 'noname') { 'không tìm thấy tên máy' } else { 'cổng 445 ' + $script:PortStateText[$st] })) -Hint 'Máy đó phải đang bật và cùng mạng. Tên máy không tìm được thì gắn lại ổ bằng IP.'
             }
         }
         foreach ($grp in @($maps | Where-Object { $_.User } | Group-Object { $h = Split-UncPath $_.Remote; if ($h) { $h.Host.ToUpperInvariant() } else { '' } })) {
             $users = @($grp.Group | ForEach-Object { $_.User.ToLowerInvariant() } | Select-Object -Unique)
             if ($grp.Name -and $users.Count -gt 1) {
-                Add-Finding warn ("Các ổ mạng tới máy {0} dùng {1} tài khoản khác nhau: Windows sẽ báo lỗi 1219." -f $grp.Name, $users.Count) -Hint 'Dùng một tài khoản cho mỗi máy, hoặc gắn ổ bằng IP cho tài khoản thứ hai.'
+                Add-Finding -Ma 'O_MANG_NHIEU_TAI_KHOAN' warn ("Các ổ mạng tới máy {0} dùng {1} tài khoản khác nhau: Windows sẽ báo lỗi 1219." -f $grp.Name, $users.Count) -Hint 'Dùng một tài khoản cho mỗi máy, hoặc gắn ổ bằng IP cho tài khoản thứ hai.'
             }
         }
     } else {
@@ -372,7 +381,7 @@ function Show-RemoteHostSection {
     $addrs = $null
     try { $addrs = @(Resolve-HostAddress $hostName) } catch { }
     if (-not $addrs) {
-        Add-Finding bad "Không tìm thấy máy '$hostName' trong mạng." -Hint 'Kiểm tra lại tên. Tên máy không tìm được thì dùng địa chỉ IP của máy đó.'
+        Add-Finding -Ma 'MAY_KHONG_TIM_THAY' bad "Không tìm thấy máy '$hostName' trong mạng." -Hint 'Kiểm tra lại tên. Tên máy không tìm được thì dùng địa chỉ IP của máy đó.'
         return
     }
     $ip = $addrs[0]
@@ -393,28 +402,28 @@ function Show-RemoteHostSection {
                 }
             } else { Write-Info "Máy $hostName không chia sẻ thư mục hay máy in nào mà tài khoản này thấy được." }
             if (@($sl.Shares | Where-Object { $_.Kind -eq 'may-in' }) -and $ports[135] -ne 'open') {
-                Add-Finding warn "Máy $hostName chia sẻ máy in nhưng cổng 135 (RPC) không mở: kết nối máy in sẽ lỗi." -Hint 'Trên máy đó chạy "Bật chia sẻ file và máy in".'
+                Add-Finding -Ma 'MAY_CHU_RPC_DONG' warn "Máy $hostName chia sẻ máy in nhưng cổng 135 (RPC) không mở: kết nối máy in sẽ lỗi." -Hint 'Trên máy đó chạy "Bật chia sẻ file và máy in".'
             }
         } else {
             $h = $script:ErrorHelp[[string]$sl.Code]
             $what = if ($h) { (Get-ErrorMeaning $sl.Code).TrimEnd('.') } else { 'Windows báo lỗi' }
-            Add-Finding bad ('Không vào được máy {0}: {1} (lỗi {2}).' -f $hostName, $what, (Format-ErrorCode $sl.Code)) -Fix (Get-FixForCode $sl.Code) -Hint $(if ($h) { $h[1] } else { '' })
+            Add-Finding -Ma 'MAY_CHU_TU_CHOI' bad ('Không vào được máy {0}: {1} (lỗi {2}).' -f $hostName, $what, (Format-ErrorCode $sl.Code)) -Fix (Get-FixForCode $sl.Code) -Hint $(if ($h) { $h[1] } else { '' })
         }
     } elseif ($ports[139] -eq 'open') {
-        Add-Finding warn "Máy $hostName chỉ mở cổng 139, không mở 445: thiết bị rất cũ, có thể chỉ hỗ trợ SMB1." -Hint 'Không bật SMB1. Cập nhật firmware thiết bị hoặc chép file bằng cách khác.'
+        Add-Finding -Ma 'MAY_CHU_CHI_SMB1' warn "Máy $hostName chỉ mở cổng 139, không mở 445: thiết bị rất cũ, có thể chỉ hỗ trợ SMB1." -Hint 'Không bật SMB1. Cập nhật firmware thiết bị hoặc chép file bằng cách khác.'
     } elseif (-not $isPrinter -and ($ports[80] -eq 'open' -or $ports[443] -eq 'open')) {
-        Add-Finding warn "$hostName chỉ mở trang quản trị web (cổng 80/443), không chia sẻ thư mục và không nhận lệnh in: có thể là router, camera, hoặc máy in chưa bật in qua mạng." -Hint ('Mở http://{0} trong trình duyệt để xem đó là thiết bị gì. Máy in: bật in qua mạng (RAW 9100 hoặc IPP) trong trang đó. Máy tính: chạy "Bật chia sẻ file và máy in" trên máy đó.' -f $ip)
+        Add-Finding -Ma 'MAY_CHU_CHI_WEB' warn "$hostName chỉ mở trang quản trị web (cổng 80/443), không chia sẻ thư mục và không nhận lệnh in: có thể là router, camera, hoặc máy in chưa bật in qua mạng." -Hint ('Mở http://{0} trong trình duyệt để xem đó là thiết bị gì. Máy in: bật in qua mạng (RAW 9100 hoặc IPP) trong trang đó. Máy tính: chạy "Bật chia sẻ file và máy in" trên máy đó.' -f $ip)
     } elseif (-not $isPrinter) {
         $why = switch ($ports[445]) {
             'closed' { 'máy có trả lời nhưng cổng 445 đóng (chưa bật chia sẻ, dịch vụ Server tắt)' }
             'unreachable' { 'khác mạng với máy này' }
             default { 'cổng 445 không phản hồi (máy tắt, tường lửa chặn, hoặc mạng Public trên máy đó)' }
         }
-        Add-Finding bad "Không vào được thư mục, máy in chia sẻ trên $hostName`: $why." -Hint 'Trên máy đó chạy "Bật chia sẻ file và máy in" của công cụ này.'
+        Add-Finding -Ma 'MAY_CHU_KHONG_VAO_DUOC' bad "Không vào được thư mục, máy in chia sẻ trên $hostName`: $why." -Hint 'Trên máy đó chạy "Bật chia sẻ file và máy in" của công cụ này.'
     }
     if ($isPrinter) {
         $how = if ($ports[631] -eq 'open') { 'IPP, không cần driver hãng' } elseif ($ports[9100] -eq 'open') { 'cổng 9100, cần driver hãng' } else { 'LPR' }
-        Add-Finding info "$hostName là máy in mạng (in được qua $how)." -Fix 'them-may-in-ip' -Hint "Thêm bằng địa chỉ $ip."
+        Add-Finding -Ma 'MAY_IN_MANG' info "$hostName là máy in mạng (in được qua $how)." -Fix 'them-may-in-ip' -Hint "Thêm bằng địa chỉ $ip."
     }
 }
 
@@ -438,7 +447,7 @@ function Show-EventSection {
             $guest = $null
             try { $guest = Get-WinEvent -FilterHashtable @{ LogName = $log; Id = 31017; StartTime = $since } -MaxEvents 1 -ErrorAction Stop } catch { }
             if ($guest) {
-                Add-Finding warn 'Windows đã chặn đăng nhập khách vào thư mục chia sẻ (sự kiện 31017).' -Fix 'noi-bao-mat' -Hint 'Cách an toàn: vào bằng tài khoản có mật khẩu của máy/NAS chia sẻ ("Kết nối thư mục chia sẻ" có ô Tài khoản).'
+                Add-Finding -Ma 'CHAN_DANG_NHAP_KHACH' warn 'Windows đã chặn đăng nhập khách vào thư mục chia sẻ (sự kiện 31017).' -Fix 'noi-bao-mat' -Hint 'Cách an toàn: vào bằng tài khoản có mật khẩu của máy/NAS chia sẻ ("Kết nối thư mục chia sẻ" có ô Tài khoản).'
             }
         }
     }

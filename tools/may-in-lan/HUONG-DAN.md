@@ -39,6 +39,10 @@ mục 7 phải chạy quyền thường để ổ mạng hiện trong File Explo
 Báo cáo: `ket_qua\BaoCao_MayIn_<tên máy>_<ngày giờ>.txt`. Đọc phần **KẾT LUẬN** cuối báo cáo trước: lỗi xếp
 theo thứ tự nên xử lý, kèm nút cần chạy.
 
+Kèm theo là `ket_qua\KetQua_MayIn_ChanDoan_<tên máy>_<ngày giờ>.json` theo chuẩn `tramtool.ketqua/1` (xem
+`docs\THEM-CONG-CU.md`): mỗi lỗi một mã cố định (`SPOOLER_DUNG`, `MANG_PUBLIC`, `MAY_IN_TRUNG`, `LENH_IN_KET`,
+`MAY_CHU_TU_CHOI`...), Trạm Tool hiện từng lỗi kèm nút sửa.
+
 Chạy bằng quyền Admin để đọc đủ nhật ký và tường lửa (Trạm Tool tự xin). Khi UAC hỏi mật khẩu của một tài
 khoản Admin khác, báo cáo ghi cảnh báo: ổ mạng và mật khẩu đã lưu đọc được là của tài khoản Admin đó.
 
