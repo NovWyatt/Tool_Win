@@ -213,6 +213,11 @@ vì sẽ đè thiết lập hiện tại (cả hồ sơ Outlook). Bản sao lưu
 
 - Mỗi lần gỡ, cài, kích hoạt, trả lại ghi nhật ký `ket_qua\NhatKy_Office_<tên máy>_<ngày giờ>.txt`, kể cả khi lỗi.
   Chạy thử không ghi nhật ký.
+- Mỗi lần chạy (trừ khi bạn huỷ) ghi thêm `ket_qua\KetQua_Office_<chế độ>_<tên máy>_<ngày giờ>.json` theo chuẩn
+  `tramtool.ketqua/1` (xem `docs\THEM-CONG-CU.md`). Kiểm tra ghi từng điều tìm thấy với mã cố định (`CHUA_KICH_HOAT`,
+  `NHIEU_KIEU_OFFICE`, `MAU_HONG`, `CON_SOT_C2R`, `KMS_NGOAI_DOMAIN`...) kèm nút chạy tiếp khi có (vd chưa kích hoạt
+  thì gợi ý *Kích hoạt Office*); gỡ, cài, kích hoạt, trả lại chưa xong thì ghi dòng lỗi đã in. File này cũng không có
+  khoá sản phẩm.
 - Nhật ký của ODT khi gỡ: `ket_qua\nhat-ky-odt\`. Khi cài: thư mục ghi ở thẻ `<Logging>` của file cấu hình, không có
   thì `%TEMP%` của tài khoản chạy cài đặt. Nhật ký ODT có thể chứa khoá sản phẩm: đừng gửi công khai.
 - ODT báo lỗi khi cài: thường do còn Office cũ (chạy *Gỡ sạch Office cũ rồi cài theo mẫu*), mẫu thiếu bộ cài mà mạng

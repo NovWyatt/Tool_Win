@@ -64,6 +64,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `checkwinfix/3_ThuThap` | chạy thật phần PowerShell của Thu thập thông tin bằng quyền thường (`-KhongHoi`, không mở Notepad), báo cáo và JSON vào thư mục tạm, khoảng 1,5 phút |
 | `don-o-c/2_ChayThat` | Xem ổ C thật (chỉ đọc, đo dung lượng), Dọn rác của bạn ở chế độ chạy thử (đo rồi dừng trước bước hỏi xoá); báo cáo và JSON kết quả vào thư mục tạm (`DOC_KET_QUA`) |
 | `fix-win/2_ChayThuThat` | Quét ổ đĩa, đặt lại mạng, Windows Update ở chế độ chạy thử (đọc sức khoẻ ổ vật lý, IP và DNS đặt tay; không hỏi UAC, không đổi máy), JSON kết quả vào thư mục tạm (`FIX_KET_QUA`); chế độ sai, đã nâng quyền mà thiếu quyền |
+| `office/2_KiemTraThat` | Kiểm tra Office thật (chỉ đọc: Office, giấy phép, ứng dụng đang mở) với thư mục mẫu rỗng nên không đọc tới bộ cài mẫu thật; Gỡ sạch ở chế độ chạy thử (không hỏi UAC, không gỡ gì); báo cáo và JSON kết quả vào thư mục tạm (`OFFICE_KET_QUA`), không có chuỗi dạng khoá sản phẩm |
 | `gio-chu-ky-so/2_ChayThat` | Kiểm tra thật (hỏi máy chủ giờ qua mạng, đọc dịch vụ, đầu đọc thẻ, kho chứng thư của tài khoản; không hỏi PIN); Sửa giờ, Sửa token, Trả lại ở chế độ chạy thử; so cấu hình giờ, dịch vụ trước và sau |
 | `bo-ung-dung/2_ChayThat` | Kiểm tra thật (`winget export`, chỉ đọc); Cài, Cập nhật ở chế độ chạy thử (không hỏi UAC, không cài gì); cờ lạ, chế độ sai; so danh sách phần mềm đã cài trước và sau |
 | `toi-uu/3_ToiUu` | Kiểm tra dịch vụ nền thật (chỉ đọc); phần đồng hồ chạy `-ChayThu` nên không hỏi UAC, `bcdedit /enum` bị từ chối khi không có quyền Admin |
@@ -78,7 +79,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `tram` | lan can an toàn (điểm khôi phục, trả lại trạng thái, sửa winget), mã thoát qua Launcher, tham số từ `tool.json`, CaiDat; `5_KetQua`: đọc file kết quả (chuẩn và cách ghi cũ), gắn vào lần chạy, mã 2/3 trong Lịch sử, theo dõi công cụ tự nâng quyền, máy chủ giao diện web giả (`server.json`, mở lại, tắt, đang bận) |
 | `new-windows` | mã hoá AES/HMAC, zip, xuất/nhập giữa hai "máy" giả, không lộ mật khẩu ra đĩa, chạy thử, hết đầu vào, hai `.bat` |
 | `myexcelfix` | sửa rồi hoàn tác trên bộ MyExcel giả, hết đầu vào giữa chừng, manifest cũ, kiểm tra chỉ đọc; JSON kết quả theo chuẩn của trạm (gợi ý chạy tiếp, trạm đọc lại khớp); nơi lưu riêng của tài khoản (sao lưu, báo cáo, chuyển file cũ khỏi Public Documents), che số và tên chủ tài khoản, `HOAN_TAC.bat` không tham số liệt kê bản sao lưu |
-| `office` | che khoá sản phẩm, đọc mẫu, gỡ, cài, kích hoạt (ODT, giấy phép, tiến trình đều giả) |
+| `office` | che khoá sản phẩm, đọc mẫu, gỡ, cài, kích hoạt (ODT, giấy phép, tiến trình đều giả); mọi chỗ ghi phát hiện của Kiểm tra có mã, JSON kết quả (thứ tự, nút chạy tiếp, chạy thử, thiếu quyền Admin, huỷ thì không ghi, lỗi lạ, khoá bị che) |
 | `bitlocker` | lưu khoá, tạm dừng, bật lại, mở khoá, giải mã, hoàn tác trên ổ giả; khoá không lọt vào báo cáo, nhật ký, JSON kết quả; mỗi phát hiện của Kiểm tra có mã riêng, nút gợi ý trỏ tới chế độ có thật |
 | `don-o-c` | danh sách cho phép xoá, xoá theo tuổi file, junction, trình duyệt, WinSxS (trong thư mục cát); mọi chỗ ghi phát hiện có mã, JSON kết quả (cùng mức thì mục lớn lên trước) |
 | `github-logout` | đọc `cmdkey /list` (cả Windows tiếng Việt), chia mục Git / GitHub CLI / ứng dụng khác, xoá, đọc lại, chạy thử (Credential Manager giả) |

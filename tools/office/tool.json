@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "office",
   "name": "Gỡ sạch và cài Office theo mẫu",
-  "version": "1.0",
+  "version": "1.1",
   "category": "van-phong",
   "icon": "apps",
   "audience": "tech",
@@ -189,7 +189,8 @@
       "label": "Sao lưu mẫu Word, macro, chữ ký", "dir": "ket_qua\\sao-luu", "glob": "SaoLuu_*", "type": "folder",
       "deleteNote": "\"Trả lại mẫu Word, macro, chữ ký đã sao lưu\" cần thư mục này; xoá rồi thì không trả lại được bản này nữa. Thư mục có thể có thiết lập Office (Office.reg) kèm tên tài khoản, email."
     },
-    { "label": "Nhật ký của Office Deployment Tool khi gỡ", "dir": "ket_qua\\nhat-ky-odt", "glob": "*.log" }
+    { "label": "Nhật ký của Office Deployment Tool khi gỡ", "dir": "ket_qua\\nhat-ky-odt", "glob": "*.log" },
+    { "label": "Kết quả", "dir": "ket_qua", "glob": "KetQua_Office_*_%COMPUTERNAME%_*.json", "ketQua": true }
   ],
   "pack": {
     "name": "Office",

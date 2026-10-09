@@ -5,6 +5,7 @@
   Chế độ: kiem-tra, go-va-cai, go-sach, cai-dat, kich-hoat, tra-lai.
   Mẫu: -Mau <thư mục>, không có thì tìm tools\office\mau rồi "<ổ>:\Program Files\Microsoft Office" có setup.exe.
   -ChayThu: chỉ xem sẽ làm gì, không thay đổi máy. Báo cáo, nhật ký, bản sao lưu nằm trong ket_qua\.
+  Mỗi lần chạy (trừ khi huỷ) ghi thêm ket_qua\KetQua_Office_<chế độ>_<máy>_<giờ>.json cho Trạm Tool.
   Khoá sản phẩm trong file cấu hình không bao giờ được in, ghi báo cáo hay chép đi đâu: công cụ chạy file cấu hình tại chỗ.
   Khoá nhập ở bước kích hoạt chỉ gõ trong cửa sổ công cụ (không hiện khi gõ), không nhận qua tham số.
   Mã thoát: 0 xong, 1 lỗi, 2 thiếu điều kiện (mẫu hỏng, thiếu quyền Admin), 3 làm được một phần, 1223 người dùng huỷ.
@@ -23,7 +24,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $script:ToolDir = $PSScriptRoot
 $script:MainScript = $PSCommandPath
-$script:ToolVersion = '1.0'
+$script:ToolVersion = '1.1'
 . (Join-Path $PSScriptRoot 'lib\Chung.ps1')
 . (Join-Path $PSScriptRoot 'lib\DocOffice.ps1')
 . (Join-Path $PSScriptRoot 'lib\SaoLuu.ps1')
@@ -77,8 +78,9 @@ function Invoke-Mode {
 function Invoke-ModeSafe {
     # Chạy một chế độ; lỗi không lường trước thì in ra và trả mã 1 thay vì đóng cửa sổ.
     # Chế độ có thay đổi (không phải chạy thử): ghi nhật ký ket_qua\NhatKy_Office_<máy>_<thời gian>.txt kể cả khi lỗi.
+    # Rồi ghi file kết quả JSON cho Trạm Tool (người dùng huỷ thì không ghi).
     param([string]$Id, [hashtable]$O)
-    $script:Report.Clear(); $script:Findings.Clear()
+    $script:Report.Clear(); $script:Findings.Clear(); $script:LastReport = ''
     $started = Get-Date
     $code = 1
     try {
@@ -87,14 +89,19 @@ function Invoke-ModeSafe {
     } catch {
         Write-Bad ('Lỗi không lường trước: {0}' -f $_.Exception.Message.Trim())
         Write-Sub (([string]$_.InvocationInfo.PositionMessage).Split("`n")[0])
+        [void]$script:Findings.Add([pscustomobject]@{ Ma = 'LOI_KHONG_LUONG_TRUOC'; Level = 'bad'; Text = ('Lỗi không lường trước: {0}' -f $_.Exception.Message.Trim()); Fix = ''; Hint = '' })
         $code = 1
     } finally {
         $log = $script:Modes[$Id].Log
+        $files = @()
+        if ($script:LastReport) { $files += @{ nhan = 'Báo cáo kiểm tra'; duongDan = $script:LastReport } }
         if ($log -and -not $O.ChayThu -and $script:Report.Count) {
             Write-Out ''
             Write-Out ('Kết thúc {0:dd/MM/yyyy HH:mm}, mã {1}.' -f (Get-Date), $code)
-            [void](Save-Report $log $started)
+            $p = Save-Report $log $started
+            if ($p) { $files += @{ nhan = 'Nhật ký'; duongDan = $p } }
         }
+        if ($code -ne 1223) { [void](Save-RunResult -CheDo $Id -Code $code -Start $started -DryRun ([bool]$O.ChayThu) -Files $files) }
     }
     return $code
 }

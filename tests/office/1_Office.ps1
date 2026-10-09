@@ -766,4 +766,145 @@ Reset-Test; Set-InstallScene 1
 $code = Invoke-InstallSteps $T
 Check 'T22g không có Access Database Engine: không đọc lại Office' ($code -eq 0 -and (Calls-Like '^STATE$').Count -eq 0)
 
+# ================================================================= T23 file kết quả JSON cho Trạm Tool
+# Invoke-Mode, Invoke-ModeSafe lấy nguyên từ Office.ps1 (không chạy phần bắt đầu của script).
+$mainAst = [Management.Automation.Language.Parser]::ParseFile("$repo\Office.ps1", [ref]$null, [ref]$null)
+foreach ($fn in 'Invoke-Mode', 'Invoke-ModeSafe') {
+    $def = $mainAst.Find({ param($a) $a -is [Management.Automation.Language.FunctionDefinitionAst] -and $a.Name -eq $fn }, $true)
+    . ([scriptblock]::Create($def.Extent.Text))
+}
+foreach ($k in @($script:Modes.Keys)) { $script:Modes[$k].Log = $(if ($k -eq 'kiem-tra') { '' } else { 'NhatKy_Office' }) }
+$kq = "$script:ToolDir\ket_qua"
+function Clear-KetQua { Get-ChildItem -LiteralPath $kq -Filter '*Office_*' -File -ErrorAction SilentlyContinue | ForEach-Object { [IO.File]::Delete($_.FullName) } }
+function Get-KetQua([string]$Name) {
+    $f = @(Get-ChildItem -LiteralPath $kq -Filter "KetQua_Office_$($Name)_*.json" -ErrorAction SilentlyContinue)
+    if ($f.Count -ne 1) { return $null }
+    $b = [IO.File]::ReadAllBytes($f[0].FullName)
+    $txt = [IO.File]::ReadAllText($f[0].FullName)
+    return [pscustomobject]@{ Path = $f[0].FullName; Text = $txt; J = ($txt | ConvertFrom-Json); Bom = ($b.Count -ge 3 -and $b[0] -eq 0xEF -and $b[1] -eq 0xBB) }
+}
+function Test-Order($J) {
+    $rank = @{ loi = 0; 'canh-bao' = 1; 'thong-tin' = 2; ok = 3 }
+    $r = @($J.phatHien | ForEach-Object { $rank[[string]$_.mucDo] })
+    for ($i = 1; $i -lt $r.Count; $i++) { if ($r[$i] -lt $r[$i - 1]) { return $false } }
+    $n = @{}
+    foreach ($m in 'loi', 'canh-bao', 'thong-tin') { $n[$m] = @($J.phatHien | Where-Object { $_.mucDo -eq $m }).Count }
+    $ma = if ($n['loi']) { 'CO_LOI' } elseif ($n['canh-bao']) { 'CO_CANH_BAO' } else { 'KHONG_CO_LOI' }
+    return ($J.tomTat.loi -eq $n['loi'] -and $J.tomTat.canhBao -eq $n['canh-bao'] -and $J.tomTat.thongTin -eq $n['thong-tin'] -and $J.ma -eq $ma -and
+        -not @($J.phatHien | Where-Object { $_.ma -notmatch '^[A-Z][A-Z0-9_]+$' }).Count)
+}
+
+Clear-KetQua
+Reset-Test; Set-RemoveScene
+$global:StateQueue.Clear(); $global:StateQueue.Enqueue($global:Before)
+$global:Leftovers = $null
+$code = Invoke-ModeSafe 'kiem-tra' @{ Mau = $ok; CauHinh = ''; ChayThu = $false }
+$r = Get-KetQua 'KiemTra'
+Check 'T23a kiểm tra: một file kết quả' ($code -eq 0 -and $r) "mã $code"
+if ($r) {
+    $j = $r.J
+    $ma = @($j.phatHien | ForEach-Object { $_.ma })
+    Check 'T23a đúng chuẩn, chế độ, phiên bản' ($j.chuan -eq 'tramtool.ketqua/1' -and $j.congCu -eq 'office' -and $j.cheDo -eq 'kiem-tra' -and $j.phienBan -eq $script:ToolVersion -and $j.maThoat -eq 0 -and $j.trangThai -eq 'xong' -and $j.chayThu -eq $false -and $j.may -eq $env:COMPUTERNAME)
+    Check 'T23a UTF-8 không BOM, không còn .tmp' (-not $r.Bom -and -not @(Get-ChildItem -LiteralPath $kq -Filter '*.tmp').Count)
+    Check 'T23a thứ tự, tóm tắt, mã CHU_HOA' (Test-Order $j) ($ma -join ', ')
+    $nk = @($j.phatHien | Where-Object { $_.ma -eq 'NHIEU_KIEU_OFFICE' })
+    Check 'T23a nhiều kiểu Office: nút Gỡ và cài' ($nk.Count -eq 1 -and $nk[0].mucDo -eq 'canh-bao' -and $nk[0].chayTiep.congCu -eq 'office' -and $nk[0].chayTiep.action -eq 'go-va-cai' -and $nk[0].cachSua -match '^Chạy "Gỡ và cài"') ($ma -join ', ')
+    Check 'T23a có lỗi thì không kết luận ổn' (($ma -notcontains 'KHONG_CO_VAN_DE') -and $j.ma -ne 'KHONG_CO_LOI' -and $j.thongDiep -match 'cảnh báo')
+    $tep = @($j.tep)
+    Check 'T23a kèm báo cáo .txt' ($tep.Count -eq 1 -and $tep[0].duongDan -match 'BaoCao_Office_' -and (Microsoft.PowerShell.Management\Test-Path -LiteralPath $tep[0].duongDan)) (($tep | ForEach-Object { $_.duongDan }) -join '|')
+    Check 'T23a kiểm tra không ghi nhật ký' (-not @(Get-ChildItem -LiteralPath $kq -Filter 'NhatKy_Office_*').Count)
+    Assert-NoKey 'T23a JSON' $r.Text
+}
+
+# Không có lỗi, cảnh báo: thêm mục ok KHONG_CO_VAN_DE (gợi ý thông tin vẫn giữ)
+Reset-Test
+Add-Finding -Ma 'OFFICE_KHAC_MAU' info 'Office trên máy khác mẫu.' -Fix 'go-va-cai'
+Show-Conclusion
+$okF = @($script:Findings | Where-Object { $_.Ma -eq 'KHONG_CO_VAN_DE' })
+Check 'T23b không lỗi: thêm mục ok' ($okF.Count -eq 1 -and $okF[0].Level -eq 'ok')
+Clear-KetQua
+$p = Save-RunResult -CheDo 'kiem-tra' -Code 0 -Start (Get-Date)
+$r = Get-KetQua 'KiemTra'
+Check 'T23b không lỗi: KHONG_CO_LOI, ok xếp cuối' ($p -and $r -and $r.J.ma -eq 'KHONG_CO_LOI' -and $r.J.phatHien[-1].ma -eq 'KHONG_CO_VAN_DE' -and $r.J.phatHien[-1].mucDo -eq 'ok' -and $r.J.tomTat.thongTin -eq 1 -and $r.J.thongDiep -match 'Không thấy vấn đề')
+Reset-Test
+Add-Finding -Ma 'CHUA_KICH_HOAT' warn 'Office chưa kích hoạt.' -Fix 'kich-hoat'
+Show-Conclusion
+Check 'T23b có cảnh báo: không thêm mục ok' (-not @($script:Findings | Where-Object { $_.Ma -eq 'KHONG_CO_VAN_DE' }).Count)
+
+# Khoá sản phẩm lọt vào chữ của phát hiện vẫn bị che trong JSON
+Reset-Test; Clear-KetQua
+Add-Finding -Ma 'MAU_HONG' bad ('Cấu hình lỗi gần PIDKEY="{0}".' -f $fakeKey) -Hint ('Khoá {0} sai.' -f $fakeKey)
+$p = Save-RunResult -CheDo 'kiem-tra' -Code 0 -Start (Get-Date)
+$r = Get-KetQua 'KiemTra'
+Check 'T23c che khoá trong JSON' ($r -and $r.Text -match 'khoá đã che')
+if ($r) { Assert-NoKey 'T23c JSON' $r.Text }
+
+# Gỡ sạch chạy thử: chayThu, không nhật ký
+Reset-Test; Clear-KetQua; Set-RemoveScene
+$global:StateQueue.Clear(); $global:StateQueue.Enqueue($global:Before)
+$global:IsAdmin = $false
+$code = Invoke-ModeSafe 'go-sach' @{ Mau = $ok; ChayThu = $true }
+$global:IsAdmin = $true
+$r = Get-KetQua 'GoSach'
+Check 'T23d gỡ chạy thử: chayThu, không nhật ký' ($code -eq 0 -and $r -and $r.J.chayThu -eq $true -and $r.J.trangThai -eq 'xong' -and $r.J.thongDiep -match 'Chạy thử' -and -not @($r.J.tep).Count -and -not @($r.J.phatHien).Count -and -not @(Get-ChildItem -LiteralPath $kq -Filter 'NhatKy_Office_*').Count) "mã $code"
+Check 'T23d gỡ chạy thử: không gỡ gì' ((Calls-Like '^START:|APPXREMOVE|UninstallProductKey|REGDEL').Count -eq 0)
+
+# Thiếu quyền Admin: THIEU_DIEU_KIEN lấy dòng [X] đã in, nút Kiểm tra, kèm nhật ký
+Reset-Test; Clear-KetQua; Set-RemoveScene
+$global:StateQueue.Clear(); $global:StateQueue.Enqueue($global:Before)
+$global:IsAdmin = $false
+$code = Invoke-ModeSafe 'go-sach' @{ Mau = $ok; ChayThu = $false }
+$global:IsAdmin = $true
+$r = Get-KetQua 'GoSach'
+Check 'T23e thiếu Admin: mã 2, thieu-dieu-kien' ($code -eq 2 -and $r -and $r.J.maThoat -eq 2 -and $r.J.trangThai -eq 'thieu-dieu-kien' -and $r.J.ma -eq 'CO_CANH_BAO') "mã $code"
+if ($r) {
+    $f = @($r.J.phatHien)
+    Check 'T23e một mục THIEU_DIEU_KIEN' ($f.Count -eq 1 -and $f[0].ma -eq 'THIEU_DIEU_KIEN' -and $f[0].tieuDe -eq 'Cần quyền Admin để gỡ Office.' -and $f[0].chayTiep.action -eq 'kiem-tra') (($f | ForEach-Object { "$($_.ma): $($_.tieuDe)" }) -join ' | ')
+    $tep = @($r.J.tep)
+    Check 'T23e kèm nhật ký' ($tep.Count -eq 1 -and $tep[0].duongDan -match 'NhatKy_Office_' -and (Microsoft.PowerShell.Management\Test-Path -LiteralPath $tep[0].duongDan))
+}
+
+# Huỷ (không gõ DONG Y): có nhật ký, không có file kết quả
+Reset-Test; Clear-KetQua; Set-RemoveScene
+$global:StateQueue.Clear(); $global:StateQueue.Enqueue($global:Before)
+Answer @('')
+$code = Invoke-ModeSafe 'go-sach' @{ Mau = $ok; ChayThu = $false }
+Check 'T23f huỷ: mã 1223, không ghi kết quả' ($code -eq 1223 -and -not @(Get-ChildItem -LiteralPath $kq -Filter 'KetQua_Office_*').Count -and (Calls-Like '^START:').Count -eq 0) "mã $code"
+
+# Lỗi không lường trước: LOI_KHONG_LUONG_TRUOC, không thêm CHUA_XONG
+Reset-Test; Clear-KetQua
+$savedState = ${function:Get-OfficeState}
+${function:Get-OfficeState} = { throw 'lỗi giả khi đọc Office' }
+$code = Invoke-ModeSafe 'go-sach' @{ Mau = $ok; ChayThu = $false }
+${function:Get-OfficeState} = $savedState
+$r = Get-KetQua 'GoSach'
+Check 'T23g lỗi lạ: mã 1, một mục LOI_KHONG_LUONG_TRUOC' ($code -eq 1 -and $r -and $r.J.trangThai -eq 'loi' -and $r.J.ma -eq 'CO_LOI' -and @($r.J.phatHien).Count -eq 1 -and $r.J.phatHien[0].ma -eq 'LOI_KHONG_LUONG_TRUOC' -and $r.J.phatHien[0].tieuDe -match 'lỗi giả') "mã $code"
+
+# Chỗ ghi phát hiện nào cũng có mã cố định; nút chạy tiếp trỏ tới chế độ có thật trong tool.json
+$manifest = [IO.File]::ReadAllText("$repo\tool.json", [Text.Encoding]::UTF8) | ConvertFrom-Json
+$actionIds = @($manifest.actions | ForEach-Object { $_.id })
+$codes = @(); $bad = @(); $fixes = @(); $n = 0
+foreach ($file in @(Get-ChildItem -LiteralPath "$repo\lib" -Filter '*.ps1') + @(Get-Item -LiteralPath "$repo\Office.ps1")) {
+    $a = [Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$null)
+    foreach ($c in @($a.FindAll({ param($x) $x -is [Management.Automation.Language.CommandAst] -and $x.GetCommandName() -eq 'Add-Finding' }, $true))) {
+        $n++
+        $e = @($c.CommandElements); $ma = $null; $fix = $null
+        for ($i = 1; $i -lt $e.Count - 1; $i++) {
+            if ($e[$i] -is [Management.Automation.Language.CommandParameterAst]) {
+                if ($e[$i].ParameterName -eq 'Ma') { $ma = $e[$i + 1] }
+                if ($e[$i].ParameterName -eq 'Fix') { $fix = $e[$i + 1] }
+            }
+        }
+        if ($ma -isnot [Management.Automation.Language.StringConstantExpressionAst] -or $ma.Value -notmatch '^[A-Z][A-Z0-9_]+$') { $bad += "$($file.Name):$($c.Extent.StartLineNumber)"; continue }
+        $codes += $ma.Value
+        if ($fix) { $fixes += @($fix.FindAll({ param($x) $x -is [Management.Automation.Language.StringConstantExpressionAst] -and $x.StringConstantType -ne 'BareWord' }, $true) | ForEach-Object { $_.Value } | Where-Object { $_ }) }
+    }
+}
+Check 'T23h mọi chỗ ghi phát hiện có -Ma CHU_HOA' ($n -ge 20 -and -not $bad.Count) "$n chỗ; thiếu: $($bad -join ', ')"
+$dup = @($codes | Group-Object | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Name })
+Check 'T23h mã không trùng' (-not $dup.Count) ($dup -join ', ')
+$wrong = @($fixes + 'kiem-tra' | Where-Object { $actionIds -notcontains $_ })
+Check 'T23h nút chạy tiếp trỏ tới chế độ có thật' ($fixes.Count -ge 5 -and -not $wrong.Count) "($($wrong -join ', '))"
+Clear-KetQua
+
 Complete-Test

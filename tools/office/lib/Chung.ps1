@@ -6,6 +6,8 @@ $script:Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $script:Report = New-Object System.Collections.Generic.List[string]
 $script:Findings = New-Object System.Collections.ArrayList
 $script:NoPause = $false
+$script:LastReport = ''
+$script:ResultLevel = @{ bad = 'loi'; warn = 'canh-bao'; info = 'thong-tin'; ok = 'ok' }
 
 # ---------------------------------------------------------------- che khoá sản phẩm
 function Protect-Text {
@@ -34,8 +36,9 @@ function Write-Plan { param([string]$Text) Write-Out "   ->  $Text" 'White' }
 
 function Add-Finding {
     # Điều tìm thấy khi kiểm tra, gom lại cho phần kết luận. Fix: chế độ nên chạy để xử lý (trống nếu phải làm tay).
-    param([ValidateSet('bad', 'warn', 'info')][string]$Level, [string]$Text, [string]$Fix = '', [string]$Hint = '')
-    [void]$script:Findings.Add([pscustomobject]@{ Level = $Level; Text = $Text; Fix = $Fix; Hint = $Hint })
+    # Ma: mã cố định (CHU_HOA) cho Trạm Tool.
+    param([string]$Ma, [ValidateSet('bad', 'warn', 'info')][string]$Level, [string]$Text, [string]$Fix = '', [string]$Hint = '')
+    [void]$script:Findings.Add([pscustomobject]@{ Ma = $Ma; Level = $Level; Text = $Text; Fix = $Fix; Hint = $Hint })
     switch ($Level) { 'bad' { Write-Bad $Text } 'warn' { Write-Warn $Text } default { Write-Info $Text } }
     if ($Hint) { Write-Sub $Hint }
 }
@@ -156,8 +159,9 @@ function Test-SameUser {
 
 function Get-ResultDir {
     # ket_qua\<Sub> trong thư mục công cụ; thư mục công cụ không ghi được (vd chạy từ chỗ chỉ đọc) thì ra Desktop.
+    # OFFICE_KET_QUA: thư mục khác thay cho ket_qua (bài thử).
     param([string]$Sub = '')
-    $d = Join-Path $script:ToolDir 'ket_qua'
+    $d = if ($env:OFFICE_KET_QUA) { $env:OFFICE_KET_QUA } else { Join-Path $script:ToolDir 'ket_qua' }
     if ($Sub) { $d = Join-Path $d $Sub }
     try {
         if (-not (Test-Path -LiteralPath $d)) { [void](New-Item -ItemType Directory -Path $d -Force -ErrorAction Stop) }
@@ -178,9 +182,79 @@ function Save-Report {
         [IO.File]::WriteAllLines($path, $script:Report, $script:Utf8Bom)
         Write-Host ''
         Write-Host "  Đã lưu: $path" -ForegroundColor Green
+        $script:LastReport = $path
         return $path
     } catch {
         Write-Host "  Không lưu được báo cáo: $($_.Exception.Message)" -ForegroundColor Red
+        return ''
+    }
+}
+
+function Save-RunResult {
+    # Ghi ket_qua\KetQua_Office_<chế độ>_<máy>_<giờ>.json theo chuẩn tramtool.ketqua/1: Trạm Tool hiện từng phát hiện
+    # kèm nút chạy chế độ sửa. Mọi chữ qua Protect-Text như báo cáo. Ghi lỗi thì chỉ cảnh báo, không đổi mã thoát.
+    # Gỡ, cài, kích hoạt, trả lại không gom phát hiện: chưa xong thì tóm các dòng [X], [!] đã in thành một mục.
+    param([string]$CheDo, [int]$Code, [datetime]$Start, [bool]$DryRun = $false, [object[]]$Files = @())
+    $list = @($script:Findings)
+    if ($CheDo -ne 'kiem-tra' -and $Code -in 1, 2, 3 -and -not @($list | Where-Object { $_.Level -eq 'bad' }).Count) {
+        $lines = @($script:Report | Where-Object { $_ -match '^\s*\[(X|!)\]\s' } | ForEach-Object { ($_ -replace '^\s*\[(X|!)\]\s+', '').Trim() } | Select-Object -Last 8)
+        $first = @($script:Report | Where-Object { $_ -match '^\s*\[X\]\s' } | Select-Object -First 1)
+        $pick = @{ 1 = @('CHUA_XONG', 'bad', 'Chưa làm xong, xem nhật ký.'); 2 = @('THIEU_DIEU_KIEN', 'warn', 'Chưa làm: thiếu điều kiện.'); 3 = @('LAM_DUOC_MOT_PHAN', 'warn', 'Mới làm được một phần, xem nhật ký.') }[$Code]
+        $title = if ($first.Count) { ($first[0] -replace '^\s*\[X\]\s+', '').Trim() } else { $pick[2] }
+        $list += [pscustomobject]@{
+            Ma = $pick[0]; Level = $pick[1]; Text = $title; ChiTiet = (@($lines | Where-Object { $_ -ne $title }) -join "`n")
+            Fix = 'kiem-tra'; Hint = 'Kiểm tra lại để biết Office, giấy phép, bộ cài mẫu đang thế nào.'
+        }
+    }
+    $rank = @{ loi = 0; 'canh-bao' = 1; 'thong-tin' = 2; ok = 3 }
+    $i = 0
+    $items = @(foreach ($f in $list) {
+            $muc = $script:ResultLevel[[string]$f.Level]
+            $o = [ordered]@{ ma = [string]$f.Ma; mucDo = $muc; tieuDe = (Protect-Text ([string]$f.Text)); chiTiet = (Protect-Text ([string]$f.ChiTiet)); cachSua = (Protect-Text ([string]$f.Hint)) }
+            if ($f.Fix -and $script:Modes -and $script:Modes.Contains([string]$f.Fix)) {
+                $o.cachSua = ('Chạy "{0}".{1}' -f $script:Modes[$f.Fix].Label, $(if ($o.cachSua) { ' ' + $o.cachSua } else { '' }))
+                $o['chayTiep'] = [ordered]@{ congCu = 'office'; action = [string]$f.Fix }
+            }
+            [pscustomobject]@{ F = $o; L = $rank[$muc]; I = $i++ }
+        })
+    $sorted = @($items | Sort-Object L, I | ForEach-Object { $_.F })
+    $n = @{}
+    foreach ($k in 'loi', 'canh-bao', 'thong-tin') { $n[$k] = @($sorted | Where-Object { $_.mucDo -eq $k }).Count }
+    $label = if ($script:Modes -and $script:Modes.Contains($CheDo)) { $script:Modes[$CheDo].Label } else { $CheDo }
+    $msg = if ($DryRun -and $Code -eq 0) { 'Chạy thử: chỉ xem việc sẽ làm, máy chưa thay đổi gì.' }
+    elseif ($CheDo -eq 'kiem-tra' -and $Code -eq 0) {
+        if ($n['loi'] + $n['canh-bao']) { 'Có {0} lỗi, {1} cảnh báo; xem chi tiết.' -f $n['loi'], $n['canh-bao'] } else { 'Không thấy vấn đề Office nào cần xử lý.' }
+    } else {
+        switch ($Code) {
+            0 { '{0}: xong.' -f $label }
+            2 { '{0}: chưa làm (thiếu quyền Admin, mẫu hỏng hoặc chưa có bản sao lưu).' -f $label }
+            3 { '{0}: làm được một phần, xem chi tiết.' -f $label }
+            default { '{0}: lỗi, xem chi tiết.' -f $label }
+        }
+    }
+    $st = @{ 0 = 'xong'; 2 = 'thieu-dieu-kien'; 3 = 'mot-phan' }
+    $tep = @(foreach ($f in @($Files)) { if ($f -and $f.duongDan) { [ordered]@{ nhan = [string]$f.nhan; duongDan = [string]$f.duongDan } } })
+    $r = [ordered]@{
+        chuan = 'tramtool.ketqua/1'; congCu = 'office'; cheDo = $CheDo; phienBan = $script:ToolVersion
+        may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
+        batDau = $Start.ToString('s'); ketThuc = (Get-Date).ToString('s')
+        maThoat = $Code; trangThai = $(if ($st.ContainsKey($Code)) { $st[$Code] } else { 'loi' })
+        chayThu = $DryRun
+        ma = $(if ($n['loi']) { 'CO_LOI' } elseif ($n['canh-bao']) { 'CO_CANH_BAO' } else { 'KHONG_CO_LOI' })
+        thongDiep = $msg
+        tomTat = [ordered]@{ loi = $n['loi']; canhBao = $n['canh-bao']; thongTin = $n['thong-tin'] }
+        phatHien = $sorted
+        tep = $tep
+    }
+    try {
+        $name = (($CheDo -split '-') | ForEach-Object { $_.Substring(0, 1).ToUpperInvariant() + $_.Substring(1) }) -join ''
+        $f = Join-Path (Get-ResultDir) ('KetQua_Office_{0}_{1}_{2:yyyyMMdd_HHmmss}.json' -f $name, $env:COMPUTERNAME, $Start)
+        [IO.File]::WriteAllText("$f.tmp", ($r | ConvertTo-Json -Depth 8), $script:Utf8NoBom)
+        Move-Item -LiteralPath "$f.tmp" -Destination $f -Force
+        Write-Host "  Kết quả cho Trạm Tool: $f" -ForegroundColor DarkGray
+        return $f
+    } catch {
+        Write-Host "  Không ghi được file kết quả cho Trạm Tool: $($_.Exception.Message.Trim())" -ForegroundColor Yellow
         return ''
     }
 }
