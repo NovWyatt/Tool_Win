@@ -1,49 +1,203 @@
 {
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "fix-win",
-  "name": "Sửa lỗi Windows (SFC, DISM, mạng, Windows Update)",
-  "version": "1.0",
+  "name": "Sửa lỗi Windows (DISM, SFC, mạng, ổ đĩa, Windows Update)",
+  "version": "2.0",
   "category": "sua-loi",
   "icon": "window-wrench",
   "audience": "tech",
-  "summary": "Menu các lệnh sửa chữa Windows thường dùng: SFC, DISM, đặt lại mạng, CHKDSK, kiểm tra RAM, đặt lại Windows Update, dọn file tạm.",
-  "tags": ["sfc", "dism", "chkdsk", "winsock", "windows update", "sửa lỗi", "file hệ thống"],
+  "summary": "Các lệnh sửa Windows thường dùng, mỗi lệnh kiểm tra kết quả thật: DISM rồi SFC, đặt lại mạng, đặt lại tường lửa (sao lưu trước), quét và sửa ổ đĩa, kiểm tra RAM, đặt lại Windows Update.",
+  "description": "Mỗi nút in việc sẽ làm, có Chạy thử, và chỉ báo xong khi lệnh thật sự thành công: DISM đọc trạng thái ảnh Windows, SFC đọc kết quả trong CBS.log, ổ đĩa dùng Repair-Volume. Đặt lại mạng không còn đụng tường lửa; đặt lại tường lửa là nút riêng, sao lưu luật ra file rồi hỏi lại. Dọn file tạm: dùng công cụ Dọn ổ C an toàn.",
+  "tags": ["sfc", "dism", "chkdsk", "winsock", "tcp/ip", "tường lửa", "firewall", "windows update", "ram", "sửa lỗi", "file hệ thống"],
+  "docs": "HUONG-DAN.md",
   "actions": [
     {
-      "id": "menu",
-      "label": "Mở menu sửa lỗi",
-      "file": "fix_win.bat",
-      "type": "console",
+      "id": "dism-sfc",
+      "label": "Sửa file hệ thống (DISM rồi SFC)",
+      "file": "SuaLoi.ps1",
+      "fixedArgs": ["-Mode", "dism-sfc"],
       "admin": true,
       "risk": "modifies-system",
       "primary": true,
-      "duration": "Tuỳ mục: SFC 10-15 phút, DISM 15-30 phút, 'chạy tất cả' 30-60 phút",
-      "description": "Menu 10 mục, chọn số rồi Enter. Nên chạy DISM (mục 2) trước rồi mới SFC (mục 1).",
-      "confirm": "Một số mục thay đổi lớn: 'Reset Network' đặt lại cả tường lửa Windows (xoá mọi luật tự thêm); 'Check Disk' chạy chkdsk /f /r (hàng giờ, không chạy trên ổ đang hỏng trước khi cứu dữ liệu); 'Registry Cleanup' xoá khoá DelegateFolders. Đọc kỹ trước khi chọn.",
-      "changes": [
-        "sfc /scannow, DISM RestoreHealth sửa file hệ thống",
-        "netsh winsock reset, netsh int ip reset, netsh advfirewall reset (đặt lại tường lửa)",
-        "chkdsk C: /f /r (hẹn chạy khi khởi động lại)",
-        "Đổi tên SoftwareDistribution, catroot2 để đặt lại Windows Update",
-        "Xoá file trong %TEMP% và C:\\Windows\\Temp",
-        "Xoá khoá registry DelegateFolders và RunMRU"
+      "duration": "30-50 phút, cần mạng",
+      "description": "DISM sửa ảnh Windows bằng file từ Windows Update, rồi SFC thay file hệ thống hỏng bằng bản tốt trong ảnh đó. Báo số file đã sửa và file không sửa được.",
+      "changes": ["Thay file hệ thống Windows hỏng (DISM RestoreHealth, sfc /scannow)"],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
       ]
+    },
+    {
+      "id": "dism-quet",
+      "label": "Kiểm tra ảnh Windows (DISM, chỉ đọc)",
+      "file": "SuaLoi.ps1",
+      "fixedArgs": ["-Mode", "dism-quet"],
+      "admin": true,
+      "risk": "read-only",
+      "duration": "5-15 phút",
+      "description": "DISM ScanHealth: ảnh Windows không hỏng, hỏng sửa được, hay hỏng nặng phải cài lại giữ dữ liệu."
+    },
+    {
+      "id": "dism-sua",
+      "label": "Sửa ảnh Windows (DISM RestoreHealth)",
+      "file": "SuaLoi.ps1",
+      "fixedArgs": ["-Mode", "dism-sua"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "15-30 phút, cần mạng",
+      "description": "Tải file sửa từ Windows Update. Báo lỗi 0x800F081F thì cần ISO cùng phiên bản (xem hướng dẫn).",
+      "changes": ["Sửa kho thành phần Windows (WinSxS)"],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "sfc",
+      "label": "Kiểm tra và sửa file hệ thống (SFC)",
+      "file": "SuaLoi.ps1",
+      "fixedArgs": ["-Mode", "sfc"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "10-20 phút",
+      "description": "sfc /scannow; kết quả đọc từ CBS.log nên không phụ thuộc ngôn ngữ Windows. Còn file không sửa được thì chạy Sửa ảnh Windows rồi SFC lại.",
+      "changes": ["Thay file hệ thống Windows hỏng"],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "mang",
+      "label": "Đặt lại mạng (DNS, Winsock, TCP/IP)",
+      "file": "SuaLoi.ps1",
+      "fixedArgs": ["-Mode", "mang"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "Vài giây, cần khởi động lại máy",
+      "description": "Vào được mạng mà không vào được web, DNS lỗi, sau khi gỡ VPN hay phần mềm diệt virus. Không đụng tường lửa. Card mạng đặt IP hoặc DNS tay thì công cụ ghi lại ra file và hỏi trước, vì đặt lại TCP/IP xoá các thiết lập đó.",
+      "changes": [
+        "ipconfig /flushdns, netsh winsock reset, netsh int ip reset",
+        "Xoá IP tĩnh, DNS đặt tay trên card mạng (đã ghi ra ket_qua\\Mang_<tên máy>_<thời gian>.txt)"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "tuong-lua",
+      "label": "Đặt lại tường lửa Windows",
+      "file": "SuaLoi.ps1",
+      "fixedArgs": ["-Mode", "tuong-lua"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "Vài giây",
+      "description": "Chỉ dùng khi tường lửa chặn sai mà không tìm ra luật nào. Sao lưu toàn bộ luật ra ket_qua\\TuongLua_<tên máy>_<thời gian>.wfw trước, rồi cửa sổ công cụ hỏi lại.",
+      "confirm": "Mọi luật tường lửa tự thêm sẽ mất: VPN, phần mềm chấm công, SQL Server, chia sẻ máy in, game. Khôi phục được bằng nút Khôi phục tường lửa.",
+      "changes": ["Sao lưu luật tường lửa ra file", "netsh advfirewall reset (trả tường lửa về mặc định)"],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "tuong-lua-khoi-phuc",
+      "label": "Khôi phục tường lửa từ bản sao lưu",
+      "file": "SuaLoi.ps1",
+      "fixedArgs": ["-Mode", "tuong-lua-khoi-phuc"],
+      "admin": true,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Vài giây",
+      "description": "Thay toàn bộ luật tường lửa hiện tại bằng luật trong bản sao lưu (.wfw). Bỏ trống file thì dùng bản mới nhất trong ket_qua.",
+      "changes": ["netsh advfirewall import <file .wfw>"],
+      "args": [
+        { "id": "tep-sao-luu", "type": "file", "flag": "-TepSaoLuu", "label": "File sao lưu (không bắt buộc)", "filter": "Sao lưu tường lửa|*.wfw", "startIn": "tool" },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "o-dia-quet",
+      "label": "Quét lỗi ổ đĩa (chỉ đọc)",
+      "file": "SuaLoi.ps1",
+      "fixedArgs": ["-Mode", "o-dia-quet"],
+      "admin": true,
+      "risk": "read-only",
+      "duration": "Vài phút",
+      "description": "Sức khoẻ ổ vật lý theo Windows và quét lỗi hệ thống file khi máy đang chạy (như chkdsk /scan), không cần khởi động lại.",
+      "args": [
+        { "id": "o-dia", "type": "text", "flag": "-ODia", "label": "Chữ ổ (không bắt buộc)", "placeholder": "C", "help": "Bỏ trống: ổ Windows." }
+      ]
+    },
+    {
+      "id": "o-dia-sua",
+      "label": "Sửa lỗi ổ đĩa (chkdsk /f)",
+      "file": "SuaLoi.ps1",
+      "fixedArgs": ["-Mode", "o-dia-sua"],
+      "admin": true,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Ổ Windows: hẹn chạy ở lần khởi động lại tới; ổ khác: vài phút",
+      "description": "chkdsk /f sửa lỗi hệ thống file. Ổ vật lý báo không khoẻ thì công cụ hỏi lại: nên cứu dữ liệu trước (CheckWinFix, Cứu dữ liệu). Không dùng /r.",
+      "confirm": "Ổ không phải ổ Windows sẽ bị tháo khỏi chương trình đang mở file trên đó trong lúc chkdsk chạy.",
+      "changes": ["chkdsk <ổ>: /f (ổ Windows: hẹn khi khởi động lại; ổ khác: /x chạy ngay)"],
+      "args": [
+        { "id": "o-dia", "type": "text", "flag": "-ODia", "label": "Chữ ổ (không bắt buộc)", "placeholder": "C", "help": "Bỏ trống: ổ Windows." },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "ram",
+      "label": "Kiểm tra RAM",
+      "file": "SuaLoi.ps1",
+      "fixedArgs": ["-Mode", "ram"],
+      "admin": true,
+      "risk": "asks-before-change",
+      "restorePoint": false,
+      "duration": "Mở ngay; kiểm tra 10-20 phút khi khởi động lại",
+      "description": "Hiện kết quả lần kiểm tra RAM trước, rồi mở Windows Memory Diagnostic để chọn khởi động lại ngay hoặc lần sau."
+    },
+    {
+      "id": "windows-update",
+      "label": "Đặt lại Windows Update",
+      "file": "SuaLoi.ps1",
+      "fixedArgs": ["-Mode", "windows-update"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "Dưới 1 phút",
+      "description": "Windows Update báo lỗi mãi, kẹt ở 0%, tải lại hoài. Dừng dịch vụ, đổi tên SoftwareDistribution và catroot2 thành .old_<thời gian> (giữ lại để quay về), rồi chạy lại dịch vụ. Lịch sử cập nhật trong Settings sẽ trống.",
+      "changes": [
+        "Dừng rồi chạy lại wuauserv, bits, cryptsvc, msiserver",
+        "Đổi tên %SystemRoot%\\SoftwareDistribution và System32\\catroot2 thành .old_<thời gian>"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "menu",
+      "label": "Mở menu (như bấm đúp SUA_LOI_WINDOWS.bat)",
+      "file": "SUA_LOI_WINDOWS.bat",
+      "admin": false,
+      "risk": "asks-before-change",
+      "description": "Menu đủ các mục trên, hỏi lại trước khi đổi; cửa sổ tự hỏi UAC để có quyền Admin."
     }
   ],
+  "outputs": [
+    {
+      "label": "Sao lưu tường lửa", "dir": "ket_qua", "glob": "TuongLua_%COMPUTERNAME%_*.wfw",
+      "deleteNote": "Nút Khôi phục tường lửa cần file này để trả lại các luật đã mất khi đặt lại."
+    },
+    { "label": "Thiết lập mạng đặt tay trước khi đặt lại", "dir": "ket_qua", "glob": "Mang_%COMPUTERNAME%_*.txt" }
+  ],
+  "pack": {
+    "name": "SuaLoiWindows",
+    "include": ["SUA_LOI_WINDOWS.bat", "SuaLoi.ps1", "HUONG-DAN.md"]
+  },
   "issues": [
-    "Không tự kiểm tra/nâng quyền Admin: chạy thường thì sfc, dism, chkdsk, netsh đều thất bại nhưng menu vẫn báo 'hoàn tất'.",
-    "'Reset Network' chạy cả 'netsh advfirewall reset': xoá mọi luật tường lửa tự thêm (VPN, phần mềm chấm công, SQL...) mà nhãn menu không nói.",
-    "'Run All' chạy SFC trước DISM (nên DISM trước) và đặt lại mạng không cần thiết.",
-    "'Reset Windows Update' lỗi ở lần chạy thứ hai vì SoftwareDistribution.old đã tồn tại; dùng cứng C:\\Windows thay vì %SystemRoot%.",
-    "'Registry Cleanup' xoá cả khoá DelegateFolders mà Explorer dùng để hiện ổ, thiết bị: có rủi ro mà không có lợi ích rõ ràng.",
-    "'Clean Temp' gọi cleanmgr /sagerun:1 khi chưa từng /sageset:1 nên không dọn thêm gì, và xoá hết %TEMP% kể cả file đang dùng. Dùng công cụ Dọn ổ C an toàn thay thế (xem trước rồi mới dọn, chỉ xoá file cũ).",
-    "'Check Disk' chạy chkdsk /f /r trên ổ sắp hỏng có thể làm mất dữ liệu; nên cứu dữ liệu (CheckWinFix) trước."
+    "Mới thử bằng giả lập (DISM, SFC, netsh, chkdsk, dịch vụ giả) và Chạy thử trên máy phát triển; chưa chạy sửa thật.",
+    "Hẹn chkdsk cho ổ Windows trả lời Y vào câu hỏi của chkdsk rồi xác nhận qua BootExecute; Windows dịch câu hỏi sang ngôn ngữ khác Y/N thì công cụ báo làm được một phần.",
+    "Kiểm tra RAM chỉ mở Windows Memory Diagnostic; công cụ không biết bạn chọn khởi động lại lúc nào."
   ],
   "upgrades": [
-    "P0: Tự nâng quyền Admin (fltmc + RunAs) và kiểm tra mã lỗi từng lệnh trước khi báo hoàn tất.",
-    "P0: Tách 'đặt lại tường lửa' khỏi 'Reset Network' và hỏi lại trước khi chạy; bỏ mục 'Registry Cleanup'.",
-    "P1: 'Run All' theo thứ tự DISM rồi SFC; đặt lại Windows Update dùng tên có thời gian (.old_<giờ>) và %SystemRoot%.",
     "P1: Ghi nhật ký ra file (tóm tắt CBS.log, DISM.log) để gửi kèm báo cáo.",
+    "P1: DISM dùng ISO cùng phiên bản khi Windows Update không tải được (chọn file ISO, tự gắn và tìm install.wim).",
     "P2: Gộp vào CheckWinFix như bước 'Sửa' sau chẩn đoán, chỉ đề xuất lệnh hợp với bệnh đã tìm thấy."
   ]
 }
