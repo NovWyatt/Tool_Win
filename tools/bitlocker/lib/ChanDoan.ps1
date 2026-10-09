@@ -30,17 +30,24 @@ function Invoke-KiemTra {
     Invoke-Section 'Chính sách' { Show-PolicySection }
     Show-Conclusion
     $script:Diag.SavedKeys = @()
+    if ($script:Diag.Admin -and -not @($script:Findings | Where-Object { $_.Level -in 'bad', 'warn' }).Count) {
+        # chỉ cho file kết quả: phần kết luận đã in kết quả
+        [void]$script:Findings.Add([pscustomobject]@{ Ma = 'KHONG_CO_VAN_DE'; Level = 'ok'; Text = 'Không thấy vấn đề BitLocker nào cần xử lý.'; Fix = ''; Hint = '' })
+    }
 
     $path = Join-Path (Get-ResultDir) ('BaoCao_BitLocker_{0}_{1:yyyyMMdd_HHmmss}.txt' -f $env:COMPUTERNAME, $started)
+    $code = 0
     try {
         [IO.File]::WriteAllLines($path, $script:Report, $script:Utf8Bom)
         Write-Host ''
         Write-Host "  Báo cáo đã lưu: $path" -ForegroundColor Green
     } catch {
         Write-Host "  Không lưu được báo cáo: $($_.Exception.Message)" -ForegroundColor Red
-        return 1
+        $path = ''; $code = 1
     }
-    return 0
+    $files = @(if ($path) { [ordered]@{ nhan = 'Báo cáo kiểm tra'; duongDan = $path } })
+    [void](Save-RunResult -CheDo 'kiem-tra' -Code $code -Start $started -Files $files -Message $(if ($code) { 'Không lưu được báo cáo kiểm tra.' } elseif (-not $script:Diag.Admin) { 'Chạy bằng quyền thường nên chưa đọc được từng ổ; chạy lại bằng quyền Admin.' } else { '' }))
+    return $code
 }
 
 # ---------------------------------------------------------------- các phần của báo cáo
@@ -73,7 +80,7 @@ function Show-MachineSection {
         Write-Info 'Windows Home: không có trang quản lý BitLocker đầy đủ, chỉ có "Mã hoá thiết bị" (Settings > Privacy & security > Device encryption). Công cụ này vẫn đọc, lưu khoá, tạm dừng, mở khoá được.'
     }
     if (-not $script:Diag.Admin) {
-        Add-Finding info 'Đang chạy quyền thường nên không đọc được trạng thái từng ổ.' -Hint 'Chạy lại bằng quyền Admin: trong Trạm Tool nút Kiểm tra tự xin quyền; bấm đúp BITLOCKER.bat thì chọn "Có" ở hộp UAC.'
+        Add-Finding -Ma 'CHAY_QUYEN_THUONG' info 'Đang chạy quyền thường nên không đọc được trạng thái từng ổ.' -Hint 'Chạy lại bằng quyền Admin: trong Trạm Tool nút Kiểm tra tự xin quyền; bấm đúp BITLOCKER.bat thì chọn "Có" ở hộp UAC.'
     }
 }
 
@@ -81,7 +88,7 @@ function Show-TpmSection {
     $t = Get-TpmInfo
     if ($t.Present) {
         $ver = if ($t.Version) { " $($t.Version)" } else { '' }
-        if ($t.Ready -eq $false) { Add-Finding warn "Có chip TPM$ver nhưng chưa sẵn sàng." -Hint 'Kiểm tra trong BIOS/UEFI (Security > TPM, Intel PTT hoặc AMD fTPM) hoặc mở tpm.msc.' }
+        if ($t.Ready -eq $false) { Add-Finding -Ma 'TPM_CHUA_SAN_SANG' warn "Có chip TPM$ver nhưng chưa sẵn sàng." -Hint 'Kiểm tra trong BIOS/UEFI (Security > TPM, Intel PTT hoặc AMD fTPM) hoặc mở tpm.msc.' }
         else { Write-Ok "Có chip TPM$ver." }
     } else {
         Write-Info 'Không thấy chip TPM (hoặc đang tắt trong BIOS): không có TPM thì Windows không tự mã hoá ổ.'
@@ -142,19 +149,19 @@ function Add-VolumeFindings {
     switch ($i.State) {
         'bi-khoa' {
             $ids = @($i.RecoveryIds | ForEach-Object { Format-ShortId $_ }) -join ', '
-            Add-Finding bad "$n đang bị BitLocker khoá." -Fix 'mo-khoa' -Hint $(if ($ids) { "Cần khoá khôi phục có Mã khoá bắt đầu bằng $ids." } else { '' })
+            Add-Finding -Ma 'O_BI_KHOA' bad "$n đang bị BitLocker khoá." -Fix 'mo-khoa' -Hint $(if ($ids) { "Cần khoá khôi phục có Mã khoá bắt đầu bằng $ids." } else { '' })
             return
         }
         'cho-kich-hoat' {
-            Add-Finding warn "$n đã mã hoá nhưng chưa kích hoạt bảo vệ (Mã hoá thiết bị đang chờ)." -Hint 'Khoá đang để trần nên ổ không bị khoá, chưa cần khoá khôi phục. Khi một Admin đăng nhập bằng tài khoản Microsoft, Windows tự bật bảo vệ và tải khoá lên tài khoản đó: nhớ tài khoản này, hoặc chạy lại Kiểm tra lúc đó để lưu khoá.'
+            Add-Finding -Ma 'CHO_KICH_HOAT_BAO_VE' warn "$n đã mã hoá nhưng chưa kích hoạt bảo vệ (Mã hoá thiết bị đang chờ)." -Hint 'Khoá đang để trần nên ổ không bị khoá, chưa cần khoá khôi phục. Khi một Admin đăng nhập bằng tài khoản Microsoft, Windows tự bật bảo vệ và tải khoá lên tài khoản đó: nhớ tài khoản này, hoặc chạy lại Kiểm tra lúc đó để lưu khoá.'
             return
         }
-        'dang-giai-ma' { Add-Finding info ('{0} đang giải mã ({1}%): để máy chạy tiếp; khởi động lại vẫn làm tiếp được.' -f $n, $i.Percent); return }
-        'khong-ro' { Add-Finding warn "Không đọc được trạng thái BitLocker của $nl."; return }
+        'dang-giai-ma' { Add-Finding -Ma 'DANG_GIAI_MA' info ('{0} đang giải mã ({1}%): để máy chạy tiếp; khởi động lại vẫn làm tiếp được.' -f $n, $i.Percent); return }
+        'khong-ro' { Add-Finding -Ma 'KHONG_DOC_DUOC_TRANG_THAI' warn "Không đọc được trạng thái BitLocker của $nl."; return }
         'tat' { return }
         'tam-dung' {
             $when = if ($null -eq $i.SuspendCount) { '' } elseif ($i.SuspendCount -eq 0) { ' đến khi bật lại bằng tay' } else { " (tự bật lại sau $($i.SuspendCount) lần khởi động)" }
-            Add-Finding warn "$n đang tạm dừng BitLocker$when`: khoá để trần trên ổ, ai cầm ổ cũng đọc được dữ liệu." -Fix 'bat-lai'
+            Add-Finding -Ma 'DANG_TAM_DUNG' warn "$n đang tạm dừng BitLocker$when`: khoá để trần trên ổ, ai cầm ổ cũng đọc được dữ liệu." -Fix 'bat-lai'
         }
     }
 
@@ -162,15 +169,15 @@ function Add-VolumeFindings {
     $hasPassword = @($i.Protectors | Where-Object { $_.Type -eq 8 }).Count -gt 0
     if (-not $i.RecoveryIds.Count) {
         $lvl = if ($i.Type -eq 0 -or -not $hasPassword) { 'bad' } else { 'warn' }
-        Add-Finding $lvl "$n không có khoá khôi phục 48 số: khi Windows hỏi khoá (cập nhật BIOS, thay bo mạch, lỗi TPM) sẽ không mở được ổ." -Fix 'luu-khoa' -Hint '"Lưu khoá khôi phục" thêm khoá cho ổ rồi lưu ra file.'
+        Add-Finding -Ma 'KHONG_CO_KHOA_KHOI_PHUC' $lvl "$n không có khoá khôi phục 48 số: khi Windows hỏi khoá (cập nhật BIOS, thay bo mạch, lỗi TPM) sẽ không mở được ổ." -Fix 'luu-khoa' -Hint '"Lưu khoá khôi phục" thêm khoá cho ổ rồi lưu ra file.'
     } else {
         foreach ($rid in $i.RecoveryIds) {
             $ev = Get-KeyEvidence -Id $rid -Events $script:Diag.Events -SavedKeys $script:Diag.SavedKeys
             if ($ev.Files.Count) { continue }
             if ($ev.Msa -or $ev.Ad -or $ev.Entra) {
-                Add-Finding info ('Khoá của {0} (Mã khoá {1}) chỉ nằm trên tài khoản trực tuyến.' -f $nl, (Format-ShortId $rid)) -Fix 'luu-khoa' -Hint 'Nên lưu thêm một bản ra USB hoặc giấy trước khi sửa phần cứng, cài lại máy.'
+                Add-Finding -Ma 'KHOA_CHI_TREN_TAI_KHOAN' info ('Khoá của {0} (Mã khoá {1}) chỉ nằm trên tài khoản trực tuyến.' -f $nl, (Format-ShortId $rid)) -Fix 'luu-khoa' -Hint 'Nên lưu thêm một bản ra USB hoặc giấy trước khi sửa phần cứng, cài lại máy.'
             } else {
-                Add-Finding warn ('Chưa thấy nơi nào lưu khoá khôi phục của {0} (Mã khoá {1}).' -f $nl, (Format-ShortId $rid)) -Fix 'luu-khoa' -Hint 'Khoá có thể nằm trên tài khoản Microsoft mà nhật ký không còn ghi: xem https://aka.ms/myrecoverykey. Chắc nhất là lưu thêm một bản.'
+                Add-Finding -Ma 'CHUA_THAY_NOI_LUU_KHOA' warn ('Chưa thấy nơi nào lưu khoá khôi phục của {0} (Mã khoá {1}).' -f $nl, (Format-ShortId $rid)) -Fix 'luu-khoa' -Hint 'Khoá có thể nằm trên tài khoản Microsoft mà nhật ký không còn ghi: xem https://aka.ms/myrecoverykey. Chắc nhất là lưu thêm một bản.'
             }
         }
     }
@@ -178,13 +185,13 @@ function Add-VolumeFindings {
         $tpm = @($i.Protectors | Where-Object { $script:TpmTypes -contains $_.Type -and $null -ne $_.Pcr })
         $firmware = @($tpm | Where-Object { @($_.Pcr) -contains 0 -or @($_.Pcr) -contains 2 })
         if ($firmware.Count) {
-            Add-Finding warn ('{0} khoá theo cả firmware (PCR {1}): cập nhật BIOS/UEFI, đổi cài đặt BIOS sẽ làm Windows hỏi khoá khôi phục.' -f $n, (Format-Pcr $firmware[0].Pcr)) -Fix 'tam-dung'
+            Add-Finding -Ma 'KHOA_THEO_FIRMWARE' warn ('{0} khoá theo cả firmware (PCR {1}): cập nhật BIOS/UEFI, đổi cài đặt BIOS sẽ làm Windows hỏi khoá khôi phục.' -f $n, (Format-Pcr $firmware[0].Pcr)) -Fix 'tam-dung'
         } else {
-            Add-Finding info ('Trước khi cập nhật BIOS, đổi Secure Boot hay TPM trong BIOS, thay bo mạch hoặc chuyển ổ sang máy khác: tạm dừng BitLocker {0}.' -f $nl) -Fix 'tam-dung'
+            Add-Finding -Ma 'NHAC_TAM_DUNG_TRUOC_KHI_SUA' info ('Trước khi cập nhật BIOS, đổi Secure Boot hay TPM trong BIOS, thay bo mạch hoặc chuyển ổ sang máy khác: tạm dừng BitLocker {0}.' -f $nl) -Fix 'tam-dung'
         }
     }
     if ($i.Type -ne 0 -and $i.AutoUnlock -eq $false -and $i.State -eq 'dang-bao-ve') {
-        Add-Finding info "$n không tự mở khoá: mỗi lần khởi động phải mở bằng tay." -Fix 'mo-khoa'
+        Add-Finding -Ma 'KHONG_TU_MO_KHOA' info "$n không tự mở khoá: mỗi lần khởi động phải mở bằng tay." -Fix 'mo-khoa'
     }
 }
 
@@ -214,7 +221,7 @@ function Show-EventSection {
     $recent = (Get-Date).AddDays(-180)
     $boot = @($ev | Where-Object { $script:EventRecoveryBoot -contains $_.Id -and $_.Time -ge $recent })
     if ($boot.Count) {
-        Add-Finding warn ('Máy đã phải nhập khoá khôi phục khi khởi động {0} lần trong 6 tháng (gần nhất {1:dd/MM/yyyy}).' -f $boot.Count, $boot[0].Time) -Hint 'Lặp lại mỗi lần khởi động: tạm dừng BitLocker (1 lần khởi động), khởi động lại, rồi bật lại để TPM ghi nhận cấu hình mới.'
+        Add-Finding -Ma 'DA_PHAI_NHAP_KHOA' warn ('Máy đã phải nhập khoá khôi phục khi khởi động {0} lần trong 6 tháng (gần nhất {1:dd/MM/yyyy}).' -f $boot.Count, $boot[0].Time) -Hint 'Lặp lại mỗi lần khởi động: tạm dừng BitLocker (1 lần khởi động), khởi động lại, rồi bật lại để TPM ghi nhận cấu hình mới.'
     }
     $dec = @($ev | Where-Object { $_.Id -in 770, 24580 -and $_.Time -ge (Get-Date).AddDays(-90) })
     if ($dec.Count) { Write-Info ('Có ổ bắt đầu giải mã ngày {0:dd/MM/yyyy}.' -f $dec[0].Time) }
@@ -223,12 +230,12 @@ function Show-EventSection {
         $good = $script:EventBackupMsa + $script:EventBackupAd + $script:EventBackupEntra
         $after = @($ev | Where-Object { $good -contains $_.Id -and $_.Time -gt $fail[0].Time })
         if (-not $after.Count) {
-            Add-Finding warn ('Sao lưu khoá lên tài khoản trực tuyến thất bại {0} lần trong 6 tháng (gần nhất {1:dd/MM/yyyy}: {2}).' -f $fail.Count, $fail[0].Time, $fail[0].Text) -Fix 'luu-khoa'
+            Add-Finding -Ma 'SAO_LUU_KHOA_THAT_BAI' warn ('Sao lưu khoá lên tài khoản trực tuyến thất bại {0} lần trong 6 tháng (gần nhất {1:dd/MM/yyyy}: {2}).' -f $fail.Count, $fail[0].Time, $fail[0].Text) -Fix 'luu-khoa'
         }
     }
     $osEncrypted = @($script:Diag.Volumes | Where-Object { $_.Type -eq 0 -and (Test-IsEncrypted $_) }).Count
     if (@($ev | Where-Object { $_.Id -eq 869 -and $_.Time -ge $recent }).Count -and ($osEncrypted -or -not $script:Diag.Admin)) {
-        Add-Finding warn 'Windows báo khoá khôi phục ổ Windows chưa được sao lưu.' -Fix 'luu-khoa'
+        Add-Finding -Ma 'KHOA_CHUA_SAO_LUU' warn 'Windows báo khoá khôi phục ổ Windows chưa được sao lưu.' -Fix 'luu-khoa'
     }
 }
 

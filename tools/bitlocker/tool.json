@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "bitlocker",
   "name": "BitLocker và khoá khôi phục",
-  "version": "1.0",
+  "version": "1.1",
   "category": "cai-lai-may",
   "icon": "shield-lock",
   "audience": "all",
@@ -20,7 +20,7 @@
       "risk": "read-only",
       "primary": true,
       "duration": "Dưới 1 phút",
-      "description": "Chỉ đọc. Ghi báo cáo ket_qua\\BaoCao_BitLocker_<tên máy>_<thời gian>.txt có Mã khoá để đối chiếu, không có khoá; cuối báo cáo là việc nên làm theo thứ tự.",
+      "description": "Chỉ đọc. Ghi báo cáo ket_qua\\BaoCao_BitLocker_<tên máy>_<thời gian>.txt có Mã khoá để đối chiếu, không có khoá; cuối báo cáo là việc nên làm theo thứ tự. Trạm hiện từng việc kèm nút xử lý (file KetQua_BitLocker_KiemTra_*.json).",
       "args": [
         {
           "id": "thu-muc-khoa", "type": "folder", "flag": "-ThuMucKhoa", "label": "Thư mục có file khoá đã lưu (không bắt buộc)",
@@ -153,6 +153,7 @@
   ],
   "outputs": [
     { "label": "Báo cáo kiểm tra", "dir": "ket_qua", "glob": "BaoCao_BitLocker_%COMPUTERNAME%_*.txt" },
+    { "label": "Kết quả kiểm tra", "dir": "ket_qua", "glob": "KetQua_BitLocker_KiemTra_%COMPUTERNAME%_*.json", "ketQua": true },
     {
       "label": "File khoá khôi phục", "dir": "ket_qua\\khoa-bitlocker", "glob": "BitLocker_KhoaKhoiPhuc_*.txt",
       "deleteNote": "File này chứa khoá khôi phục: ai có nó mở được ổ. Chỉ xoá khi đã chép ra USB, điện thoại hoặc in ra giấy; nếu đây là bản duy nhất thì lúc Windows hỏi khoá sẽ không mở được ổ. Xoá xong nhớ dọn Thùng rác."

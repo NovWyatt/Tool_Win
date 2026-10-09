@@ -36,6 +36,9 @@ Kiểm tra chạy được bằng quyền thường nhưng không đọc đượ
 
 Báo cáo: `ket_qua\BaoCao_BitLocker_<tên máy>_<ngày giờ>.txt`. Đọc phần **KẾT LUẬN** trước: việc nên làm theo
 thứ tự, kèm nút cần chạy. Báo cáo **không bao giờ chứa khoá khôi phục**, chỉ có Mã khoá (gửi người khác được).
+Kèm theo là `ket_qua\KetQua_BitLocker_KiemTra_<tên máy>_<ngày giờ>.json` theo chuẩn `tramtool.ketqua/1` (xem
+`docs\THEM-CONG-CU.md`): mỗi việc một mã cố định (`O_BI_KHOA`, `KHONG_CO_KHOA_KHOI_PHUC`, `CHUA_THAY_NOI_LUU_KHOA`,
+`KHOA_THEO_FIRMWARE`...), Trạm Tool hiện từng việc kèm nút xử lý. File này cũng không có khoá khôi phục.
 
 Công cụ tìm file khoá ở: thư mục `ket_qua\khoa-bitlocker` của công cụ, gốc các ổ và USB, `DuLieu_SaoLuu\BitLocker`
 (bản sao lưu của *Chuyển dữ liệu khi cài lại Windows*), Desktop, Documents, Downloads, OneDrive, và thư mục bạn

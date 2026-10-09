@@ -125,6 +125,20 @@ Reset-Fake
 $c = Invoke-Case 'kiem-tra' { Invoke-KiemTra }
 Check ($c.Code -eq 0 -and (Test-NoChange $c)) "kiem-tra: mã $($c.Code), không đổi gì"
 Check (-not (@($script:Calls) -match 'GetKeyProtectorNumericalPassword')) 'kiem-tra không đọc khoá khôi phục'
+$kq = @(Get-ChildItem -LiteralPath (Join-Path $script:ToolDir 'ket_qua') -Filter 'KetQua_BitLocker_KiemTra_*.json')
+Check ($kq.Count -eq 1) 'kiem-tra ghi file kết quả cho trạm'
+if ($kq.Count) {
+    $j = [IO.File]::ReadAllText($kq[0].FullName) | ConvertFrom-Json
+    $ph = @($j.phatHien)
+    $byMa = @{}; foreach ($p in $ph) { if (-not $byMa.ContainsKey($p.ma)) { $byMa[$p.ma] = $p } }
+    Check ($j.chuan -eq 'tramtool.ketqua/1' -and $j.congCu -eq 'bitlocker' -and $j.cheDo -eq 'kiem-tra' -and $j.ma -eq 'CO_LOI' -and $ph[0].ma -eq 'O_BI_KHOA') "đầu file theo chuẩn, ổ bị khoá lên đầu ($(@($ph | ForEach-Object { $_.ma }) -join ', '))"
+    Check ($byMa['O_BI_KHOA'].chayTiep.action -eq 'mo-khoa' -and $byMa['KHONG_CO_KHOA_KHOI_PHUC'].chayTiep.action -eq 'luu-khoa' -and $byMa['KHOA_THEO_FIRMWARE'].chayTiep.action -eq 'tam-dung') 'nút gợi ý: mở khoá, lưu khoá, tạm dừng'
+    Check (-not @($ph | Where-Object { $_.ma -notmatch '^[A-Z][A-Z0-9_]+$' -or ($_.chayTiep -and -not $script:Modes.Contains([string]$_.chayTiep.action)) }).Count) 'mã đúng dạng, nút trỏ tới chế độ có thật'
+}
+$ast = [Management.Automation.Language.Parser]::ParseFile("$lib\ChanDoan.ps1", [ref]$null, [ref]$null)
+$fc = @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.CommandAst] -and $n.GetCommandName() -eq 'Add-Finding' }, $true))
+$codes = @(foreach ($x in $fc) { $e = @($x.CommandElements); $k = [array]::IndexOf(@($e | ForEach-Object { if ($_ -is [Management.Automation.Language.CommandParameterAst]) { $_.ParameterName } else { '' } }), 'Ma'); if ($k -ge 0 -and $e[$k + 1] -is [Management.Automation.Language.StringConstantExpressionAst]) { $e[$k + 1].Value } })
+Check ($fc.Count -ge 16 -and $codes.Count -eq $fc.Count -and @($codes | Sort-Object -Unique).Count -eq $codes.Count) "mọi chỗ ghi phát hiện có -Ma riêng ($($codes.Count)/$($fc.Count))"
 
 $c = Invoke-Case 'luu-khoa chạy thử' { Invoke-LuuKhoa -DryRun }
 Check ($c.Code -eq 0 -and (Test-NoChange $c)) "luu-khoa -DryRun: mã $($c.Code), không gọi gì"

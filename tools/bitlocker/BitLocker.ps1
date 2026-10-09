@@ -22,7 +22,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $script:ToolDir = $PSScriptRoot
 $script:MainScript = $PSCommandPath
-$script:ToolVersion = '1.0'
+$script:ToolVersion = '1.1'
 . (Join-Path $PSScriptRoot 'lib\Chung.ps1')
 . (Join-Path $PSScriptRoot 'lib\NhatKy.ps1')
 . (Join-Path $PSScriptRoot 'lib\DocBitLocker.ps1')
