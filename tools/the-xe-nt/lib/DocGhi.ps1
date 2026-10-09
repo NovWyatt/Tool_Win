@@ -2,6 +2,7 @@
 # File .nt là file Excel 97-2003 (.xls) đổi đuôi. Phần mềm giữ xe (ITS Pro) đọc nó bằng Jet OLEDB 4.0 "Excel 8.0":
 # sheet đầu tiên, vùng A1:J65536, dòng 1 là tiêu đề, lấy cột STT và CardID theo giá trị thật của ô (không theo định
 # dạng hiển thị). Jet chỉ có bản 32 bit nên mọi hàm ở đây chạy trong PowerShell 32 bit.
+# File .xlsx đọc, ghi thẳng (là file zip chứa XML), không cần Excel.
 # Luôn đọc, ghi trên bản sao trong thư mục tạm; file gốc không bị mở để ghi.
 
 function New-WorkDir {
@@ -95,35 +96,196 @@ function ConvertTo-CellText {
     return ([string]$V).Trim()
 }
 
-function Read-ExcelCells {
-    # File .xlsx, .xlsm: đọc bằng Excel (cần Microsoft Excel trên máy), sheet đầu tiên.
-    param([string]$Path)
-    try { $xl = New-Object -ComObject Excel.Application } catch { throw 'Đọc file .xlsx cần Microsoft Excel trên máy. Mở danh sách bằng chương trình khác, lưu thành .xls hoặc .csv rồi chạy lại.' }
+# ---------------------------------------------------------------- .xlsx (đọc, ghi thẳng file zip, không cần Excel)
+function Open-XlsxZip {
+    param([string]$Path, [string]$Mode = 'Read')
+    Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+    return [IO.Compression.ZipFile]::Open($Path, $Mode)
+}
+
+function Read-ZipXml {
+    # Một phần XML trong file .xlsx (tên không phân biệt hoa thường); $null khi không có.
+    param($Zip, [string]$Name)
+    $n = $Name.TrimStart('/')
+    $e = @($Zip.Entries | Where-Object { $_.FullName -ieq $n })
+    if (-not $e.Count) { return $null }
+    $s = $e[0].Open()
     try {
-        $xl.Visible = $false; $xl.DisplayAlerts = $false
-        $wb = $xl.Workbooks.Open($Path, 0, $true)
-        $ws = $wb.Worksheets.Item(1)
-        $ur = $ws.UsedRange
-        $r0 = [int]$ur.Row; $c0 = [int]$ur.Column
-        $nr = [int]$ur.Rows.Count; $nc = [Math]::Min([int]$ur.Columns.Count, 26)
-        $v = $ur.Value2
-        $out = New-Object System.Collections.Generic.List[object]
-        for ($i = 1; $i -lt $r0; $i++) { $out.Add([string[]]@()) }
-        for ($i = 1; $i -le $nr; $i++) {
-            $cells = New-Object string[] ($c0 - 1 + $nc)
-            for ($j = 0; $j -lt $cells.Length; $j++) { $cells[$j] = '' }
-            for ($j = 1; $j -le $nc; $j++) {
-                $x = if ($nr -eq 1 -and $nc -eq 1) { $v } else { $v[$i, $j] }
-                $cells[$c0 - 2 + $j] = ConvertTo-CellText $x
+        $x = New-Object Xml.XmlDocument
+        $x.XmlResolver = $null
+        $x.LoadXml((New-Object IO.StreamReader($s, [Text.Encoding]::UTF8)).ReadToEnd())
+        return $x
+    } finally { $s.Dispose() }
+}
+
+function Get-ColumnIndex {
+    # "B12" -> 1 (cột tính từ 0).
+    param([string]$Ref)
+    $n = 0
+    foreach ($ch in ($Ref -replace '[^A-Za-z]', '').ToUpperInvariant().ToCharArray()) { $n = $n * 26 + ([int]$ch - 64) }
+    return $n - 1
+}
+
+function Get-ColumnName {
+    # 0 -> "A", 26 -> "AA".
+    param([int]$Index)
+    $s = ''; $n = $Index + 1
+    while ($n -gt 0) { $m = ($n - 1) % 26; $s = [string][char](65 + $m) + $s; $n = [int][Math]::Floor(($n - 1) / 26) }
+    return $s
+}
+
+function Get-XlsxPart {
+    # Đường dẫn phần XML mà quan hệ $Id (hoặc kiểu $Type, vd "sharedStrings") của workbook trỏ tới; '' khi không có.
+    param($Rels, [string]$Id = '', [string]$Type = '')
+    if (-not $Rels) { return '' }
+    foreach ($r in @($Rels.SelectNodes("//*[local-name()='Relationship']"))) {
+        if (($Id -and $r.GetAttribute('Id') -eq $Id) -or ($Type -and $r.GetAttribute('Type') -like "*/$Type")) {
+            $t = $r.GetAttribute('Target')
+            if ($t.StartsWith('/')) { return $t.TrimStart('/') }
+            return 'xl/' + $t
+        }
+    }
+    return ''
+}
+
+function Read-XlsxCells {
+    # File .xlsx, .xlsm: đọc thẳng các phần XML bên trong (không cần Excel), sheet đầu tiên, 26 cột đầu.
+    # Trả như Read-JetCells; số nguyên ghi lại không có ".0" (mã thẻ lưu dạng số vẫn đọc ra đủ chữ số đang lưu).
+    param([string]$Path)
+    try { $zip = Open-XlsxZip $Path } catch { throw ("Không mở được '{0}' như file .xlsx: {1}" -f [IO.Path]::GetFileName($Path), $_.Exception.Message.Trim()) }
+    try {
+        $wb = Read-ZipXml $zip 'xl/workbook.xml'
+        if (-not $wb) { throw 'Không phải file Excel .xlsx (thiếu xl/workbook.xml).' }
+        $sheet = $wb.SelectSingleNode("//*[local-name()='sheets']/*[local-name()='sheet']")
+        if (-not $sheet) { throw 'File .xlsx không có sheet nào.' }
+        $rid = @($sheet.Attributes | Where-Object { $_.LocalName -eq 'id' } | ForEach-Object { $_.Value })
+        $rels = Read-ZipXml $zip 'xl/_rels/workbook.xml.rels'
+        $part = if ($rid.Count) { Get-XlsxPart $rels -Id $rid[0] } else { '' }
+        $ws = if ($part) { Read-ZipXml $zip $part } else { $null }
+        if (-not $ws) { throw 'Không tìm thấy sheet đầu tiên trong file .xlsx.' }
+        $shared = New-Object System.Collections.Generic.List[string]
+        $ssPart = Get-XlsxPart $rels -Type 'sharedStrings'
+        $ss = Read-ZipXml $zip $(if ($ssPart) { $ssPart } else { 'xl/sharedStrings.xml' })
+        if ($ss) {
+            foreach ($si in @($ss.SelectNodes("//*[local-name()='si']"))) {
+                $shared.Add((@($si.SelectNodes(".//*[local-name()='t' and not(ancestor::*[local-name()='rPh'])]") | ForEach-Object { $_.InnerText }) -join ''))
             }
+        }
+        $inv = [Globalization.CultureInfo]::InvariantCulture
+        $data = New-Object System.Collections.Generic.List[object]
+        $maxCol = 0; $rn = 0
+        foreach ($row in @($ws.SelectNodes("//*[local-name()='sheetData']/*[local-name()='row']"))) {
+            $r = $row.GetAttribute('r')
+            $rn = if ($r) { [int]$r } else { $rn + 1 }
+            $cells = @{}; $cn = -1
+            foreach ($c in @($row.SelectNodes("*[local-name()='c']"))) {
+                $ref = $c.GetAttribute('r')
+                $cn = if ($ref) { Get-ColumnIndex $ref } else { $cn + 1 }
+                if ($cn -ge 26) { continue }
+                $t = $c.GetAttribute('t')
+                $v = $c.SelectSingleNode("*[local-name()='v']")
+                $text = ''
+                if ($t -eq 'inlineStr') {
+                    $text = (@($c.SelectNodes(".//*[local-name()='t' and not(ancestor::*[local-name()='rPh'])]") | ForEach-Object { $_.InnerText }) -join '')
+                } elseif ($v) {
+                    $text = $v.InnerText
+                    $d = 0.0
+                    if ($t -eq 's') { $text = $shared[[int]$text] }
+                    elseif (-not $t -or $t -eq 'n') { if ([double]::TryParse($text, [Globalization.NumberStyles]::Float, $inv, [ref]$d)) { $text = ConvertTo-CellText $d } }
+                }
+                $text = ([string]$text).Trim()
+                if ($text -ne '') { $cells[$cn] = $text; if ($cn + 1 -gt $maxCol) { $maxCol = $cn + 1 } }
+            }
+            if ($cells.Count) { $data.Add([pscustomobject]@{ N = $rn; C = $cells }) }
+        }
+        $out = New-Object System.Collections.Generic.List[object]
+        foreach ($d in @($data | Sort-Object N)) {
+            while ($out.Count -lt $d.N - 1) { $out.Add([string[]]@()) }
+            $cells = New-Object string[] $maxCol
+            for ($j = 0; $j -lt $maxCol; $j++) { $cells[$j] = if ($d.C.ContainsKey($j)) { $d.C[$j] } else { '' } }
             $out.Add($cells)
         }
-        $wb.Close($false)
         return , $out.ToArray()
-    } finally {
-        $xl.Quit()
-        [void][Runtime.InteropServices.Marshal]::ReleaseComObject($xl)
+    } finally { $zip.Dispose() }
+}
+
+function Write-XlsxFile {
+    # Ghi bảng ra file .xlsx (không cần Excel): một sheet "Sheet1", dòng tiêu đề in đậm, cố định khi cuộn, có nút lọc.
+    # $Rows: mảng các mảng giá trị; số ([int], [int64], [double]) ghi dạng số, còn lại dạng chữ.
+    # $TextCols: cột (tính từ 0) định dạng chữ "@" để gõ thêm mã vào vẫn giữ số 0 ở đầu.
+    # $MarkCol: cột kết quả, ô khác $OkText tô đỏ.
+    # Ghi ra file tạm cạnh $Path rồi mới đổi tên, nên lỗi giữa chừng không để lại file hỏng.
+    param([string]$Path, [string[]]$Header, $Rows, [int[]]$Widths = @(), [int[]]$TextCols = @(), [int]$MarkCol = -1, [string]$OkText = '')
+    $rows = @($Rows)
+    $nc = $Header.Count
+    $last = '{0}{1}' -f (Get-ColumnName ($nc - 1)), ($rows.Count + 1)
+    $inv = [Globalization.CultureInfo]::InvariantCulture
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.Append('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>')
+    [void]$sb.Append('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">')
+    [void]$sb.Append(('<dimension ref="A1:{0}"/>' -f $last))
+    [void]$sb.Append('<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>')
+    for ($j = 0; $j -lt $nc; $j++) {
+        $w = if ($j -lt $Widths.Count) { $Widths[$j] } else { 14 }
+        $st = if ($TextCols -contains $j) { ' style="2"' } else { '' }
+        [void]$sb.Append(('<col min="{0}" max="{0}" width="{1}"{2} customWidth="1"/>' -f ($j + 1), $w, $st))
     }
+    [void]$sb.Append('</cols><sheetData><row r="1">')
+    for ($j = 0; $j -lt $nc; $j++) {
+        [void]$sb.Append(('<c r="{0}1" t="inlineStr" s="1"><is><t>{1}</t></is></c>' -f (Get-ColumnName $j), [Security.SecurityElement]::Escape($Header[$j])))
+    }
+    [void]$sb.Append('</row>')
+    for ($i = 0; $i -lt $rows.Count; $i++) {
+        $r = $i + 2
+        [void]$sb.Append(('<row r="{0}">' -f $r))
+        $vals = @($rows[$i])
+        for ($j = 0; $j -lt [Math]::Min($nc, $vals.Count); $j++) {
+            $v = $vals[$j]
+            if ($null -eq $v -or [string]$v -eq '') { continue }
+            $ref = '{0}{1}' -f (Get-ColumnName $j), $r
+            if ($v -is [int] -or $v -is [int64] -or $v -is [double]) {
+                [void]$sb.Append(('<c r="{0}"><v>{1}</v></c>' -f $ref, ([double]$v).ToString('R', $inv)))
+            } else {
+                $s = if ($j -eq $MarkCol -and [string]$v -ne $OkText) { 3 } elseif ($TextCols -contains $j) { 2 } else { 0 }
+                [void]$sb.Append(('<c r="{0}" t="inlineStr" s="{1}"><is><t xml:space="preserve">{2}</t></is></c>' -f $ref, $s, [Security.SecurityElement]::Escape([string]$v)))
+            }
+        }
+        [void]$sb.Append('</row>')
+    }
+    [void]$sb.Append(('</sheetData><autoFilter ref="A1:{0}"/></worksheet>' -f $last))
+
+    $head = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    $parts = [ordered]@{
+        '[Content_Types].xml'        = $head + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'
+        '_rels/.rels'                = $head + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'
+        'xl/workbook.xml'            = $head + ('<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Sheet1!$A$1:${0}${1}</definedName></definedNames></workbook>' -f (Get-ColumnName ($nc - 1)), ($rows.Count + 1))
+        'xl/_rels/workbook.xml.rels' = $head + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'
+        # Kiểu ô: 0 thường, 1 tiêu đề in đậm, 2 chữ ("@"), 3 chữ đỏ trên nền đỏ nhạt (kết quả có vấn đề).
+        'xl/styles.xml'              = $head + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font><font><sz val="11"/><color rgb="FF9C0006"/><name val="Calibri"/><family val="2"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFC7CE"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="49" fontId="2" fillId="2" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'
+        'xl/worksheets/sheet1.xml'   = $sb.ToString()
+    }
+    $tmp = $Path + '.tmp'
+    if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force }
+    $utf8 = New-Object System.Text.UTF8Encoding($false)
+    $zip = Open-XlsxZip $tmp 'Create'
+    try {
+        foreach ($name in $parts.Keys) {
+            $s = $zip.CreateEntry($name, [IO.Compression.CompressionLevel]::Optimal).Open()
+            try { $b = $utf8.GetBytes($parts[$name]); $s.Write($b, 0, $b.Length) } finally { $s.Dispose() }
+        }
+    } finally { $zip.Dispose() }
+    try { Move-Item -LiteralPath $tmp -Destination $Path -Force } catch { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue; throw }
+}
+
+function Get-FileKind {
+    # Loại file theo nội dung, không theo đuôi (file .xlsx đổi đuôi .nt hay .xls vẫn nhận ra): 'xlsx', 'xls' hoặc 'text'.
+    param([string]$Path)
+    $b = New-Object byte[] 4
+    $fs = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+    try { $n = $fs.Read($b, 0, 4) } finally { $fs.Dispose() }
+    if ($n -ge 2 -and $b[0] -eq 0x50 -and $b[1] -eq 0x4B) { return 'xlsx' }
+    if ($n -ge 4 -and $b[0] -eq 0xD0 -and $b[1] -eq 0xCF -and $b[2] -eq 0x11 -and $b[3] -eq 0xE0) { return 'xls' }
+    return 'text'
 }
 
 function Read-TextCells {
@@ -141,15 +303,15 @@ function Read-TextCells {
 }
 
 function Read-AnyCells {
-    # Đọc danh sách theo đuôi file (đọc trên bản sao trong $WorkDir).
+    # Đọc danh sách (.nt, .xls, .xlsx, .xlsm, .csv, .txt) trên bản sao trong $WorkDir. Nhận loại file theo nội dung.
     param([string]$Path, [string]$WorkDir)
     $ext = [IO.Path]::GetExtension($Path).ToLowerInvariant()
-    switch ($ext) {
-        { $_ -in '.nt', '.xls' } { $copy = Join-Path $WorkDir 'nguon.xls'; Copy-Item -LiteralPath $Path -Destination $copy -Force; return , (Read-JetCells $copy) }
-        { $_ -in '.xlsx', '.xlsm' } { $copy = Join-Path $WorkDir ('nguon' + $ext); Copy-Item -LiteralPath $Path -Destination $copy -Force; return , (Read-ExcelCells $copy) }
-        { $_ -in '.csv', '.txt' } { return , (Read-TextCells $Path) }
-    }
-    throw "Không đọc được file '$ext': dùng .nt, .xls, .xlsx, .csv hoặc .txt."
+    if ($ext -notin '.nt', '.xls', '.xlsx', '.xlsm', '.csv', '.txt') { throw "Không đọc được file '$ext': dùng .nt, .xls, .xlsx, .csv hoặc .txt." }
+    $kind = Get-FileKind $Path
+    if ($kind -eq 'xlsx') { $copy = Join-Path $WorkDir 'nguon.xlsx'; Copy-Item -LiteralPath $Path -Destination $copy -Force; return , (Read-XlsxCells $copy) }
+    if ($kind -eq 'xls') { $copy = Join-Path $WorkDir 'nguon.xls'; Copy-Item -LiteralPath $Path -Destination $copy -Force; return , (Read-JetCells $copy) }
+    if ($ext -in '.csv', '.txt') { return , (Read-TextCells $Path) }
+    throw ("File '{0}' không phải file Excel (.xls, .xlsx) cũng không phải .csv: mở bằng Excel, lưu lại thành .xlsx rồi chạy lại." -f [IO.Path]::GetFileName($Path))
 }
 
 function Write-NtFile {

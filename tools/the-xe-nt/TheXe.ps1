@@ -1,18 +1,20 @@
 ﻿<#
-  File thẻ xe .nt cho phần mềm giữ xe (ITS Pro): xem file như phần mềm đọc, sửa file của bên bán bị mất số 0 ở
-  CardID, tạo file .nt từ danh sách Excel.
+  File thẻ xe .nt cho phần mềm giữ xe (ITS Pro): chuyển danh sách Excel sang file .nt, kiểm tra file .nt như phần mềm
+  đọc (so với danh sách Excel nếu có), chuyển file .nt sang Excel, sửa file của bên bán bị mất số 0 ở CardID.
 
   Không có -Mode: hiện menu (bấm đúp THE_XE.bat, hoặc kéo file thả vào THE_XE.bat).
-  Chế độ: xem (chỉ đọc), sua (ghi bản sửa vào thư mục da-sua cạnh file gốc), tao (ghi <số đầu>-<số cuối>.nt).
-  -File: file .nt/.xls (xem, sua) hoặc danh sách .xlsx/.xls/.csv/.txt (tao). -ThuMuc: thư mục ghi kết quả.
-  -DoDai: số chữ số của mã thẻ (mặc định 10, mã ngắn hơn được thêm số 0 ở đầu).
-  File gốc không bao giờ bị sửa. Đọc, ghi bằng Jet OLEDB 4.0 có sẵn trong Windows (32 bit), không cần Excel;
-  riêng danh sách .xlsx cần Excel để đọc.
+  Chế độ: tao (Excel sang .nt, ghi <số đầu>-<số cuối>.nt), xem (kiểm tra, chỉ đọc), xuat (.nt sang <tên>.xlsx),
+  sua (ghi bản sửa vào thư mục da-sua cạnh file gốc).
+  -File: danh sách .xlsx/.xls/.csv/.txt (tao) hoặc file .nt (xem, xuat, sua). -DanhSach: danh sách để so (xem).
+  -ThuMuc: thư mục ghi kết quả. -DoDai: số chữ số của mã thẻ (mặc định 10, mã ngắn hơn được thêm số 0 ở đầu).
+  File gốc không bao giờ bị sửa. Không cần Excel: .nt đọc, ghi bằng Jet OLEDB 4.0 có sẵn trong Windows (32 bit),
+  .xlsx đọc, ghi thẳng.
   Mã thoát: 0 xong, 1 lỗi (file có lỗi không tự sửa được), 2 thiếu điều kiện (không thấy file), 1223 người dùng thôi.
 #>
 param(
     [string]$Mode = '',
     [string]$File = '',
+    [string]$DanhSach = '',
     [string]$ThuMuc = '',
     [ValidateRange(4, 20)][int]$DoDai = 10,
     [switch]$KhongDung,       # không chờ Enter khi xong (chạy tự động)
@@ -25,18 +27,19 @@ $ErrorActionPreference = 'Stop'
 # cùng cửa sổ. Tham số đi qua biến môi trường để đường dẫn có dấu cách, dấu \ cuối không bị cắt sai.
 if ([Environment]::Is64BitProcess) {
     $ps32 = Join-Path $env:SystemRoot 'SysWOW64\WindowsPowerShell\v1.0\powershell.exe'
-    $env:THEXE_THAMSO = (@{ Mode = $Mode; File = $File; ThuMuc = $ThuMuc; DoDai = $DoDai; KhongDung = [bool]$KhongDung } | ConvertTo-Json -Compress)
+    $env:THEXE_THAMSO = (@{ Mode = $Mode; File = $File; DanhSach = $DanhSach; ThuMuc = $ThuMuc; DoDai = $DoDai; KhongDung = [bool]$KhongDung } | ConvertTo-Json -Compress)
     & $ps32 -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -TuBien
     exit $LASTEXITCODE
 }
 if ($TuBien -and $env:THEXE_THAMSO) {
     $p = $env:THEXE_THAMSO | ConvertFrom-Json
     Remove-Item Env:\THEXE_THAMSO
-    $Mode = [string]$p.Mode; $File = [string]$p.File; $ThuMuc = [string]$p.ThuMuc; $DoDai = [int]$p.DoDai; $KhongDung = [bool]$p.KhongDung
+    $Mode = [string]$p.Mode; $File = [string]$p.File; $DanhSach = [string]$p.DanhSach; $ThuMuc = [string]$p.ThuMuc
+    $DoDai = [int]$p.DoDai; $KhongDung = [bool]$p.KhongDung
 }
 
 $script:ToolDir = $PSScriptRoot
-$script:ToolVersion = '1.0'
+$script:ToolVersion = '1.1'
 . (Join-Path $PSScriptRoot 'lib\Chung.ps1')
 . (Join-Path $PSScriptRoot 'lib\DocGhi.ps1')
 . (Join-Path $PSScriptRoot 'lib\TheXe.ps1')
@@ -44,9 +47,10 @@ $script:NoPause = [bool]$KhongDung
 
 # Log: tên đầu file báo cáo trong ket_qua.
 $script:Modes = [ordered]@{
-    'xem' = @{ No = 1; Label = 'Xem file thẻ như phần mềm giữ xe đọc (chỉ đọc)'; Log = 'BaoCao_TheXe' }
-    'sua' = @{ No = 2; Label = 'Sửa file thẻ của bên bán (thêm số 0 bị mất)'; Log = 'NhatKy_TheXe' }
-    'tao' = @{ No = 3; Label = 'Tạo file thẻ .nt từ danh sách Excel'; Log = 'NhatKy_TheXe' }
+    'tao'  = @{ No = 1; Label = 'Chuyển Excel sang file .nt'; Log = 'NhatKy_TheXe' }
+    'xem'  = @{ No = 2; Label = 'Kiểm tra file .nt (so với danh sách Excel nếu có, chỉ đọc)'; Log = 'BaoCao_TheXe' }
+    'xuat' = @{ No = 3; Label = 'Chuyển file .nt sang Excel (kèm kết quả kiểm tra từng thẻ)'; Log = 'NhatKy_TheXe' }
+    'sua'  = @{ No = 4; Label = 'Sửa file .nt của bên bán (thêm số 0 bị mất)'; Log = 'NhatKy_TheXe' }
 }
 
 function Format-PathArg {
@@ -60,15 +64,16 @@ function Format-PathArg {
 
 function Invoke-ModeSafe {
     # Chạy một chế độ; lỗi không lường trước thì in ra và trả mã 1. Ghi báo cáo vào ket_qua (trừ khi người dùng thôi).
-    param([string]$Id, [string]$F, [string]$Out, [int]$Len)
+    param([string]$Id, [string]$F, [string]$Ds, [string]$Out, [int]$Len)
     $script:Report.Clear()
     $started = Get-Date
     $code = 1
     try {
         $r = switch ($Id) {
-            'xem' { Invoke-XemFile -File $F -DoDai $Len }
-            'sua' { Invoke-SuaFile -File $F -ThuMuc $Out -DoDai $Len }
             'tao' { Invoke-TaoFile -File $F -ThuMuc $Out -DoDai $Len }
+            'xem' { Invoke-XemFile -File $F -DanhSach $Ds -DoDai $Len }
+            'xuat' { Invoke-XuatExcel -File $F -ThuMuc $Out -DoDai $Len }
+            'sua' { Invoke-SuaFile -File $F -ThuMuc $Out -DoDai $Len }
         }
         $r = @($r)
         $code = if ($r.Count -and $r[-1] -is [int]) { $r[-1] } else { 0 }
@@ -105,15 +110,17 @@ function Show-Menu {
         if (-not $id) { continue }
         $f = $Preset
         if (-not $f) {
-            $hint = if ($id -eq 'tao') { 'File danh sách (.xlsx, .xls, .csv), kéo thả file vào đây' } else { 'File thẻ (.nt), kéo thả file vào đây' }
+            $hint = if ($id -eq 'tao') { 'File danh sách Excel (.xlsx, .xls, .csv), kéo thả file vào đây' } else { 'File thẻ (.nt), kéo thả file vào đây' }
             $f = Format-PathArg (Read-Text $hint)
         }
-        $out = ''
-        if ($id -ne 'xem') {
-            $def = if ($id -eq 'sua') { 'thư mục da-sua cạnh file gốc' } else { 'cùng thư mục với danh sách' }
+        $ds = ''; $out = ''
+        if ($id -eq 'xem') {
+            $ds = Format-PathArg (Read-Text 'File danh sách Excel để so từng thẻ (Enter = không so)')
+        } else {
+            $def = if ($id -eq 'sua') { 'thư mục da-sua cạnh file gốc' } elseif ($id -eq 'tao') { 'cùng thư mục với danh sách' } else { 'cùng thư mục với file .nt' }
             $out = Format-PathArg (Read-Text "Thư mục ghi kết quả (Enter = $def)")
         }
-        [void](Invoke-ModeSafe $id $f $out $DoDai)
+        [void](Invoke-ModeSafe $id $f $ds $out $DoDai)
         Wait-Close 'Bấm Enter để về menu'
     }
 }
@@ -121,6 +128,7 @@ function Show-Menu {
 # ---------------------------------------------------------------- bắt đầu
 try { $Host.UI.RawUI.WindowTitle = 'File thẻ xe .nt' } catch { }
 $File = Format-PathArg $File
+$DanhSach = Format-PathArg $DanhSach
 $ThuMuc = Format-PathArg $ThuMuc
 
 # Kéo thả file vào THE_XE.bat: đường dẫn nằm ở vị trí của -Mode.
@@ -130,7 +138,7 @@ if ($Mode -and -not $script:Modes.Contains($Mode) -and (Test-Path -LiteralPath $
 }
 if (-not $Mode) {
     if ([Console]::IsInputRedirected) {
-        Write-Host ('Cách dùng: TheXe.ps1 -Mode <chế độ> -File <file> [-ThuMuc <thư mục>]. Chế độ: {0}.' -f (@($script:Modes.Keys) -join ', '))
+        Write-Host ('Cách dùng: TheXe.ps1 -Mode <chế độ> -File <file> [-DanhSach <file>] [-ThuMuc <thư mục>]. Chế độ: {0}.' -f (@($script:Modes.Keys) -join ', '))
         exit 1
     }
     exit (Show-Menu $File)
@@ -141,6 +149,6 @@ if (-not $script:Modes.Contains($Mode)) {
     exit 1
 }
 try { $Host.UI.RawUI.WindowTitle = 'File thẻ xe - ' + $script:Modes[$Mode].Label } catch { }
-$code = Invoke-ModeSafe $Mode $File $ThuMuc $DoDai
+$code = Invoke-ModeSafe $Mode $File $DanhSach $ThuMuc $DoDai
 Wait-Close
 exit $code
