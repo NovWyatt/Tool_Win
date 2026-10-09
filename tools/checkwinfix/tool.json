@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "checkwinfix",
   "name": "CheckWinFix: chẩn đoán máy Windows",
-  "version": "2026.10.3",
+  "version": "2026.10.4",
   "category": "chan-doan",
   "icon": "stethoscope",
   "audience": "all",
@@ -21,7 +21,7 @@
       "risk": "read-only",
       "primary": true,
       "duration": "1,5-3 phút; kiểm tra sâu thêm 5-20 phút",
-      "description": "Đọc 24 nhóm thông tin (ổ đĩa, SMART, CPU, RAM, khởi động, dịch vụ, nhật ký lỗi, dòng thời gian 90 ngày...) và tự chấm khoảng 60 cảnh báo, mỗi cảnh báo một mã cố định. Xuất LagReport_<máy>_<giờ>.txt và KetQua_CheckWinFix_ThuThap_<máy>_<giờ>.json cạnh file .bat, mở Notepad. Chạy từ trạm thì hai câu hỏi nằm trong form, cửa sổ không hỏi gì; bấm đúp file .bat thì cửa sổ hỏi 3 câu, Enter để bỏ qua.",
+      "description": "Đọc 26 nhóm thông tin (ổ đĩa, SMART, CPU, RAM, khởi động, dịch vụ, nhật ký lỗi, dòng thời gian 90 ngày, Secure Boot 2023, bản quyền Windows, WinRE, chương trình giữ máy thức, kết quả test RAM...) và tự chấm khoảng 70 cảnh báo, mỗi cảnh báo một mã cố định. Xuất LagReport_<máy>_<giờ>.txt và KetQua_CheckWinFix_ThuThap_<máy>_<giờ>.json cạnh file .bat, mở Notepad. Chạy từ trạm thì hai câu hỏi nằm trong form, cửa sổ không hỏi gì; bấm đúp file .bat thì cửa sổ hỏi 3 câu, Enter để bỏ qua.",
       "fixedArgs": ["-KhongHoi"],
       "args": [
         { "id": "bat-dau", "type": "text", "flag": "-BatDau", "label": "Máy bắt đầu chậm hoặc lỗi từ khi nào?", "placeholder": "vd 10/09/2026 hoặc khoảng 2 tuần trước" },

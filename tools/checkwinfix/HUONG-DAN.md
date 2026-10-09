@@ -45,7 +45,7 @@ Kiểm tra quyền Admin bằng `fltmc` (không cần dịch vụ Server như `n
 
 **Script chỉ ĐỌC. Không xoá, không sửa registry, không cài gì, không gửi dữ liệu đi đâu.**
 
-## Nó thu thập gì (24 mục)
+## Nó thu thập gì (26 mục)
 
 | # | Mục | Bắt bệnh gì |
 |---|-----|-------------|
@@ -72,11 +72,35 @@ Kiểm tra quyền Admin bằng `fltmc` (không cần dịch vụ Server như `n
 | 21 | **Dòng thời gian 90 ngày**: update, phần mềm mới cài, restore point | **Đối chiếu đúng ngày máy bắt đầu chậm** |
 | 22 | Phần mềm đã cài + tiện ích trình duyệt | Phần mềm "tối ưu"/adware, quá nhiều extension |
 | 23 | Chờ khởi động lại, CBS log, System Restore | Update kẹt, file hệ thống hỏng |
-| 24 | Nhiệt độ, quạt | Quá nhiệt |
+| 24 | **Secure Boot và chứng chỉ 2023**, bản quyền Windows (không in khoá), dấu vết crack kích hoạt, WinRE | Chưa có chứng chỉ trước hạn 19/10/2026, kích hoạt lậu, không vào được chế độ phục hồi |
+| 25 | `powercfg /requests`, lần đánh thức gần nhất, báo cáo giấc ngủ 7 ngày, **kết quả test RAM** | Máy không tự ngủ, hao pin khi gập máy, RAM lỗi |
+| 26 | Nhiệt độ, quạt | Quá nhiệt |
 
-Đầu báo cáo có mục **“CẢNH BÁO TỰ ĐỘNG”** — script tự chấm khoảng 60 điều kiện và liệt kê nghi phạm, mục nghiêm trọng lên đầu (`[NGHIEM TRONG]`), đọc mục này trước. Mỗi cảnh báo có mã cố định trong ngoặc cuối dòng (vd `SMART_SAP_HONG`, `O_DIA_IO_THAT_BAI`, `FILE_HE_THONG_HONG`): mã không đổi khi sửa câu chữ.
+Đầu báo cáo có mục **“CẢNH BÁO TỰ ĐỘNG”** — script tự chấm khoảng 70 điều kiện và liệt kê nghi phạm, mục nghiêm trọng lên đầu (`[NGHIEM TRONG]`), đọc mục này trước. Mỗi cảnh báo có mã cố định trong ngoặc cuối dòng (vd `SMART_SAP_HONG`, `O_DIA_IO_THAT_BAI`, `FILE_HE_THONG_HONG`): mã không đổi khi sửa câu chữ.
 
 Lỗi của nguồn `disk` trên ổ USB hoặc ổ đã rút ra (không còn trong danh sách ổ) chỉ là cảnh báo: rút ổ khi đang ghi cũng sinh các lỗi này.
+
+### Secure Boot, bản quyền, WinRE, giấc ngủ, RAM (mục 24, 25; bản 2026.10.4)
+
+- **Chứng chỉ Secure Boot 2023**: đọc `HKLM\SYSTEM\CurrentControlSet\Control\SecureBoot\Servicing`
+  (`UEFICA2023Status` NotStarted / InProgress / Updated, `WindowsUEFICA2023Capable`, `UEFICA2023Error`) và sự kiện
+  TPM-WMI trong 90 ngày (1801 chưa cập nhật, 1808 đã cập nhật, 1795/1796 firmware báo lỗi khi ghi). Secure Boot bật mà
+  chưa `Updated` (và sự kiện mới nhất không phải 1808) thì báo `SECURE_BOOT_CHUA_CO_CA_2023`, ghi số ngày còn lại tới
+  19/10/2026 (ngày chứng chỉ *Microsoft Windows Production PCA 2011* ký trình khởi động Windows hết hạn). Có 1795/1796
+  thì thêm `SECURE_BOOT_FIRMWARE_LOI`: cần cập nhật BIOS/UEFI. Máy khởi động kiểu BIOS cũ → `KHOI_DONG_KIEU_BIOS`;
+  Secure Boot tắt → `SECURE_BOOT_TAT` (thông tin). Không ghi gì vào firmware, không đặt `AvailableUpdates`.
+- **Bản quyền Windows**: chỉ đọc tên, kênh khoá, trạng thái, máy chủ KMS của `SoftwareLicensingProduct` (không đọc
+  khoá, kể cả 5 ký tự cuối và khoá OEM trong BIOS; không chạy `slmgr.vbs`). Mã: `WINDOWS_CHUA_KICH_HOAT`,
+  `WINDOWS_KICH_HOAT_KMS_LAU` (KMS trên chính máy hoặc máy chủ KMS công cộng của công cụ crack),
+  `WINDOWS_KMS_NGOAI_DOMAIN` (khoá KMS mà máy không vào domain), `DAU_VET_CRACK_KICH_HOAT` (thư mục, file, tác vụ lịch,
+  dịch vụ, IFEO của KMSpico, KMSAuto, AAct, KMS_VL_ALL, MAS Online KMS).
+- **WinRE**: đọc `C:\Windows\System32\Recovery\ReAgent.xml` (`InstallState`, đọc được bằng quyền thường, không phụ
+  thuộc ngôn ngữ); có quyền Admin thì in thêm `reagentc /info`. Tắt → `WINRE_TAT`.
+- **Giữ máy thức**: `powercfg /requests` (cần quyền Admin) tách theo nhóm DISPLAY / SYSTEM / AWAYMODE...; có chương
+  trình giữ máy → `CO_CHUONG_TRINH_GIU_MAY_THUC` (thông tin). Thêm `powercfg /lastwake`, và trên máy Modern Standby
+  có quyền Admin thì lưu `SleepStudy_<máy>_<giờ>.html` (7 ngày) cạnh báo cáo, file này có trong JSON kết quả.
+- **Test RAM**: sự kiện `MemoryDiagnostics-Results` (1101/1201 không lỗi, 1102/1202 có lỗi). Lần gần nhất có lỗi →
+  `RAM_CO_LOI`; chưa test lần nào mà đã có màn hình xanh hoặc WHEA → `CHUA_TEST_RAM`, gợi ý *Kiểm tra RAM*.
 
 ## Kiểm tra sâu (tuỳ chọn)
 

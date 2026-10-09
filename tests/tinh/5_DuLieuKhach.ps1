@@ -24,7 +24,7 @@ $samples = @(
     'tools/x/du-lieu/a.txt', 'tools/x/ket_qua/a.json', 'hub/data/history.json', 'tools/new-windows/DuLieu_SaoLuu/manifest.json',
     'DuLieu_SaoLuu_cu_20261001_100000/BiMat.aes', 'a/BiMat.aes', 'danh-sach.nt', 'tools/the-xe-nt/khach.xlsx',
     'KetQua_ChuyenDuLieu_xuat_PC_20261009_080000.json', 'KetQua_MyExcel_Sua_PC_1.json', 'BaoCao_BitLocker_PC_1.txt',
-    'BitLocker_KhoaKhoiPhuc_PC_1.txt', 'tools/checkwinfix/KetQua_CheckWinFix_PhanCung_PC_20261010_080000.json',
+    'BitLocker_KhoaKhoiPhuc_PC_1.txt', 'tools/checkwinfix/KetQua_CheckWinFix_PhanCung_PC_20261010_080000.json', 'tools/checkwinfix/SleepStudy_PC_20261010_080000.html',
     'tools/office/mau/Configuration.xml', 'ban-ghi.m4a', 'khach.mdf', 'tests/node_modules/ajv/x.js'
 )
 $ignored = @(& $git.Source -C $RepoRoot -c core.quotepath=off check-ignore --no-index @samples)

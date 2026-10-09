@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 chcp 65001 >nul 2>&1
-title CheckWinFix - Thu thap thong tin may Windows bi cham (v2026.10.3)
+title CheckWinFix - Thu thap thong tin may Windows bi cham (v2026.10.4)
 
 set "SELF=%~f0"
 set "OUTDIR=%~dp0"
@@ -9,7 +9,7 @@ if "%OUTDIR:~-1%"=="\" set "OUTDIR=%OUTDIR:~0,-1%"
 
 echo.
 echo  ==========================================================================
-echo    CheckWinFix  ^|  THU THAP THONG TIN MAY WINDOWS BI CHAM  ^|  v2026.10.3
+echo    CheckWinFix  ^|  THU THAP THONG TIN MAY WINDOWS BI CHAM  ^|  v2026.10.4
 echo  --------------------------------------------------------------------------
 echo    Script nay CHI DOC thong tin de chan doan.
 echo    KHONG xoa, KHONG sua, KHONG cai dat gi tren may.
@@ -73,7 +73,7 @@ exit /b 1
 #=====PS_START=====
 <#
   CheckWinFix - Bo thu thap thong tin chan doan may Windows bi cham dot ngot
-  Phien ban : 2026.10.3
+  Phien ban : 2026.10.4
   Tinh chat : CHI DOC (read-only). Khong thay doi bat ky thiet lap nao.
 #>
 [CmdletBinding(PositionalBinding = $false)]
@@ -88,8 +88,8 @@ param(
 
 $ErrorActionPreference = 'SilentlyContinue'
 $ProgressPreference    = 'SilentlyContinue'
-$SCRIPT_VER = '2026.10.3'
-$TOTAL      = 24
+$SCRIPT_VER = '2026.10.4'
+$TOTAL      = 26
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 try { $Host.UI.RawUI.WindowTitle = 'CheckWinFix - dang thu thap thong tin...' } catch {}
 
@@ -212,7 +212,7 @@ if (-not $KhongHoi) {
     if ($ansDeep -match '^\s*(c|co|y|yes)\s*$') { $KiemTraSau = [switch]$true }
   }
 }
-if ($KiemTraSau) { $TOTAL = 25 }
+if ($KiemTraSau) { $TOTAL = 27 }
 Write-Host ''
 Write-Host '  Dang thu thap. Vui long cho 1-3 phut, KHONG tat cua so nay.' -ForegroundColor Yellow
 Write-Host ''
@@ -1249,6 +1249,223 @@ Sec 'Toan ven he thong, cho khoi dong lai, che do bao tri' {
   KV 'Animations'      (Reg 'HKCU:\Control Panel\Desktop\WindowMetrics' 'MinAnimate')
 }
 
+# =============================== HAM DOC: SECURE BOOT, BAN QUYEN, WINRE, NGU, RAM ===
+# Tach rieng de bai thu thay bang du lieu gia. Tat ca chi doc.
+$CA2011_HET_HAN = [datetime]'2026-10-19'   # Microsoft Windows Production PCA 2011 (ky trinh khoi dong Windows) het han
+
+function Get-KieuFirmware {
+  # 'UEFI' | 'BIOS' | '' (khong ro). GetFirmwareType khong can quyen Admin.
+  try {
+    if (-not ('CWF.Fw' -as [type])) { Add-Type -Namespace CWF -Name Fw -MemberDefinition '[DllImport("kernel32.dll")] public static extern bool GetFirmwareType(out int t);' -ErrorAction Stop }
+    $t = 0
+    if ([CWF.Fw]::GetFirmwareType([ref]$t)) { switch ($t) { 1 { return 'BIOS' } 2 { return 'UEFI' } } }
+  } catch {}
+  return ''
+}
+
+function Get-SecureBootTrangThai {
+  # Registry Servicing: UEFICA2023Status NotStarted | InProgress | Updated; WindowsUEFICA2023Capable 0 | 1 | 2; UEFICA2023Error.
+  # Su kien TPM-WMI: 1801 chua cap nhat chung chi, 1808 da cap nhat, 1795/1796 firmware loi khi ghi.
+  $sb = 'HKLM:\SYSTEM\CurrentControlSet\Control\SecureBoot'
+  $o = [ordered]@{ Firmware = (Get-KieuFirmware); Bat = $null; Status = ''; Capable = $null; Loi = $null; SuKien = @() }
+  $v = Reg "$sb\State" 'UEFISecureBootEnabled'
+  if ($null -ne $v) { $o.Bat = ([int]$v -eq 1) }
+  $o.Status = [string](Reg "$sb\Servicing" 'UEFICA2023Status')
+  $c = Reg "$sb\Servicing" 'WindowsUEFICA2023Capable'; if ($null -ne $c) { $o.Capable = [int]$c }
+  $e = Reg "$sb\Servicing" 'UEFICA2023Error'; if ($null -ne $e) { $o.Loi = ([int64]$e) -band [int64]4294967295 }   # DWORD doc ra Int32 co the am
+  $o.SuKien = @(Ev 'System' $null $since90 200 @(1795, 1796, 1801, 1808) | Where-Object { $_.ProviderName -eq 'Microsoft-Windows-TPM-WMI' } | Sort-Object TimeCreated -Descending)
+  [pscustomobject]$o
+}
+
+function Get-BanQuyenWindows {
+  # Chi lay cac truong can thiet: KHONG doc khoa san pham (ke ca 5 ky tu cuoi, khoa OEM trong BIOS). $null = khong doc duoc.
+  $q = "SELECT Name, Description, LicenseStatus, ProductKeyChannel, KeyManagementServiceMachine, KeyManagementServicePort, DiscoveredKeyManagementServiceMachineName, GracePeriodRemaining FROM SoftwareLicensingProduct WHERE ApplicationID='55c92734-d682-4d71-983e-d6ec3f16059f' AND PartialProductKey IS NOT NULL"
+  try { return , @(Get-CimInstance -Query $q -ErrorAction Stop) } catch {}
+  try { return , @(Get-WmiObject -Query $q -ErrorAction Stop) } catch {}
+  return $null
+}
+
+function Test-KmsLau {
+  # May chu KMS gia lap tren chinh may (KMS_VL_ALL, KMSAuto...) hoac may chu KMS cong cong cua cong cu crack.
+  param([string]$KmsHost)
+  if ([string]::IsNullOrWhiteSpace($KmsHost)) { return $false }
+  return ($KmsHost -match '(?i)^(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|::1|\[::1\])(:\d+)?$' -or
+          $KmsHost -match '(?i)(^|\.)(kms[0-9]*\.(msguides|digiboy|03k|loli|lotro|chinancce|cangshui|library|ghpym|luody|cgtsoft|itsk|mrxn)\.[a-z.]+|kms\.srv\.crsoo\.com|[sz][0-9a-z]*\.(us|uk)\.to)$')
+}
+
+function Get-DauVetCrack {
+  # Dau vet cong cu kich hoat lau (KMSpico, KMSAuto, AAct, KMS_VL_ALL, MAS Online KMS): tep, thu muc, tac vu lich, dich vu, IFEO.
+  $hits = New-Object System.Collections.ArrayList
+  foreach ($p in @("$env:SystemRoot\KMSAutoS", "$env:ProgramData\KMSAutoS", "$env:ProgramData\KMSAuto", "$env:SystemRoot\AAct_Tools",
+                   "$env:ProgramData\AAct_Tools", "$env:ProgramFiles\KMSpico", "${env:ProgramFiles(x86)}\KMSpico", "$env:SystemRoot\SECOH-QAD.exe",
+                   "$env:SystemRoot\SECOH-QAD.dll", "$env:SystemRoot\System32\SppExtComObjHook.dll", "$env:SystemRoot\System32\SppExtComObjPatcher.exe",
+                   "$env:ProgramData\KMS_VL_ALL", "$env:ProgramFiles\KMSAuto Net")) {
+    if ($p -and $p -notmatch '^\\' -and (Test-Path -LiteralPath $p)) { [void]$hits.Add("Tep/thu muc: $p") }
+  }
+  try {
+    foreach ($t in @(Get-ScheduledTask -ErrorAction Stop | Where-Object { $_.TaskName -match '(?i)^(AutoKMS|AutoPico|KMSAuto|KMS_?VL|Activation-Renewal|Activation-Run_Once|AAct)' })) {
+      [void]$hits.Add("Tac vu lich: $($t.TaskPath)$($t.TaskName)")
+    }
+  } catch {}
+  foreach ($s in @(Get-Service -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '(?i)^(KMSELDI|Service_KMS|KMSAutoS|KMSpico|AAct)' })) { [void]$hits.Add("Dich vu: $($s.Name)") }
+  $ifeo = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options'
+  foreach ($exe in 'SppExtComObj.exe', 'sppsvc.exe', 'osppsvc.exe') {
+    foreach ($n in 'VerifierDlls', 'Debugger') { $val = Reg "$ifeo\$exe" $n; if ($val) { [void]$hits.Add("IFEO: $exe $n = $val") } }
+  }
+  return , @($hits)
+}
+
+function Get-WinRE {
+  # ReAgent.xml: doc duoc bang quyen thuong, khong phu thuoc ngon ngu. Co quyen Admin thi kem reagentc /info (chi hien thong tin).
+  $o = [ordered]@{ TrangThai = ''; ViTri = ''; ChiTiet = '' }
+  try {
+    [xml]$doc = Get-Content -LiteralPath "$env:SystemRoot\System32\Recovery\ReAgent.xml" -Raw -ErrorAction Stop
+    $o.TrangThai = switch ([string]$doc.WindowsRE.InstallState.state) { '1' { 'Bat' } '0' { 'Tat' } default { '' } }
+    $o.ViTri = [string]$doc.WindowsRE.WinreLocation.path
+  } catch {}
+  if ($isAdmin) { $o.ChiTiet = ((reagentc /info 2>&1) -join "`n").Trim() }
+  [pscustomobject]$o
+}
+
+function Get-YeuCauNguon {
+  # powercfg /requests: can quyen Admin. '' neu khong chay duoc.
+  if (-not $isAdmin) { return '' }
+  return ((powercfg /requests 2>&1) -join "`n")
+}
+
+function ConvertFrom-YeuCauNguon {
+  # Tach ket qua powercfg /requests theo nhom (DISPLAY, SYSTEM, AWAYMODE, EXECUTION, PERFBOOST, ACTIVELOCKSCREEN).
+  # Tieu de nhom va dong [PROCESS]/[DRIVER]/[SERVICE] khong doi theo ngon ngu; dong ly do nam ngay sau.
+  param([string]$Text)
+  $out = New-Object System.Collections.ArrayList
+  $grp = ''; $last = $null
+  foreach ($l in ($Text -split "`r?`n")) {
+    $t = $l.Trim()
+    if ($t -match '^([A-Z]+):$') { $grp = $Matches[1]; $last = $null; continue }
+    if (-not $grp -or -not $t) { continue }
+    if ($t -match '^\[(\w+)\]\s*(.*)$') {
+      $loai = $Matches[1]; $src = $Matches[2]
+      if ($loai -eq 'PROCESS' -and $src -match '\\([^\\]+)$') { $src = $Matches[1] }
+      $last = [pscustomobject]@{ Nhom = $grp; Loai = $loai; Nguon = $src; LyDo = '' }
+      [void]$out.Add($last)
+    } elseif ($last -and -not $last.LyDo) { $last.LyDo = $t }
+  }
+  return , @($out)
+}
+
+function Get-SleepStudy {
+  # Bao cao giac ngu 7 ngay (chi may Modern Standby, can quyen Admin). Tra duong dan file html hoac ''.
+  param([string]$Path)
+  if (-not $isAdmin) { return '' }
+  $null = powercfg /sleepstudy /output $Path /duration 7 2>&1
+  if (Test-Path -LiteralPath $Path) { return $Path }
+  return ''
+}
+
+function Get-KetQuaTestRam {
+  # MemoryDiagnostics-Results: 1101/1201 khong co loi, 1102/1202 co loi phan cung. Moi nhat dung dau.
+  try { return , @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; ProviderName = 'Microsoft-Windows-MemoryDiagnostics-Results' } -MaxEvents 20 -ErrorAction Stop | Where-Object { @(1101, 1102, 1201, 1202) -contains $_.Id }) } catch { return , @() }
+}
+
+$script:TepThem = New-Object System.Collections.ArrayList   # file phu (sleepstudy...) ghi vao JSON
+
+# =============================== 24. SECURE BOOT, BAN QUYEN, WINRE =============
+Sec 'Secure Boot (chung chi 2023), ban quyen Windows, moi truong phuc hoi WinRE' {
+  SH 'Secure Boot va chung chi Windows UEFI CA 2023'
+  $s = Get-SecureBootTrangThai
+  KV 'Kieu firmware'      $(if ($s.Firmware) { $s.Firmware } else { 'khong ro' })
+  KV 'Secure Boot'        $(if ($s.Bat -eq $true) { 'BAT' } elseif ($s.Bat -eq $false) { 'TAT' } else { 'khong ro' })
+  KV 'UEFICA2023Status'   $(if ($s.Status) { $s.Status } else { '(chua co)' })
+  KV 'WindowsUEFICA2023Capable' $s.Capable
+  if ($s.Loi) { KV 'UEFICA2023Error' ('0x{0:X}' -f $s.Loi) }
+  $ev = @($s.SuKien)
+  foreach ($e in ($ev | Select-Object -First 6)) { W ('  [{0:yyyy-MM-dd HH:mm}] TPM-WMI {1}  {2}' -f $e.TimeCreated, $e.Id, (Trunc $e.Message 150)) }
+  if ($s.Firmware -eq 'BIOS') {
+    FLAG 'KHOI_DONG_KIEU_BIOS' -Muc 'thong-tin' 'May khoi dong kieu BIOS cu (Legacy/CSM), khong co Secure Boot - Windows 11 can UEFI va Secure Boot; may cung khong nhan duoc cac ban va bao mat khoi dong.'
+  } elseif ($s.Bat -eq $false) {
+    FLAG 'SECURE_BOOT_TAT' -Muc 'thong-tin' 'Secure Boot dang TAT - may khong duoc bao ve truoc ma doc nap luc khoi dong (bootkit); Windows 11 can Secure Boot. Bat lai trong BIOS/UEFI neu khong co ly do tat.'
+  } elseif ($s.Bat -eq $true) {
+    $moi = @($ev | Where-Object { $_.Id -in 1801, 1808 } | Select-Object -First 1)
+    $xong = ($s.Status -eq 'Updated') -or ($moi.Count -and $moi[0].Id -eq 1808)
+    if ($xong) { W '  => Da co chung chi Secure Boot 2023 (tot).' }
+    else {
+      $con = [int][Math]::Floor(($CA2011_HET_HAN - (Get-Date).Date).TotalDays)
+      $han = $(if ($con -gt 0) { "con $con ngay" } else { 'DA HET HAN' })
+      $ma = $(if ($s.Loi) { ', ma loi 0x{0:X}' -f $s.Loi } else { '' })
+      FLAG 'SECURE_BOOT_CHUA_CO_CA_2023' ("Secure Boot chua cap nhat chung chi 2023 (UEFICA2023Status = {0}{1}). Chung chi Microsoft Windows Production PCA 2011 ky trinh khoi dong Windows het han 19/10/2026 ({2}): may van khoi dong duoc nhung khong nhan duoc ban va bao mat cho trinh khoi dong nua. Cai het Windows Update, cap nhat BIOS/UEFI tu trang hang may roi khoi dong lai 2 lan." -f $(if ($s.Status) { $s.Status } else { 'chua bat dau' }), $ma, $han)
+      $fw = @($ev | Where-Object { $_.Id -in 1795, 1796 })
+      if ($fw.Count) { FLAG 'SECURE_BOOT_FIRMWARE_LOI' ("Firmware (BIOS/UEFI) bao loi khi Windows ghi chung chi Secure Boot moi ({0} lan su kien TPM-WMI 1795/1796 trong 90 ngay) - can cap nhat BIOS/UEFI tu trang hang may." -f $fw.Count) }
+    }
+  } else { W '  (khong doc duoc trang thai Secure Boot)' }
+
+  SH 'Ban quyen Windows (khong in khoa san pham)'
+  $lic = Get-BanQuyenWindows
+  if ($null -eq $lic) { W '  (khong doc duoc thong tin ban quyen)' }
+  elseif (@($lic).Count -eq 0) { FLAG 'WINDOWS_CHUA_KICH_HOAT' 'Khong thay khoa ban quyen Windows nao duoc cai - Windows chua kich hoat (hinh nen bi khoa, nhac kich hoat).' }
+  foreach ($p in @($lic | Where-Object { $null -ne $_ })) {   # @($null) co 1 phan tu: bo khi khong doc duoc
+    $st = switch ([int]$p.LicenseStatus) { 0 {'Chua cap phep'} 1 {'Da kich hoat'} 2 {'An han OOB'} 3 {'An han (doi phan cung)'} 4 {'An han (khong chinh hang)'} 5 {'Thong bao (chua kich hoat)'} 6 {'An han gia han'} default {"Ma $($p.LicenseStatus)"} }
+    $kms = $(if ($p.KeyManagementServiceMachine) { $p.KeyManagementServiceMachine } else { $p.DiscoveredKeyManagementServiceMachineName })
+    KV 'San pham'       $p.Name
+    KV '  Kenh khoa'    $(if ($p.ProductKeyChannel) { $p.ProductKeyChannel } else { $p.Description })
+    KV '  Trang thai'   $st
+    if ($kms) { KV '  May chu KMS' $kms }
+    if ([int]$p.GracePeriodRemaining -gt 0) { KV '  Con han (ngay)' ([Math]::Round([double]$p.GracePeriodRemaining / 1440, 1)) }
+    if ([int]$p.LicenseStatus -ne 1) { FLAG 'WINDOWS_CHUA_KICH_HOAT' ("Windows chua kich hoat (trang thai: {0}) - mua khoa hoac dang nhap tai khoan Microsoft co ban quyen so; dung dung cong cu crack." -f $st) }
+    $kenh = "$($p.ProductKeyChannel) $($p.Description)"
+    if ($kenh -match '(?i)GVLK|VOLUME_KMSCLIENT') {
+      if (Test-KmsLau $kms) { FLAG 'WINDOWS_KICH_HOAT_KMS_LAU' ("Windows kich hoat bang may chu KMS lau '{0}' - ban quyen gia, tu het han moi 180 ngay; cong cu kich hoat lau hay kem ma doc." -f $kms) }
+      elseif (-not $cs.PartOfDomain) { FLAG 'WINDOWS_KMS_NGOAI_DOMAIN' -Muc 'thong-tin' 'Windows dung khoa KMS (ban cho doanh nghiep) nhung may khong vao domain - neu khong phai may cong ty thi day thuong la kich hoat lau.' }
+    }
+  }
+  $crack = Get-DauVetCrack   # ham tra mang bang "return , @()": khong boc them @()
+  if ($crack.Count) {
+    foreach ($c in $crack) { W ('  ! ' + $c) }
+    FLAG 'DAU_VET_CRACK_KICH_HOAT' ("Co {0} dau vet cong cu kich hoat lau ({1}) - nhom cong cu nay hay kem ma doc, chay nen va them ngoai le cho Defender." -f $crack.Count, (Trunc (($crack | Select-Object -First 3) -join '; ') 200))
+  } else { W '  (khong thay dau vet cong cu kich hoat lau)' }
+
+  SH 'Moi truong phuc hoi Windows (WinRE)'
+  $re = Get-WinRE
+  KV 'Trang thai WinRE' $(if ($re.TrangThai) { $re.TrangThai } else { 'khong doc duoc' })
+  if ($re.ViTri) { KV 'Vi tri' $re.ViTri }
+  if ($re.ChiTiet) { WL $re.ChiTiet }
+  if ($re.TrangThai -eq 'Tat') { FLAG 'WINRE_TAT' 'Moi truong phuc hoi Windows (WinRE) dang TAT - khi may khong vao duoc Windows se khong dung duoc Startup Repair, Reset this PC, go ban cap nhat; ban cap nhat WinRE cung bao loi 0x80070643. Bat lai bang lenh reagentc /enable (quyen Admin).' }
+}
+
+# =============================== 25. GIU MAY THUC, NGU, TEST RAM ==============
+Sec 'Chuong trinh giu may thuc, giac ngu, ket qua test RAM' {
+  SH 'Yeu cau giu may thuc / giu man hinh (powercfg /requests)'
+  $txt = Get-YeuCauNguon
+  if (-not $txt) { W '  (can quyen Administrator)' }
+  else {
+    $rq = ConvertFrom-YeuCauNguon $txt
+    if (-not $rq.Count) { W '  (khong co chuong trinh nao giu may - tot)' }
+    foreach ($r in $rq) { W ('  {0,-17} [{1}] {2}{3}' -f $r.Nhom, $r.Loai, $r.Nguon, $(if ($r.LyDo) { '  - ' + $r.LyDo } else { '' })) }
+    $giu = @($rq | Where-Object { $_.Nhom -in 'DISPLAY', 'SYSTEM', 'AWAYMODE' })
+    if ($giu.Count) {
+      $ds = (@($giu | ForEach-Object { '{0} ({1})' -f $_.Nguon, $_.Nhom } | Select-Object -Unique) -join ', ')
+      FLAG 'CO_CHUONG_TRINH_GIU_MAY_THUC' -Muc 'thong-tin' ("Co {0} yeu cau dang giu may khong ngu / khong tat man hinh: {1}. Neu may khong tu ngu hoac hao pin, dong cac chuong trinh nay." -f $giu.Count, (Trunc $ds 220))
+    }
+  }
+  SH 'Lan danh thuc gan nhat (powercfg /lastwake)'
+  WL ((powercfg /lastwake 2>&1) -join "`n")
+  SH 'Bao cao giac ngu 7 ngay (powercfg /sleepstudy, may Modern Standby)'
+  $ss = Get-SleepStudy (Join-Path $OutDir ("SleepStudy_{0}_{1}.html" -f $env:COMPUTERNAME, $stamp))
+  if ($ss) { KV 'Da luu' $ss; [void]$script:TepThem.Add([ordered]@{ nhan = 'Báo cáo giấc ngủ (sleepstudy)'; duongDan = $ss }) }
+  else { W '  (khong tao duoc: can quyen Administrator hoac may khong dung Modern Standby)' }
+
+  SH 'Ket qua test RAM (Windows Memory Diagnostic)'
+  $md = Get-KetQuaTestRam
+  if ($md.Count) {
+    foreach ($e in ($md | Select-Object -First 4)) { W ('  [{0:yyyy-MM-dd HH:mm}] ID {1}  {2}' -f $e.TimeCreated, $e.Id, $(if (@(1102, 1202) -contains $e.Id) { 'CO LOI PHAN CUNG' } else { 'khong co loi' })) }
+    if (@(1102, 1202) -contains $md[0].Id) { FLAG 'RAM_CO_LOI' -Muc 'loi' ("Lan test RAM gan nhat ({0:dd/MM/yyyy}) bao LOI PHAN CUNG - thay thanh RAM loi (thu tung thanh de tim thanh hong)." -f $md[0].TimeCreated) }
+  } else {
+    W '  (may chua tung chay Windows Memory Diagnostic)'
+    if (@($script:FLAGS | Where-Object { $_.ma -in 'MAN_HINH_XANH', 'WHEA_NGHIEM_TRONG', 'WHEA_DUOC_SUA' }).Count) {
+      FLAG 'CHUA_TEST_RAM' -Muc 'thong-tin' -Tiep 'fix-win/ram' 'Co man hinh xanh hoac loi WHEA ma may chua tung test RAM - nen chay Windows Memory Diagnostic (may se khoi dong lai de test).'
+    }
+  }
+}
+
 # =============================== KIEM TRA SAU (chi khi chon) ==================
 # Thay cho sfc /verifyonly va chkdsk /scan cua "Bao cao suc khoe" cu: doc ket qua co cau truc (khong phu thuoc ngon ngu).
 function Get-AnhWindows {
@@ -1291,7 +1508,7 @@ Sec 'Kiem tra sau: anh Windows (DISM) va loi he thong file (chkdsk /scan)' {
 }
 }
 
-# =============================== 24. NHIET DO =================================
+# =============================== 26. NHIET DO =================================
 Sec 'Nhiet do va tong ket' {
   SH 'Cam bien nhiet (ACPI - nhieu may khong ho tro)'
   $tz = @(Cim MSAcpi_ThermalZoneTemperature 'root\wmi')
@@ -1384,7 +1601,7 @@ $result = [ordered]@{
   thongDiep = $(if ($sorted.Count) { "Thu thập xong: $nLoi nghiêm trọng, $($sorted.Count - $nLoi) cảnh báo khác. Đọc mục CẢNH BÁO TỰ ĐỘNG ở đầu báo cáo." } else { 'Thu thập xong: không thấy dấu hiệu bất thường rõ ràng qua các phép kiểm tự động.' })
   tomTat = [ordered]@{ loi = (& $cnt 'loi'); canhBao = (& $cnt 'canh-bao'); thongTin = (& $cnt 'thong-tin') }
   phatHien = $sorted
-  tep = @([ordered]@{ nhan = 'Báo cáo'; duongDan = $reportPath })
+  tep = @(@([ordered]@{ nhan = 'Báo cáo'; duongDan = $reportPath }) + @($script:TepThem))
   baoCao = $reportPath; quyenAdmin = [bool]$isAdmin; kiemTraSau = [bool]$KiemTraSau
 }
 try {
