@@ -13,6 +13,7 @@
 [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false
 $OutputEncoding = [Console]::OutputEncoding
 . (Join-Path $PSScriptRoot 'XoaAnToan.ps1')
+. (Join-Path $PSScriptRoot 'TimPython.ps1')
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $ToolsDir = Join-Path $RepoRoot 'tools'
@@ -71,6 +72,37 @@ function Clear-TestRegistry {
 }
 
 function Test-Is32BitHost { return [IntPtr]::Size -eq 4 }
+
+function Invoke-Bat([string]$Bat, [string[]]$BatArgs = @(), [hashtable]$Env = @{}, [string]$StdIn = '', [int]$TimeoutSec = 240) {
+    # Chạy file .bat bằng cmd /d /c, đọc stdout/stderr (UTF-8), gửi $StdIn rồi đóng đầu vào (pause, choice không treo).
+    # $Env: biến môi trường thêm cho tiến trình con; giá trị rỗng là xoá biến đó.
+    $psi = New-Object Diagnostics.ProcessStartInfo
+    $psi.FileName = "$env:SystemRoot\System32\cmd.exe"
+    $psi.Arguments = '/d /c ""' + $Bat + '"' + (($BatArgs | ForEach-Object { ' "' + $_ + '"' }) -join '') + '"'
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardInput = $true; $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true
+    $psi.StandardOutputEncoding = [Text.Encoding]::UTF8; $psi.StandardErrorEncoding = [Text.Encoding]::UTF8
+    foreach ($k in $Env.Keys) { if ([string]$Env[$k]) { $psi.EnvironmentVariables[$k] = [string]$Env[$k] } else { $psi.EnvironmentVariables.Remove($k) } }
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    $p = [Diagnostics.Process]::Start($psi)
+    $o = $p.StandardOutput.ReadToEndAsync(); $e = $p.StandardError.ReadToEndAsync()
+    if ($StdIn) { $p.StandardInput.Write($StdIn) }
+    $p.StandardInput.Close()
+    if (-not $p.WaitForExit($TimeoutSec * 1000)) { & taskkill.exe /T /F /PID $p.Id | Out-Null; throw "TIMEOUT after $TimeoutSec s: $Bat" }
+    $p.WaitForExit()
+    [pscustomobject]@{ Code = $p.ExitCode; Out = $o.Result; Err = $e.Result; Sec = [math]::Round($sw.Elapsed.TotalSeconds, 1) }
+}
+
+function New-FakeExe([string]$Path, [string]$Main) {
+    # Biên dịch một .exe console giả để file .bat gọi qua PATH (vd python.exe giả): .bat gọi một .cmd/.bat khác
+    # mà không có "call" thì không quay lại, nên chương trình giả phải là .exe. $Main là thân của
+    # "static int Main(string[] a)", có sẵn using System, System.IO.
+    $cls = 'Gia' + [guid]::NewGuid().ToString('N')
+    $src = "using System; using System.IO; public static class $cls { public static int Main(string[] a) { $Main } }"
+    Add-Type -TypeDefinition $src -Language CSharp -OutputAssembly $Path -OutputType ConsoleApplication
+    return $Path
+}
+
 
 # Thư mục tạm: ChayTatCa.ps1 truyền qua TRAMTOOL_TEST_ROOT; chạy riêng một bài thì tự đặt theo tên bài.
 $TestBase = Get-TestBase

@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "github-logout",
   "name": "Đăng xuất GitHub trên máy",
-  "version": "1.0",
+  "version": "1.1",
   "category": "tien-ich",
   "icon": "key",
   "audience": "tech",
@@ -18,20 +18,22 @@
       "risk": "modifies-system",
       "primary": true,
       "duration": "Vài giây",
-      "description": "Liệt kê rồi xoá các mục GitHub trong Windows Credential Manager của tài khoản đang đăng nhập; có GitHub CLI thì hỏi trước khi đăng xuất gh.",
+      "description": "Đọc danh sách trong Windows Credential Manager của tài khoản đang đăng nhập, xoá mọi mục GitHub của Git (kể cả mục lưu kèm tên tài khoản); mục của ứng dụng khác (VS Code, GitHub Desktop) hỏi trước, mặc định giữ; có GitHub CLI thì hỏi trước khi đăng xuất gh. Không có gì để xoá thì nói rõ. Mã thoát 3: còn mục chưa xoá được.",
       "confirm": "Lần git push sau sẽ phải đăng nhập GitHub lại. Công cụ chạy cho đúng tài khoản Windows hiện tại nên không được chạy bằng quyền Admin.",
       "changes": [
-        "Xoá các mục git:https://github.com, github.com trong Credential Manager",
+        "Xoá các mục GitHub của Git trong Credential Manager (git:https://github.com, git:https://<tên>@github.com, github.com...)",
+        "Hỏi trước rồi mới xoá mục GitHub của ứng dụng khác (VS Code, GitHub Desktop)",
         "Hỏi trước rồi mới chạy 'gh auth logout' nếu máy có GitHub CLI"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ liệt kê mục sẽ xoá, không xoá gì" }
       ]
     }
   ],
   "issues": [
-    "Chỉ xoá 4 tên mục cố định; nếu Git Credential Manager lưu riêng theo từng tài khoản (tên mục có kèm tên người dùng) thì có thể sót.",
-    "Luôn in 'Đã chạy lệnh xoá' kể cả khi không có mục nào để xoá."
+    "Xoá mọi mục GitHub của Git cùng lúc: máy có nhiều tài khoản GitHub thì phải đăng nhập lại tất cả."
   ],
   "upgrades": [
-    "P1: Lọc 'cmdkey /list' theo 'github' để xoá đúng mọi mục, hoặc dùng 'git credential-manager github logout' của GCM.",
-    "P2: Cho chọn tài khoản cần xoá thay vì xoá hết."
+    "P2: Cho chọn tài khoản cần xoá thay vì xoá hết (liệt kê kèm tên người dùng)."
   ]
 }

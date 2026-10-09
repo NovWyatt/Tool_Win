@@ -27,6 +27,7 @@ $ErrorActionPreference = 'Stop'
 $Here = $PSScriptRoot
 $RepoRoot = (Resolve-Path (Join-Path $Here '..')).Path
 . (Join-Path $Here 'lib\XoaAnToan.ps1')
+. (Join-Path $Here 'lib\TimPython.ps1')
 $Tam = Get-TestBase
 $env:TRAMTOOL_TEST_TAM = $Tam
 
@@ -77,14 +78,6 @@ if ($DanhSach) {
 if (-not $run.Count) { Write-Host "Không có bài thử nào khớp: $($Chi -join ', ')" -ForegroundColor Yellow; exit 2 }
 
 # ---------------------------------------------------------------------------------------------- chạy
-function Find-Python {
-    foreach ($n in 'python', 'py') {
-        $c = Get-Command $n -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($c -and $c.Source -notlike '*\WindowsApps\*') { return $c.Source }
-    }
-    return $null
-}
-
 function Invoke-One($t) {
     $root = Join-Path $Tam "$($t.Suite)\$($t.Name)"
     $log = Join-Path $Tam "$($t.Suite)\$($t.Name).log"

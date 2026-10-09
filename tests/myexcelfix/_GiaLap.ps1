@@ -11,24 +11,6 @@ function Test-ExcelOpenHere {
     return [bool]@(Get-Process -Name 'EXCEL' -ErrorAction SilentlyContinue | Where-Object { $_.SessionId -eq $sid }).Count
 }
 
-function Invoke-Bat([string]$Bat, [string[]]$BatArgs = @(), [hashtable]$Env = @{}, [string]$StdIn = '', [int]$TimeoutSec = 240) {
-    $psi = New-Object Diagnostics.ProcessStartInfo
-    $psi.FileName = "$env:SystemRoot\System32\cmd.exe"
-    $psi.Arguments = '/d /c ""' + $Bat + '"' + (($BatArgs | ForEach-Object { ' "' + $_ + '"' }) -join '') + '"'
-    $psi.UseShellExecute = $false
-    $psi.RedirectStandardInput = $true; $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true
-    $psi.StandardOutputEncoding = [Text.Encoding]::UTF8; $psi.StandardErrorEncoding = [Text.Encoding]::UTF8
-    foreach ($k in $Env.Keys) { if ([string]$Env[$k]) { $psi.EnvironmentVariables[$k] = [string]$Env[$k] } else { $psi.EnvironmentVariables.Remove($k) } }
-    $sw = [Diagnostics.Stopwatch]::StartNew()
-    $p = [Diagnostics.Process]::Start($psi)
-    $o = $p.StandardOutput.ReadToEndAsync(); $e = $p.StandardError.ReadToEndAsync()
-    if ($StdIn) { $p.StandardInput.Write($StdIn) }
-    $p.StandardInput.Close()
-    if (-not $p.WaitForExit($TimeoutSec * 1000)) { & taskkill.exe /T /F /PID $p.Id | Out-Null; throw "TIMEOUT after $TimeoutSec s: $Bat" }
-    $p.WaitForExit()
-    [pscustomobject]@{ Code = $p.ExitCode; Out = $o.Result; Err = $e.Result; Sec = [math]::Round($sw.Elapsed.TotalSeconds, 1) }
-}
-
 function New-Zip([string]$Path, [hashtable]$Entries) {
     if (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -Force }
     $z = [IO.Compression.ZipFile]::Open($Path, 'Create')
