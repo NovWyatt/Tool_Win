@@ -10,9 +10,11 @@ CÁCH DÙNG
    - Công cụ tự xử lý mọi file ghi âm chưa có kết quả.
    - Hoặc kéo thả một file ghi âm vào CHUYEN_DOI_GHI_AM.bat để xử lý đúng file đó.
    - Trong Trạm Tool: bấm Chạy ở "Chuyển ghi âm thành Word", chọn file (bỏ trống thì xử lý cả thư mục).
-3. Kết quả nằm trong thư mục ket_qua:
-   - <tên file> - ban tho.docx : văn bản Word, có mốc thời gian đầu mỗi đoạn.
-   - <tên file> - ban tho.txt  : từng câu kèm thời điểm bắt đầu → kết thúc.
+3. Kết quả nằm trong thư mục ket_qua, tên giữ cả đuôi file ghi âm (vd hop.m4a):
+   - hop.m4a - ban tho.docx : văn bản Word, có mốc thời gian đầu mỗi đoạn.
+   - hop.m4a - ban tho.txt  : từng câu kèm thời điểm bắt đầu → kết thúc.
+   Nhờ giữ đuôi, "hop.m4a" và "hop.mp4" trong cùng thư mục không ghi đè kết quả của nhau. Kết quả làm
+   bằng bản trước (tên bỏ đuôi, vd "hop - ban tho.docx") vẫn được nhận ra nên không bị làm lại.
    Chỗ tô vàng là chỗ máy kém chắc chắn; [không nghe rõ] là đoạn máy không nhận dạng được.
 
 Tốc độ: khoảng 5 lần nhanh hơn thời gian thực (1 giờ ghi âm mất chừng 12–15 phút).
@@ -31,6 +33,7 @@ TÙY CHỌN (chạy trong cửa sổ lệnh tại thư mục này)
   .venv\Scripts\python.exe chuyen_doi.py "file.m4a" --goi-y "Nguyễn Văn A, hợp đồng ủy quyền"
       --goi-y   : tên riêng, thuật ngữ có trong ghi âm, giúp máy nghe đúng hơn khi gặp đoạn khó
       --lam-lai : làm lại file đã có kết quả
+      --ra "D:\Bien ban" : lưu kết quả vào thư mục khác thay cho ket_qua (tự tạo nếu chưa có)
       --cpu     : chạy bằng CPU
       --mo-hinh phowhisper-large-ct2 : dùng mô hình PhoWhisper của VinAI (nghe từ tiếng Việt tốt
                   hơn nhưng ra chữ thường, không có dấu câu)

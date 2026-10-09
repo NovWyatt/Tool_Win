@@ -6,12 +6,14 @@ Cách dùng:
   - Bấm đúp CHUYEN_DOI_GHI_AM.bat: xử lý mọi file ghi âm trong thư mục này chưa có kết quả.
   - Kéo thả file ghi âm vào CHUYEN_DOI_GHI_AM.bat: xử lý đúng các file đó.
   - Dòng lệnh:
-      .venv\\Scripts\\python.exe chuyen_doi.py [file ...] [--goi-y "tên riêng, thuật ngữ"] [--cpu] [--lam-lai]
+      .venv\\Scripts\\python.exe chuyen_doi.py [file ...] [--goi-y "tên riêng, thuật ngữ"] [--cpu] [--lam-lai] [--ra thư_mục]
 
-Kết quả nằm trong thư mục ket_qua\\:
-  <tên file> - ban tho.docx    văn bản Word, chia đoạn theo chỗ ngắt nghỉ, có mốc thời gian
-  <tên file> - ban tho.txt     từng câu kèm mốc thời gian bắt đầu → kết thúc
-  _du_lieu\\<tên file>.json     dữ liệu chi tiết (độ tin cậy từng câu), dùng khi biên tập lại
+Kết quả nằm trong thư mục ket_qua\\ (hoặc thư mục chọn bằng --ra), đặt tên theo tên file ghi âm kèm cả đuôi
+để "hop.m4a" và "hop.mp4" không ghi đè nhau:
+  hop.m4a - ban tho.docx    văn bản Word, chia đoạn theo chỗ ngắt nghỉ, có mốc thời gian
+  hop.m4a - ban tho.txt     từng câu kèm mốc thời gian bắt đầu → kết thúc
+  _du_lieu\\hop.m4a.json     dữ liệu chi tiết (độ tin cậy từng câu), dùng khi biên tập lại
+Kết quả bản trước đặt tên bỏ đuôi ("hop - ban tho.docx") vẫn được nhận ra nên không bị làm lại.
 
 Mã thoát: 0 = xong hết, 1 = có file bị lỗi, 2 = không có file nào để xử lý.
 """
@@ -29,7 +31,7 @@ from pathlib import Path
 
 THU_MUC = Path(__file__).resolve().parent
 MO_HINH = THU_MUC / "models" / "faster-whisper-large-v3"
-KET_QUA = THU_MUC / "ket_qua"
+KET_QUA = THU_MUC / "ket_qua"           # đổi bằng --ra (xem dat_thu_muc_ket_qua)
 DU_LIEU = KET_QUA / "_du_lieu"
 DUOI_KET_QUA = " - ban tho"
 
@@ -80,8 +82,33 @@ def gio(giay):
 NHAN_MO_HINH = ""          # thêm vào tên file kết quả khi dùng mô hình khác mặc định
 
 
+def dat_thu_muc_ket_qua(thu_muc):
+    global KET_QUA, DU_LIEU
+    KET_QUA = Path(thu_muc).resolve()
+    DU_LIEU = KET_QUA / "_du_lieu"
+
+
 def file_ket_qua(file_am_thanh, duoi):
-    return KET_QUA / f"{file_am_thanh.stem}{DUOI_KET_QUA}{NHAN_MO_HINH}{duoi}"
+    # Giữ cả đuôi file gốc: "hop.m4a" và "hop.mp4" cùng thư mục thì kết quả không ghi đè nhau.
+    return KET_QUA / f"{file_am_thanh.name}{DUOI_KET_QUA}{NHAN_MO_HINH}{duoi}"
+
+
+def file_du_lieu(file_am_thanh):
+    return DU_LIEU / f"{file_am_thanh.name}{NHAN_MO_HINH}.json"
+
+
+def da_co_ket_qua(file_am_thanh):
+    if file_ket_qua(file_am_thanh, ".docx").exists():
+        return True
+    # Bản 2026.10 đặt tên bỏ đuôi ("hop - ban tho.docx"). Chỉ coi là kết quả của file này khi dữ liệu kèm theo ghi
+    # đúng tên file ghi âm, để "hop.mp4" không bị bỏ qua chỉ vì "hop.m4a" đã làm xong.
+    if not (KET_QUA / f"{file_am_thanh.stem}{DUOI_KET_QUA}{NHAN_MO_HINH}.docx").exists():
+        return False
+    try:
+        du_lieu = json.loads((DU_LIEU / f"{file_am_thanh.stem}{NHAN_MO_HINH}.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(du_lieu, dict) and du_lieu.get("tep") == file_am_thanh.name
 
 
 def tim_file_dau_vao(ds_duong_dan, lam_lai):
@@ -99,7 +126,7 @@ def tim_file_dau_vao(ds_duong_dan, lam_lai):
 
     ds = []
     for f in ung_vien:
-        if not lam_lai and file_ket_qua(f, ".docx").exists():
+        if not lam_lai and da_co_ket_qua(f):
             print(f"Bỏ qua (đã có kết quả): {f.name}   — muốn làm lại thì thêm --lam-lai")
         else:
             ds.append(f.resolve())
@@ -491,9 +518,8 @@ def xu_ly_mot_file(f, model, thiet_bi, goi_y, thu_muc_mo_hinh):
         model, thiet_bi = nap_mo_hinh(True, thu_muc_mo_hinh)
         ds, thoi_luong, cac_khuc = chuyen_thanh_chu(model, am_thanh, goi_y)
 
-    KET_QUA.mkdir(exist_ok=True)
-    DU_LIEU.mkdir(exist_ok=True)
-    (DU_LIEU / f"{f.stem}{NHAN_MO_HINH}.json").write_text(json.dumps({
+    DU_LIEU.mkdir(parents=True, exist_ok=True)
+    file_du_lieu(f).write_text(json.dumps({
         "tep": f.name,
         "thoi_luong_giay": round(thoi_luong, 2),
         "mo_hinh": Path(thu_muc_mo_hinh).name,
@@ -531,11 +557,14 @@ def main():
     ap.add_argument("--cpu", action="store_true", help="chạy bằng CPU thay vì card đồ họa")
     ap.add_argument("--lam-lai", action="store_true", help="làm lại cả file đã có kết quả")
     ap.add_argument("--mo-hinh", default=MO_HINH.name, help="tên thư mục mô hình trong models\\")
+    ap.add_argument("--ra", metavar="THU_MUC", help="thư mục kết quả (mặc định: ket_qua trong thư mục công cụ)")
     args = ap.parse_args()
 
     global NHAN_MO_HINH
     if args.mo_hinh != MO_HINH.name:
         NHAN_MO_HINH = f" ({args.mo_hinh})"
+    if args.ra:
+        dat_thu_muc_ket_qua(args.ra)
     thu_muc_mo_hinh = THU_MUC / "models" / args.mo_hinh
     if not (thu_muc_mo_hinh / "model.bin").is_file():
         print(f"Chưa có mô hình nhận dạng tại {thu_muc_mo_hinh}")

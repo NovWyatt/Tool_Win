@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "ghi-am-sang-word",
   "name": "Ghi âm sang Word (tiếng Việt)",
-  "version": "2026.10",
+  "version": "2026.10.1",
   "category": "chuyen-doi",
   "icon": "mic",
   "audience": "all",
@@ -28,6 +28,7 @@
           { "value": "phowhisper-large-ct2", "label": "PhoWhisper (VinAI): nghe từ tốt hơn, chữ thường, không dấu câu" }
         ] },
         { "id": "lam-lai", "type": "bool", "flag": "--lam-lai", "label": "Làm lại cả file đã có kết quả" },
+        { "id": "ra", "type": "folder", "flag": "--ra", "label": "Lưu kết quả vào thư mục (không bắt buộc)", "help": "Bỏ trống: thư mục ket_qua của công cụ. Tên kết quả giữ cả đuôi file gốc, vd hop.m4a - ban tho.docx." },
         { "id": "cpu", "type": "bool", "flag": "--cpu", "label": "Chạy bằng CPU (rất chậm, chỉ dùng khi card đồ hoạ lỗi)" }
       ]
     },
@@ -77,7 +78,6 @@
     "include": ["CHUYEN_DOI_GHI_AM.bat", "DUNG_WORD_TU_BAN_BIEN_TAP.bat", "CAI_DAT.ps1", "chuyen_doi.py", "bien_tap_sang_word.py", "requirements*.txt", "HUONG_DAN_SU_DUNG.txt"]
   },
   "issues": [
-    "Kết quả đặt tên theo tên file bỏ đuôi, chung một thư mục ket_qua: 'hop.m4a' và 'hop.mp4' ghi đè nhau.",
     "Mọi lỗi bất thường (kể cả Ctrl+C lúc nạp mô hình) bị coi là lỗi card đồ hoạ và chạy lại bằng CPU; với --lam-lai thì CPU làm lại cả file GPU đã xong.",
     "Hết bộ nhớ card (4 GB) thì chuyển cả file sang CPU thay vì thử lại khúc đó với beam nhỏ hơn.",
     "Không lưu tiến độ giữa chừng: lỗi ở 90% một file 3 giờ là mất hết.",
@@ -87,7 +87,6 @@
   "upgrades": [
     "P1: Mã thoát riêng (vd 3) cho 'card đồ hoạ lỗi'; chỉ chạy lại bằng CPU các file chưa xong.",
     "P1: Lưu tiến độ theo từng khúc để chạy tiếp được; hết bộ nhớ card thì thử lại khúc đó với beam 1-2.",
-    "P1: Tên kết quả giữ cả đuôi file gốc; thêm --ra để chọn thư mục kết quả.",
     "P2: In tiến độ dạng JSON để Trạm Tool hiện phần trăm; bật updateFields cho mục lục Word.",
     "P2: Bỏ nvidia-cudnn-cu12 (khoảng 1 GB) nếu chạy thật trên GPU xác nhận ctranslate2 4.8 đã kèm cuDNN."
   ]
