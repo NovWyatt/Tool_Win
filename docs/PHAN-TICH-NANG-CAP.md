@@ -58,6 +58,7 @@ Mức ưu tiên:
 | `92da98a` | Dọn ổ C an toàn (mới), Sửa lỗi Windows | Công cụ mới `tools\don-o-c`: báo ổ C đầy vì đâu, dọn file tạm cũ, bộ nhớ đệm trình duyệt (khi đã tắt), file tải về của Windows Update, Delivery Optimization, WinSxS (không `/ResetBase`); in danh sách, gõ C mới xoá, danh sách thư mục được phép, không đi theo junction. *Clean Temp* của Sửa lỗi Windows chỉ sang công cụ này. |
 | `9af2d8e` | File thẻ xe .nt (mới) | Công cụ mới `tools\the-xe-nt`: đọc file thẻ đúng cách phần mềm giữ xe ITS Pro đọc (Jet OLEDB 4.0), sửa file của bên bán có CardID dạng số bị mất số 0, tạo file .nt từ danh sách Excel; ghi CardID dạng chữ đủ 10 số, đọc lại so từng thẻ, kèm file thử 1 thẻ; không cần Excel. |
 | `8aff9e2` | File thẻ xe .nt | Bản 1.1: chuyển file .nt sang Excel (mỗi thẻ một dòng, mã phần mềm đọc được, kết quả từng thẻ, ô có vấn đề tô đỏ; sửa xong chuyển ngược lại ra .nt); kiểm tra file .nt so với danh sách Excel (khớp, mất số 0, khác mã, thiếu, thừa); đọc, ghi .xlsx thẳng nên không cần Excel cả khi danh sách là .xlsx; nhận ra .xlsx bị đổi đuôi .nt. |
+| `cc3b8e8` | Trạm, mọi `tool.json` | Trạm 1.3.0: giao diện làm lại không dùng Fluent UI (hệ màu riêng, chữ Be Vietnam Pro, biểu tượng Phosphor, danh mục dạng mục lục, một nút chính mỗi vùng); `CAI_DAT.bat` cài một lần mọi thứ các công cụ cần trên máy mới, rồi tạo lối tắt và mở trạm; `tool.json` bỏ gạch dài. |
 
 ## Bảng tổng quan
 
