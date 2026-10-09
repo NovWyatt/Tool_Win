@@ -137,6 +137,13 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
    `.venv` riêng, `requirements-lock.txt` khoá phiên bản, `CAI_DAT.ps1` tự cài lại được trên máy mới.
 8. **Kết quả chỉ là chữ.** Trạm không biết công cụ chạy xong hay lỗi, tìm thấy gì. Quy ước (P1): mỗi lần chạy ghi thêm
    một file JSON tóm tắt (máy, thời gian, trạng thái, phát hiện, mức độ, cách sửa, đường dẫn kết quả).
+9. **Bài thử không nằm trong repo.** Các nút đổi máy chủ yếu được thử bằng giả lập, nhưng bài thử chỉ nằm ở thư mục
+   tạm của phiên làm việc nên sửa sau không chạy lại được. Đã làm: `tests\` với một trình chạy chung
+   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 28 bài cho 13 bộ (cú pháp, mã hoá file, danh mục và lược đồ
+   `tool.json`, không commit dữ liệu khách, lan can của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
+   dịch vụ, đồng hồ, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe) và `tools\mdf2sql\tests` (unittest).
+   Chạy bằng quyền thường, thư mục tạm ngoài repo, registry chỉ trong `HKCU\Software\TramToolTest`. Quy ước: chạy
+   trước mỗi lần commit; thêm, sửa công cụ thì thêm bài thử. Giả lập không thay được chạy thật trên máy thử.
 
 ## Lộ trình
 
@@ -484,6 +491,7 @@ thư viện của công cụ được script cài đặt tải về, không đư
 | Whisper large-v3 (bản CTranslate2 của Systran) | Ghi âm sang Word: mô hình | MIT |
 | pyodbc | Khôi phục .mdf: kết nối SQL Server | MIT |
 | SQL Server Express LocalDB, ODBC Driver 18 | Khôi phục .mdf | Miễn phí của Microsoft |
+| Ajv, ajv-formats | Bài thử: kiểm `tool.json` theo lược đồ (`tests\package.json`, chỉ cài trên máy dev) | MIT |
 
 Dùng nội bộ thì không vướng gì. Nếu sau này muốn bán hoặc đóng gói công cụ DWG sang PDF thành phần mềm đóng
 thì cần xem lại giấy phép GPL-3.0 của LibreDWG và AGPL-3.0 của PyMuPDF trước.

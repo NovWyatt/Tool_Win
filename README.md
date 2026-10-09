@@ -92,6 +92,7 @@ hub\
   dev\                    Normalize-Encoding.ps1
   data\                   lịch sử chạy, cài đặt, mã phiên, trạng thái trước khi chạy (máy nào giữ máy đó, không commit)
 tools\<id>\               mỗi công cụ một thư mục, có tool.json
+tests\                    bài thử giả lập: ChayTatCa.ps1 chạy hết, mỗi bộ một thư mục (xem tests\README.md)
 docs\                     phân tích nâng cấp, hướng dẫn thêm công cụ
 ```
 
@@ -122,6 +123,9 @@ các mẫu tên báo cáo. Thêm công cụ mới có mẫu tên kết quả m�
   Commit trong `tools\mdf2sql` phải push lên repo `mdf2sql` trước khi push repo này.
 - Sau khi sửa `.ps1`/`.bat`: `powershell -ExecutionPolicy Bypass -File hub\dev\Normalize-Encoding.ps1` (`.ps1` UTF-8 có BOM,
   `.bat` không BOM, CRLF).
+- Trước khi commit chạy bài thử: `tests\CHAY_KIEM_THU.bat` hoặc
+  `powershell -ExecutionPolicy Bypass -File tests\ChayTatCa.ps1 [-Chi <bộ>]` (quyền thường, khoảng 6 phút cả lượt; lệnh đổi
+  máy đều là hàm giả). Thêm, sửa công cụ thì thêm bài thử vào `tests\<id>\`; cách viết ở `tests\README.md`.
 - Chạy máy chủ không mở trình duyệt: `TramTool.bat -NoBrowser`. Cổng và mã thông hành nằm trong `hub\data\runtime.json`;
   mở `http://127.0.0.1:<port>/#t=<token>`.
 - Thử giao diện mà không đụng lịch sử, cài đặt thật: thêm `-DataDir <thư mục tạm>\data`, và `-ToolsDir <thư mục tạm>\tools`

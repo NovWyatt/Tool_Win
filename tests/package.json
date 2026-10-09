@@ -1,0 +1,9 @@
+{
+  "name": "tramtool-kiemthu",
+  "private": true,
+  "description": "Thư viện cho bài thử tests\\tinh\\4_LuocDo.ps1 (kiểm tool.json theo hub\\schema\\tool.schema.json). Cài: cd tests && npm install",
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}
