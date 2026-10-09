@@ -1,44 +1,99 @@
 {
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "service-optimizer",
-  "name": "Tắt/bật dịch vụ nền Windows 11",
-  "version": "1.0",
+  "name": "Tắt/bật dịch vụ nền Windows",
+  "version": "2.0",
   "category": "toi-uu",
   "icon": "gauge",
   "audience": "tech",
-  "summary": "Menu tắt hoặc bật lại 4 dịch vụ: DiagTrack (telemetry), Optimize Drives (defragsvc), Windows Insider (wisvc), SysMain.",
-  "tags": ["dịch vụ", "service", "telemetry", "sysmain", "defrag", "tối ưu"],
+  "summary": "Tắt DiagTrack (telemetry), Windows Insider, SysMain, Tối ưu ổ đĩa; lưu kiểu khởi động cũ để bật lại đúng như trước khi tắt.",
+  "description": "Chạy Kiểm tra trước: công cụ đọc kiểu khởi động thật của từng dịch vụ (không nhầm \"đang dừng\" với \"đã tắt\"), so với mặc định của Windows và báo trạng thái gốc đã lưu. Tắt: lưu kiểu khởi động hiện tại vào ket_qua\\TrangThaiGoc_<tên máy>.json rồi mới đổi, đọc lại để chắc đã tắt. Bật lại: trả đúng kiểu đã lưu (kể cả Tự động trễ); dịch vụ chưa lưu thì trả về mặc định của Windows.",
+  "tags": ["dịch vụ", "service", "telemetry", "diagtrack", "sysmain", "superfetch", "defrag", "trim", "insider", "tối ưu"],
+  "docs": "HUONG-DAN.md",
   "actions": [
     {
-      "id": "menu",
-      "label": "Mở menu tắt/bật dịch vụ",
-      "file": "off_servicer.bat",
-      "type": "console",
-      "admin": true,
-      "risk": "modifies-system",
+      "id": "kiem-tra",
+      "label": "Kiểm tra",
+      "file": "DichVu.ps1",
+      "fixedArgs": ["-Mode", "kiem-tra"],
+      "admin": false,
+      "risk": "read-only",
       "primary": true,
       "duration": "Vài giây",
-      "description": "Menu 11 mục: tắt/bật từng dịch vụ, tắt/bật tất cả, xem trạng thái.",
-      "confirm": "Tắt 'Optimize Drives' (defragsvc) cũng tắt TRIM định kỳ cho SSD, lâu ngày SSD chậm đi. Chỉ nên tắt SysMain trên máy RAM rất ít.",
-      "changes": ["Đổi kiểu khởi động và dừng/chạy các dịch vụ DiagTrack, defragsvc, wisvc, SysMain"]
+      "description": "Chỉ đọc. Kiểu khởi động, đang chạy hay dừng, mặc định của Windows và trạng thái gốc đã lưu của từng dịch vụ; cảnh báo khi máy có SSD mà Tối ưu ổ đĩa đang tắt."
+    },
+    {
+      "id": "tat",
+      "label": "Tắt dịch vụ",
+      "file": "DichVu.ps1",
+      "fixedArgs": ["-Mode", "tat"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "Vài giây",
+      "description": "Tắt các dịch vụ đã chọn (kiểu khởi động Đã tắt) và dừng nếu đang chạy. Kiểu khởi động cũ được lưu trước để Bật lại. Không chọn dịch vụ nào thì cửa sổ công cụ hỏi từng cái.",
+      "confirm": "Tắt SysMain thường làm mở ứng dụng chậm hơn trên máy RAM đủ dùng. Tắt Tối ưu ổ đĩa thì SSD không được TRIM định kỳ; cửa sổ công cụ còn hỏi lại.",
+      "changes": [
+        "Lưu kiểu khởi động hiện tại vào ket_qua\\TrangThaiGoc_<tên máy>.json",
+        "Đặt kiểu khởi động Đã tắt và dừng các dịch vụ đã chọn"
+      ],
+      "args": [
+        { "id": "diagtrack", "type": "bool", "flag": "-DiagTrack", "default": true, "label": "DiagTrack: gửi dữ liệu chẩn đoán cho Microsoft (telemetry)" },
+        { "id": "wisvc", "type": "bool", "flag": "-WiSvc", "default": true, "label": "Windows Insider (wisvc): chỉ cần khi nhận bản Windows thử nghiệm" },
+        { "id": "sysmain", "type": "bool", "flag": "-SysMain", "label": "SysMain: chỉ nên tắt khi HDD thường chạy 100% hoặc RAM 4 GB trở xuống" },
+        { "id": "defragsvc", "type": "bool", "flag": "-DefragSvc", "label": "Tối ưu ổ đĩa (defragsvc): không nên tắt, chạy TRIM cho SSD" },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "bat-lai",
+      "label": "Bật lại như trước khi tắt",
+      "file": "DichVu.ps1",
+      "fixedArgs": ["-Mode", "bat-lai"],
+      "admin": true,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Vài giây",
+      "description": "Mọi dịch vụ đang tắt trong bốn dịch vụ trên: trả kiểu khởi động đã lưu lúc tắt; chưa lưu thì trả về mặc định của Windows. Chạy lại dịch vụ đã chạy trước đó.",
+      "changes": [
+        "Đặt lại kiểu khởi động các dịch vụ đang tắt",
+        "Chạy lại dịch vụ Tự động",
+        "Xoá mục đã bật lại khỏi ket_qua\\TrangThaiGoc_<tên máy>.json"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "menu",
+      "label": "Mở menu (như bấm đúp TAT_BAT_DICH_VU.bat)",
+      "file": "TAT_BAT_DICH_VU.bat",
+      "admin": false,
+      "risk": "asks-before-change",
+      "description": "Menu đủ các mục trên, hỏi từng dịch vụ và hỏi lại trước khi đổi; cửa sổ tự hỏi UAC để có quyền Admin."
     }
   ],
   "probes": [
     { "type": "service", "name": "DiagTrack", "label": "DiagTrack (telemetry)", "default": "Automatic" },
-    { "type": "service", "name": "defragsvc", "label": "Optimize Drives (defragsvc)", "default": "Manual" },
     { "type": "service", "name": "wisvc", "label": "Windows Insider (wisvc)", "default": "Manual" },
-    { "type": "service", "name": "SysMain", "label": "SysMain (SuperFetch)", "default": "Automatic" }
+    { "type": "service", "name": "SysMain", "label": "SysMain (SuperFetch)", "default": "Automatic" },
+    { "type": "service", "name": "defragsvc", "label": "Tối ưu ổ đĩa (defragsvc)", "default": "Manual" }
   ],
+  "outputs": [
+    {
+      "label": "Trạng thái gốc để bật lại", "dir": "ket_qua", "glob": "TrangThaiGoc_%COMPUTERNAME%.json",
+      "deleteNote": "\"Bật lại như trước khi tắt\" cần file này để trả đúng kiểu khởi động cũ. Xoá rồi thì Bật lại dùng mặc định của Windows."
+    }
+  ],
+  "pack": {
+    "name": "TatBatDichVu",
+    "include": ["TAT_BAT_DICH_VU.bat", "DichVu.ps1", "HUONG-DAN.md"]
+  },
   "issues": [
-    "Không kiểm tra quyền Admin; chạy thường thì 'sc config' bị từ chối nhưng thông báo bị giấu nên vẫn in 'Đã tắt thành công'.",
-    "Coi trạng thái STOPPED là 'đã tắt': defragsvc, wisvc bình thường vẫn dừng (Manual) nên công cụ báo 'đã tắt rồi' mà không đặt Disabled; mục kiểm tra trạng thái cũng báo sai.",
-    "Mô tả 'tắt defrag phù hợp với SSD' sai: dịch vụ này chạy TRIM cho SSD.",
-    "'Bật lại tất cả' không trả về đúng trạng thái trước khi tắt (không lưu trạng thái ban đầu)."
+    "Mới thử bằng giả lập (dịch vụ, sc.exe giả) và Kiểm tra, Chạy thử trên máy phát triển; chưa đổi dịch vụ thật.",
+    "Dịch vụ đã bị tắt trước khi dùng bản 2.0 thì không biết kiểu khởi động cũ: Bật lại dùng mặc định của Windows."
   ],
   "upgrades": [
-    "P0: Tự nâng quyền và kiểm tra kết quả 'sc config' trước khi báo thành công.",
-    "P0: Xét kiểu khởi động thay vì trạng thái chạy; lưu trạng thái ban đầu ra file để khôi phục đúng giá trị cũ.",
-    "P1: Bỏ tắt defragsvc hoặc cảnh báo rõ về TRIM; kiểm tra bằng 'Optimize-Volume -ReTrim'.",
+    "P1: Kiểm tra TRIM thật bằng 'Optimize-Volume -ReTrim -WhatIf' hoặc lịch tác vụ ScheduledDefrag thay vì chỉ cảnh báo.",
     "P2: Gộp với tối ưu đồng hồ thành một công cụ 'Tối ưu' có trang trạng thái trong Trạm Tool."
   ]
 }

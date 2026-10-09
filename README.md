@@ -55,7 +55,7 @@ driver...): trạm kiểm tra khi mở trang công cụ và có nút **Cài** ch
 | `tools\wifi-fix` | Kiểm tra và sửa lỗi Wi-Fi | `KET_NOI_WIFI.bat`: sửa lỗi "Can't connect to this network" khi vào mạng mới, xem vì sao Wi-Fi không kết nối (nhật ký 7 ngày), mở trang driver. Menu cũ: đặt lại IP, DNS, Winsock. |
 | `tools\may-in-lan` | Máy in mạng LAN và thư mục chia sẻ | Chẩn đoán in, chia sẻ, SMB; sửa hàng đợi kẹt, máy in trùng, lỗi 0x0000011B, 0x00000709, 0x00000BCB; thêm máy in bằng IP, gắn ổ mạng; có hoàn tác. |
 | `tools\don-o-c` | Dọn ổ C an toàn | Xem ổ C đầy vì đâu; dọn file tạm cũ, bộ nhớ đệm trình duyệt, file tải về của Windows Update, WinSxS. Xem trước rồi mới xoá, không đụng dữ liệu cá nhân, thùng rác. |
-| `tools\service-optimizer` | Tắt/bật dịch vụ nền | DiagTrack, Optimize Drives, Windows Insider, SysMain. |
+| `tools\service-optimizer` | Tắt/bật dịch vụ nền | DiagTrack, Windows Insider, SysMain, Tối ưu ổ đĩa; lưu kiểu khởi động cũ để bật lại đúng. |
 | `tools\clock-optimizer` | Tối ưu đồng hồ hệ thống | Dynamic Tick, ép HPET trong BCD (`bcdedit`); trả về mặc định của Windows. |
 | `tools\office` | Gỡ sạch và cài Office theo mẫu | Gỡ mọi bản Office (Click-to-Run, MSI, Microsoft Store, phần sót, khoá cũ), sao lưu mẫu Word, macro, chữ ký; cài theo bộ cài mẫu ODT của bạn, kiểm tra và kích hoạt. Khoá trong mẫu không bao giờ hiện ra. |
 | `tools\myexcelfix` | MyExcel VietQR | Chẩn đoán và sửa add-in MyExcel không bật hoặc không tạo được VietQR; có hoàn tác. |
