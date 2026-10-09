@@ -64,6 +64,11 @@ Mức ưu tiên:
   kết quả bản cũ), thêm `--ra`; mdf2sql 1.1.1 mở hộp thoại chọn file trong tiến trình riêng, `Chay_tool.bat` chạy thử
   Python thật. Thử bằng giả lập (cmdkey, `Get-WinEvent`, `python.exe`, tkinter giả); trên máy thật mới đọc
   Credential Manager (chỉ đếm), nhật ký Application và kết quả ghi âm có sẵn, chưa xoá đăng nhập thật.
+- **MyExcelFix 2026.10.2 (bảo vệ dữ liệu khách)**: sao lưu (có số tài khoản ngân hàng) vào
+  `%LOCALAPPDATA%\MyExcelFix\SaoLuu` thay vì Desktop (thường đồng bộ OneDrive); báo cáo, JSON kết quả vào
+  `%LOCALAPPDATA%\MyExcelFix\BaoCao` thay vì Public Documents (mọi tài khoản đọc được), chỉ snapshot cấu hình còn ở thư
+  mục chung để so giữa các tài khoản; báo cáo che cả tên chủ tài khoản; `ThongTinKhaiBao.txt` chỉ ghi khi đặt lại thật;
+  `HOAN_TAC.bat` không tham số liệt kê bản sao lưu để chọn (cả bản cũ trên Desktop). Mới thử bằng giả lập.
 
 ## Đã sửa trong đợt này
 
@@ -100,6 +105,7 @@ Mức ưu tiên:
 | `15bedfb` | Báo cáo sức khoẻ | Bản 1.1: không có sự kiện thì in [OK] thay vì [LOI]; tự nâng quyền bằng `fltmc`, đường dẫn qua biến môi trường (thư mục có dấu `'` chạy được), đợi cửa sổ Admin để trả mã thoát; bỏ lời khuyên gửi file cho ChatGPT. |
 | `e198820` | Ghi âm sang Word | 2026.10.1: tên kết quả giữ đuôi file gốc (`hop.m4a - ban tho.docx`), `hop.m4a` và `hop.mp4` không ghi đè nhau; kết quả bản cũ vẫn được nhận nên không làm lại; `--ra` chọn thư mục kết quả. |
 | `2bfd956`, `d0e8d92` (submodule) | Khôi phục .mdf sang .sql | mdf2sql 1.1.1: hộp thoại chọn file (Tk) chạy trong tiến trình riêng thay vì trên luồng HTTP (có thể làm sập máy chủ); `Chay_tool.bat` chạy thử Python thay cho `where python` (lối tắt Microsoft Store không còn qua được); pyodbc 5.x theo `requirements.txt`. |
+| `a5ef3e4` | MyExcelFix | 2026.10.2: sao lưu, báo cáo, JSON kết quả vào `%LOCALAPPDATA%\MyExcelFix` (riêng từng tài khoản, không đồng bộ OneDrive); Public Documents chỉ còn snapshot cấu hình, báo cáo cũ của tài khoản đang chạy tự chuyển sang; che tên chủ tài khoản; `ThongTinKhaiBao.txt` chỉ khi đặt lại; `HOAN_TAC.bat` không tham số liệt kê bản sao lưu. |
 
 ## Bảng tổng quan
 
@@ -115,7 +121,7 @@ Mức ưu tiên:
 | Gỡ sạch và cài Office theo mẫu | Kỹ thuật | Kiểm tra Office, giấy phép, bộ cài mẫu (ODT) trước; gỡ mọi bản Office rồi cài theo mẫu, mẫu hỏng thì không gỡ gì; sao lưu mẫu Word, macro, chữ ký; khoá trong mẫu không bao giờ in ra, kích hoạt chỉ theo cách của Microsoft. Kiểm tra và Chạy thử đã chạy thật; gỡ, cài, kích hoạt mới thử bằng giả lập. | P1: gỡ, cài thật trên một máy thử; tạo mẫu mới (LTSC 2024, Microsoft 365) ngay trong công cụ; Quick Repair trước khi phải gỡ. |
 | Dọn ổ C an toàn | Mọi người | Xem ổ C đầy vì đâu (rác dọn được và thứ chiếm chỗ bạn tự quyết: thùng rác, Windows.old, file ngủ đông, Zalo, Downloads); dọn file tạm cũ hơn N ngày, bộ nhớ đệm trình duyệt khi đã tắt, file tải về của Windows Update, Delivery Optimization, WinSxS. Xem trước, gõ C mới xoá; danh sách thư mục được phép. Xem và Chạy thử đã chạy thật; phần xoá mới thử trong thư mục cát. | P1: dọn thật trên một máy; dọn Teams, bộ cài cập nhật Zalo; liệt kê thư mục lớn nhất. |
 | File thẻ xe .nt | Mọi người | Chuyển danh sách Excel sang .nt, kiểm tra file .nt như phần mềm giữ xe đọc và so từng thẻ với danh sách Excel, chuyển .nt sang Excel kèm kết quả từng thẻ, sửa CardID mất số 0; bản sửa lô 3257-3426 khớp từng thẻ với bản sửa tay. Không cần Excel. | P1: nạp thử file do công cụ ghi vào phần mềm thật; so với danh sách thẻ đang có trong phần mềm trước khi nạp. |
-| MyExcelFix | Mọi người | Chẩn đoán kỹ theo từng tài khoản Windows, có sao lưu và hoàn tác an toàn (giữ bản đã sửa tiếp), mã thoát và JSON kết quả có mã phát hiện cố định; mã nguồn chia module và build ra một file `.bat`. | P1: Trạm hiện phát hiện từ JSON; `/undo`, `/list`; sao lưu theo tài khoản thay vì Desktop. |
+| MyExcelFix | Mọi người | Chẩn đoán kỹ theo từng tài khoản Windows, có sao lưu và hoàn tác an toàn (giữ bản đã sửa tiếp), mã thoát và JSON kết quả có mã phát hiện cố định; sao lưu, báo cáo nằm trong thư mục riêng của tài khoản, bản gửi đi đã che số và tên; mã nguồn chia module và build ra một file `.bat`. | P1: Trạm hiện phát hiện từ JSON; Trạm liệt kê bản sao lưu trong form Hoàn tác; `common\` dùng chung cho hai bản build. |
 | DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5-35 phút). | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
 | Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn; tên kết quả giữ đuôi file gốc, chọn được thư mục kết quả. | P1: lưu tiến độ để chạy tiếp, chỉ chạy lại bằng CPU khi đúng là lỗi card. |
 | Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. Có `doctor` kiểm tra môi trường; giao diện giữ cổng riêng, tự lùi khi cổng bận; hộp thoại chọn file chạy trong tiến trình riêng. | P1: `.venv` riêng khoá phiên bản pyodbc; dọn database tạm, thư mục làm việc bị bỏ lại; trạm đọc `server.json` để mở lại, tắt giao diện. |
@@ -137,7 +143,9 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 3. **Bí mật và dữ liệu khách nằm cạnh script.** Bản sao lưu cài lại máy có mật khẩu Wi-Fi, token và hội thoại Claude;
    sao lưu MyExcelFix trên Desktop (thường đồng bộ OneDrive) có số tài khoản ngân hàng; báo cáo có tên máy khách.
    Quy ước: dữ liệu khách để trong `ket_qua\` hoặc `du-lieu\` (git bỏ qua), cho chọn nơi lưu, có tuỳ chọn nén mật khẩu
-   (đã làm ở Chuyển dữ liệu khi cài lại Windows 2.0: chọn nơi lưu, mã hoá `BiMat.aes`).
+   (đã làm ở Chuyển dữ liệu khi cài lại Windows 2.0: chọn nơi lưu, mã hoá `BiMat.aes`). Dữ liệu của một tài khoản
+   Windows để trong `%LOCALAPPDATA%\<công cụ>`, không để Desktop hay Public Documents; bản để gửi đi thì che số, tên
+   (đã làm ở MyExcelFix 2026.10.2).
 4. **Trùng lặp.** Báo cáo sức khoẻ trùng CheckWinFix; Tắt/bật dịch vụ và Tối ưu đồng hồ cùng là *tối ưu*;
    Sửa lỗi Windows nên là bước *Sửa* sau khi CheckWinFix chẩn đoán ra bệnh.
 5. **Phụ thuộc ngôn ngữ Windows.** Đọc chữ trong thông điệp sự kiện, output `netsh` tiếng Anh. Windows tiếng Việt hoặc
@@ -150,7 +158,7 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
    một file JSON tóm tắt (máy, thời gian, trạng thái, phát hiện, mức độ, cách sửa, đường dẫn kết quả).
 9. **Bài thử không nằm trong repo.** Các nút đổi máy chủ yếu được thử bằng giả lập, nhưng bài thử chỉ nằm ở thư mục
    tạm của phiên làm việc nên sửa sau không chạy lại được. Đã làm: `tests\` với một trình chạy chung
-   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 32 bài cho 17 bộ (cú pháp, mã hoá file, danh mục và lược đồ
+   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 34 bài cho 17 bộ (cú pháp, mã hoá file, danh mục và lược đồ
    `tool.json`, không commit dữ liệu khách, lan can của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
    dịch vụ, đồng hồ, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe, Đăng xuất GitHub, Báo cáo sức khoẻ, Ghi âm
    sang Word, `.bat` của mdf2sql) và `tools\mdf2sql\tests` (unittest).
@@ -189,6 +197,9 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 - [x] Khôi phục .mdf: hộp thoại chọn file trong tiến trình riêng; `Chay_tool.bat` chạy thử Python thật (mdf2sql 1.1.1).
 - [x] Ghi âm sang Word: tên kết quả giữ đuôi file gốc, `--ra` (2026.10.1).
 - [ ] Ghi âm sang Word: lưu tiến độ từng khúc; hết bộ nhớ card thì thử lại khúc đó với beam nhỏ.
+- [x] MyExcelFix: sao lưu, báo cáo theo tài khoản (`%LOCALAPPDATA%`) thay vì Desktop, Public Documents; che tên chủ
+      tài khoản; `HOAN_TAC.bat` liệt kê bản sao lưu (2026.10.2).
+- [ ] MyExcelFix: Trạm liệt kê bản sao lưu trong form Hoàn tác; hiện phát hiện từ `KetQua_MyExcel_*.json`.
 - [x] Đăng xuất GitHub: lọc `cmdkey /list` theo `github` (bản 1.1).
 - [x] Báo cáo sức khoẻ: không có sự kiện thì [OK]; nâng quyền bằng `fltmc`, đường dẫn qua biến môi trường (bản 1.1).
 - [x] DWG sang PDF: giải mã TCVN3 (`.VnTime`, `.VnArial`...) giống cách đã làm với VNI.
