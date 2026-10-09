@@ -207,7 +207,58 @@ Reset-Case
 Check 'wu chạy thử: không đổi' ((Last (Invoke-WindowsUpdate -DryRun 6>$null)) -eq 0 -and $script:Calls.Count -eq 0 -and (Test-Path (Join-Path $script:WinDir 'SoftwareDistribution')))
 
 # 10. Invoke-Mode bắt lỗi lạ
+Reset-Case
+${function:Invoke-DismScanGia} = ${function:Invoke-DismScan}
 function Invoke-DismScan { throw 'nổ' }
 Check 'lỗi lạ: Invoke-Mode trả 1' ((Last (Invoke-Mode 'dism-quet' 6>$null)) -eq 1)
+$j = [IO.File]::ReadAllText(@(Get-ChildItem -LiteralPath $script:OutDir -Filter 'KetQua_SuaLoi_DismQuet_*.json')[0].FullName) | ConvertFrom-Json
+Check 'lỗi lạ: file kết quả LOI_KHONG_LUONG_TRUOC' ($j.trangThai -eq 'loi' -and @($j.phatHien)[0].ma -eq 'LOI_KHONG_LUONG_TRUOC')
+${function:Invoke-DismScan} = ${function:Invoke-DismScanGia}
+
+# 11. File kết quả cho Trạm Tool (chuẩn tramtool.ketqua/1)
+function Read-Kq([string]$Name) {
+    $f = @(Get-ChildItem -LiteralPath $script:OutDir -Filter "KetQua_SuaLoi_${Name}_*.json" -ErrorAction SilentlyContinue)
+    if ($f.Count -ne 1) { return $null }
+    return ([IO.File]::ReadAllText($f[0].FullName) | ConvertFrom-Json)
+}
+Reset-Case; $script:Dism = [pscustomobject]@{ Ok = $true; State = 'Repairable'; Message = ''; HResult = 0 }
+$c = Last (Invoke-Mode 'dism-quet' 6>$null)
+$j = Read-Kq 'DismQuet'
+Check 'kq dism-quet: chuẩn, ảnh hỏng sửa được, nút DISM rồi SFC' ($c -eq 0 -and $j.chuan -eq 'tramtool.ketqua/1' -and $j.congCu -eq 'fix-win' -and $j.cheDo -eq 'dism-quet' -and $j.trangThai -eq 'xong' -and $j.ma -eq 'CO_CANH_BAO' -and @($j.phatHien)[0].ma -eq 'ANH_WINDOWS_HONG_SUA_DUOC' -and @($j.phatHien)[0].chayTiep.action -eq 'dism-sfc')
+Reset-Case; $script:Dism = [pscustomobject]@{ Ok = $false; State = ''; Message = 'The source files could not be found'; HResult = 0x800F081F }
+[void](Invoke-Mode 'dism-sua' 6>$null)
+$p = @((Read-Kq 'DismSua').phatHien)[0]
+Check 'kq dism-sua lỗi nguồn: cách sửa nói tới file ISO' ($p.ma -eq 'DISM_CHUA_SUA_DUOC' -and $p.mucDo -eq 'loi' -and $p.chiTiet -match 'source files' -and $p.cachSua -match 'ISO')
+Reset-Case; $script:CbsAppend = @('Repairing corrupted file \??\C:\Windows\a.dll', 'Cannot repair member file [l:10]b.dll', 'Verify complete')
+$c = Last (Invoke-Mode 'sfc' 6>$null)
+$j = Read-Kq 'Sfc'
+Check 'kq sfc còn file hỏng: mã 3, một phần, gợi ý DISM rồi SFC' ($c -eq 3 -and $j.trangThai -eq 'mot-phan' -and @($j.phatHien)[0].ma -eq 'SFC_CON_FILE_HONG' -and @($j.phatHien)[0].chayTiep.action -eq 'dism-sfc' -and @($j.phatHien)[0].chiTiet -match 'Đã sửa 1')
+Reset-Case; $script:Manual = @([pscustomobject]@{ Card = 'Ethernet'; Static = $true; Ip = '192.168.1.5/24'; Gateway = '192.168.1.1'; Dns = '8.8.8.8' }); $script:Answers.Enqueue($true)
+$c = Last (Invoke-Mode 'mang' 6>$null)
+$j = Read-Kq 'Mang'
+$mas = @($j.phatHien | ForEach-Object { $_.ma })
+Check 'kq mang: cảnh báo IP đặt tay, đã đặt lại, kèm file thiết lập cũ' ($c -eq 0 -and $mas -contains 'IP_DNS_DAT_TAY' -and $mas -contains 'DA_DAT_LAI_MANG' -and @($j.tep)[0].duongDan -like '*Mang_*.txt' -and (Test-Path -LiteralPath @($j.tep)[0].duongDan)) ($mas -join ',')
+Reset-Case; $script:Scan = [pscustomobject]@{ Ok = $true; Result = 'SpotFixNeeded'; Message = '' }; $script:Health = [pscustomobject]@{ Known = $true; Healthy = $false; Text = 'Ổ giả (HDD, sức khoẻ: Warning)' }
+[void](Invoke-Mode 'o-dia-quet' 6>$null)
+$mas = @((Read-Kq 'ODiaQuet').phatHien | ForEach-Object { $_.ma })
+Check 'kq o-dia-quet: ổ vật lý không khoẻ lên đầu, lỗi hệ thống file gợi ý Sửa lỗi ổ đĩa' (($mas -join ',') -eq 'O_VAT_LY_KHONG_KHOE,O_DIA_CO_LOI') ($mas -join ',')
+Reset-Case; $ChayThu = $true
+$c = Last (Invoke-Mode 'windows-update' 6>$null)
+$j = Read-Kq 'WindowsUpdate'
+Check 'kq chạy thử: chayThu, thông điệp chạy thử, không đổi gì' ($c -eq 0 -and $j.chayThu -eq $true -and $j.thongDiep -match 'Chạy thử' -and @($j.phatHien).Count -eq 0 -and $script:Calls.Count -eq 0)
+$ChayThu = $false
+$manifest = [IO.File]::ReadAllText("$ToolsDir\fix-win\tool.json", [Text.Encoding]::UTF8) | ConvertFrom-Json
+$ast = [Management.Automation.Language.Parser]::ParseFile("$ToolsDir\fix-win\SuaLoi.ps1", [ref]$null, [ref]$null)
+$adds = @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.CommandAst] -and $n.GetCommandName() -eq 'Add-Result' }, $true))
+$bad = @(); $next = @()
+foreach ($a in $adds) {
+    $e = @($a.CommandElements | Select-Object -Skip 1)
+    if ($e[0] -isnot [Management.Automation.Language.StringConstantExpressionAst] -or $e[0].Value -notmatch '^[A-Z][A-Z0-9_]+$' -or $e[1] -isnot [Management.Automation.Language.StringConstantExpressionAst] -or $e[1].Value -notin 'loi', 'canh-bao', 'thong-tin', 'ok') { $bad += $a.Extent.StartLineNumber }
+    if ($e.Count -ge 6 -and $e[5] -is [Management.Automation.Language.StringConstantExpressionAst]) { $next += $e[5].Value }
+}
+$ids = @($manifest.actions | ForEach-Object { "fix-win/$($_.id)" })
+Check "kq: $($adds.Count) chỗ ghi kết quả có mã CHU_HOA, mức hợp lệ" ($adds.Count -ge 30 -and $bad.Count -eq 0) ($bad -join ', ')
+Check 'kq: nút gợi ý trỏ tới action có thật' ($next.Count -ge 3 -and -not @($next | Where-Object { $ids -notcontains $_ }).Count) ($next -join ', ')
+Check 'kq: tool.json khai file kết quả' (@($manifest.outputs | Where-Object { $_.ketQua }).Count -eq 1)
 
 Complete-Test

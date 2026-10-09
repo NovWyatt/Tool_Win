@@ -8,6 +8,7 @@
   Chế độ: dism-quet, dism-sua, sfc, dism-sfc, mang, tuong-lua, tuong-lua-khoi-phuc, o-dia-quet, o-dia-sua, ram,
   windows-update. -ODia: chữ ổ cho o-dia-* (mặc định ổ Windows). -TepSaoLuu: file .wfw cho tuong-lua-khoi-phuc.
   -ChayThu: chỉ in việc sẽ làm, không đổi máy. -KhongDung: không chờ Enter khi xong.
+  Mỗi lần chạy ghi ket_qua\KetQua_SuaLoi_<chế độ>_<máy>_<giờ>.json (chuẩn tramtool.ketqua/1) cho Trạm Tool.
   Mã thoát: 0 xong, 1 lỗi, 2 thiếu điều kiện (quyền Admin, chưa đồng ý), 3 làm được một phần.
 #>
 param(
@@ -22,9 +23,13 @@ param(
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
 $script:WinDir = $env:SystemRoot
-$script:OutDir = Join-Path $PSScriptRoot 'ket_qua'
+$script:Version = '2.1'
+$script:OutDir = if ($env:FIX_KET_QUA) { $env:FIX_KET_QUA } else { Join-Path $PSScriptRoot 'ket_qua' }
 $script:CbsLog = Join-Path $env:SystemRoot 'Logs\CBS\CBS.log'
 $script:WuServices = @('wuauserv', 'bits', 'cryptsvc', 'msiserver')
+$script:Levels = @{ 'loi' = 0; 'canh-bao' = 1; 'thong-tin' = 2; 'ok' = 3 }
+$script:Findings = New-Object System.Collections.ArrayList
+$script:Files = New-Object System.Collections.ArrayList
 $script:Modes = [ordered]@{
     'dism-quet'           = @{ No = 1; Label = 'Kiểm tra ảnh Windows (DISM ScanHealth, chỉ đọc)' }
     'dism-sua'            = @{ No = 2; Label = 'Sửa ảnh Windows (DISM RestoreHealth)' }
@@ -133,6 +138,57 @@ function Get-ResultCode {
     return 0
 }
 
+# ---------------------------------------------------------------- kết quả cho Trạm Tool
+function Add-Result {
+    # Ghi một kết quả cho file JSON của Trạm Tool (không in: màn hình đã in bằng Write-Ok/Warn/Bad).
+    # $Tiep 'cong-cu/action': nút gợi ý chạy tiếp trong Trạm.
+    param([string]$Ma, [string]$Muc, [string]$TieuDe, [string]$ChiTiet = '', [string]$CachSua = '', [string]$Tiep = '')
+    $f = [ordered]@{ ma = $Ma; mucDo = $Muc; tieuDe = $TieuDe; chiTiet = $ChiTiet; cachSua = $CachSua }
+    if ($Tiep -match '^([a-z0-9-]+)/([A-Za-z0-9_-]+)$') { $f['chayTiep'] = [ordered]@{ congCu = $Matches[1]; action = $Matches[2] } }
+    [void]$script:Findings.Add($f)
+}
+
+function Add-ResultFile { param([string]$Nhan, [string]$Path) [void]$script:Files.Add([ordered]@{ nhan = $Nhan; duongDan = $Path }) }
+
+function Save-RunResult {
+    # Ghi ket_qua\KetQua_SuaLoi_<chế độ>_<máy>_<giờ>.json theo chuẩn tramtool.ketqua/1. Ghi lỗi thì chỉ cảnh báo.
+    param([string]$CheDo, [int]$Code, [datetime]$Start)
+    $i = 0
+    $sorted = @($script:Findings | ForEach-Object { [pscustomobject]@{ F = $_; L = $script:Levels[[string]$_.mucDo]; I = $i++ } } | Sort-Object L, I | ForEach-Object { $_.F })
+    $nLoi = @($sorted | Where-Object { $_.mucDo -eq 'loi' }).Count
+    $nCanh = @($sorted | Where-Object { $_.mucDo -eq 'canh-bao' }).Count
+    $nTin = @($sorted | Where-Object { $_.mucDo -eq 'thong-tin' }).Count
+    $label = if ($script:Modes.Contains($CheDo)) { $script:Modes[$CheDo].Label } else { $CheDo }
+    $msg = if ($ChayThu -and $Code -eq 0) { 'Chạy thử: chỉ xem việc sẽ làm, máy không bị đổi.' } else {
+        switch ($Code) {
+            0 { if ($nLoi + $nCanh) { '{0}: xong, có {1} lỗi, {2} cảnh báo.' -f $label, $nLoi, $nCanh } else { '{0}: xong.' -f $label } }
+            2 { '{0}: chưa làm (thiếu quyền Admin, chưa đồng ý hoặc thiếu file).' -f $label }
+            3 { '{0}: làm được một phần, xem mục lỗi.' -f $label }
+            default { '{0}: lỗi, xem mục lỗi.' -f $label }
+        }
+    }
+    $r = [ordered]@{
+        chuan = 'tramtool.ketqua/1'; congCu = 'fix-win'; cheDo = $CheDo; phienBan = $script:Version
+        may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
+        batDau = $Start.ToString('s'); ketThuc = (Get-Date).ToString('s')
+        maThoat = $Code; trangThai = @{ 0 = 'xong'; 1 = 'loi'; 2 = 'thieu-dieu-kien'; 3 = 'mot-phan' }[$Code]
+        chayThu = [bool]$ChayThu
+        ma = $(if ($nLoi) { 'CO_LOI' } elseif ($nCanh) { 'CO_CANH_BAO' } else { 'KHONG_CO_LOI' })
+        thongDiep = $msg
+        tomTat = [ordered]@{ loi = $nLoi; canhBao = $nCanh; thongTin = $nTin }
+        phatHien = $sorted
+        tep = @($script:Files)
+    }
+    try {
+        if (-not (Test-Path -LiteralPath $script:OutDir)) { New-Item -ItemType Directory -Path $script:OutDir -Force | Out-Null }
+        $name = (($CheDo -split '-') | ForEach-Object { $_.Substring(0, 1).ToUpperInvariant() + $_.Substring(1) }) -join ''
+        $f = Join-Path $script:OutDir ('KetQua_SuaLoi_{0}_{1}_{2:yyyyMMdd_HHmmss}.json' -f $name, $env:COMPUTERNAME, $Start)
+        [IO.File]::WriteAllText("$f.tmp", ($r | ConvertTo-Json -Depth 8), (New-Object Text.UTF8Encoding $false))
+        Move-Item -LiteralPath "$f.tmp" -Destination $f -Force
+        Write-Info "Kết quả cho Trạm Tool: $f"
+    } catch { Write-Warn "Không ghi được file kết quả: $($_.Exception.Message.Trim())" }
+}
+
 # ---------------------------------------------------------------- DISM, SFC
 function Invoke-DismScan {
     try { $r = Repair-WindowsImage -Online -ScanHealth -ErrorAction Stop; return [pscustomobject]@{ Ok = $true; State = [string]$r.ImageHealthState; Message = ''; HResult = 0 } }
@@ -144,18 +200,22 @@ function Invoke-DismRestore {
     catch { return [pscustomobject]@{ Ok = $false; State = ''; Message = (Format-Err $_); HResult = $_.Exception.HResult } }
 }
 
-function Write-DismHint {
+function Get-DismHint {
+    # Cách xử lý theo mã lỗi DISM: các dòng để in, cũng dùng cho file kết quả.
     param([int]$HResult)
     $h = '0x{0:X8}' -f $HResult
     if ($h -in '0x800F081F', '0x800F0906', '0x800F0907', '0x800F0950') {
-        Write-Sub 'DISM không lấy được file sửa từ Windows Update (mất mạng, WSUS hoặc chính sách chặn).'
-        Write-Sub 'Thử lại khi có mạng, hoặc mở file ISO cùng phiên bản Windows rồi chạy:'
-        Write-Sub 'DISM /Online /Cleanup-Image /RestoreHealth /Source:wim:<ổ ISO>:\sources\install.wim:1 /LimitAccess'
-    } elseif ($h -eq '0x800F0915') {
-        Write-Sub 'Không có gì để sửa: ảnh Windows không hỏng.'
-    } else {
-        Write-Sub "Chi tiết trong $script:WinDir\Logs\DISM\dism.log."
+        return @('DISM không lấy được file sửa từ Windows Update (mất mạng, WSUS hoặc chính sách chặn).',
+            'Thử lại khi có mạng, hoặc mở file ISO cùng phiên bản Windows rồi chạy:',
+            'DISM /Online /Cleanup-Image /RestoreHealth /Source:wim:<ổ ISO>:\sources\install.wim:1 /LimitAccess')
     }
+    if ($h -eq '0x800F0915') { return @('Không có gì để sửa: ảnh Windows không hỏng.') }
+    return @("Chi tiết trong $script:WinDir\Logs\DISM\dism.log.")
+}
+
+function Write-DismHint {
+    param([int]$HResult)
+    foreach ($l in (Get-DismHint $HResult)) { Write-Sub $l }
 }
 
 function Invoke-DismQuet {
@@ -164,12 +224,22 @@ function Invoke-DismQuet {
     Write-Line 'Chỉ đọc, không đổi máy. Thường mất 5-15 phút.'
     if ($DryRun) { Write-Plan 'Repair-WindowsImage -Online -ScanHealth'; Write-Info 'Chạy thử: không chạy.'; return 0 }
     $r = Invoke-DismScan
-    if (-not $r.Ok) { Write-Bad "DISM không kiểm tra được: $($r.Message)"; Write-DismHint $r.HResult; return 1 }
+    if (-not $r.Ok) {
+        Write-Bad "DISM không kiểm tra được: $($r.Message)"; Write-DismHint $r.HResult
+        Add-Result 'DISM_KHONG_KIEM_TRA_DUOC' 'loi' 'DISM không kiểm tra được ảnh Windows' $r.Message ((Get-DismHint $r.HResult) -join ' ')
+        return 1
+    }
     switch ($r.State) {
-        'Healthy' { Write-Ok 'Ảnh Windows không hỏng.' }
-        'Repairable' { Write-Warn 'Ảnh Windows có chỗ hỏng, sửa được: chạy "Sửa ảnh Windows" rồi "SFC" (hoặc mục DISM rồi SFC).' }
-        'NonRepairable' { Write-Bad 'Ảnh Windows hỏng nặng, DISM không sửa được: nên cài lại Windows giữ dữ liệu (Repair install bằng ISO cùng phiên bản).' }
-        default { Write-Warn "DISM trả trạng thái lạ: $($r.State)" }
+        'Healthy' { Write-Ok 'Ảnh Windows không hỏng.'; Add-Result 'ANH_WINDOWS_TOT' 'ok' 'Ảnh Windows không hỏng' }
+        'Repairable' {
+            Write-Warn 'Ảnh Windows có chỗ hỏng, sửa được: chạy "Sửa ảnh Windows" rồi "SFC" (hoặc mục DISM rồi SFC).'
+            Add-Result 'ANH_WINDOWS_HONG_SUA_DUOC' 'canh-bao' 'Ảnh Windows có chỗ hỏng, sửa được' '' 'Chạy "DISM rồi SFC".' 'fix-win/dism-sfc'
+        }
+        'NonRepairable' {
+            Write-Bad 'Ảnh Windows hỏng nặng, DISM không sửa được: nên cài lại Windows giữ dữ liệu (Repair install bằng ISO cùng phiên bản).'
+            Add-Result 'ANH_WINDOWS_HONG_NANG' 'loi' 'Ảnh Windows hỏng nặng, DISM không sửa được' '' 'Cài lại Windows giữ dữ liệu (Repair install bằng ISO cùng phiên bản).'
+        }
+        default { Write-Warn "DISM trả trạng thái lạ: $($r.State)"; Add-Result 'DISM_TRANG_THAI_LA' 'canh-bao' "DISM trả trạng thái lạ: $($r.State)" }
     }
     return 0
 }
@@ -181,9 +251,14 @@ function Invoke-DismSua {
     Write-Plan 'Repair-WindowsImage -Online -RestoreHealth (như DISM /Online /Cleanup-Image /RestoreHealth)'
     if (-not (Confirm-Change -DryRun:$DryRun -Ask:$Ask)) { return 0 }
     $r = Invoke-DismRestore
-    if (-not $r.Ok) { Write-Bad "DISM chưa sửa được: $($r.Message)"; Write-DismHint $r.HResult; return 1 }
-    if ($r.State -eq 'Healthy') { Write-Ok 'DISM xong: ảnh Windows không còn hỏng.'; return 0 }
+    if (-not $r.Ok) {
+        Write-Bad "DISM chưa sửa được: $($r.Message)"; Write-DismHint $r.HResult
+        Add-Result 'DISM_CHUA_SUA_DUOC' 'loi' 'DISM chưa sửa được ảnh Windows' $r.Message ((Get-DismHint $r.HResult) -join ' ')
+        return 1
+    }
+    if ($r.State -eq 'Healthy') { Write-Ok 'DISM xong: ảnh Windows không còn hỏng.'; Add-Result 'DISM_DA_SUA' 'ok' 'DISM xong: ảnh Windows không còn hỏng' ; return 0 }
     Write-Bad "DISM chạy xong nhưng ảnh Windows vẫn ở trạng thái $($r.State)."
+    Add-Result 'DISM_VAN_HONG' 'loi' "DISM chạy xong nhưng ảnh Windows vẫn ở trạng thái $($r.State)" '' 'Cài lại Windows giữ dữ liệu (Repair install bằng ISO cùng phiên bản).'
     return 1
 }
 
@@ -224,15 +299,17 @@ function Invoke-SfcMode {
         if ($r.Unrepaired) {
             Write-Warn "SFC còn $($r.Unrepaired) file không sửa được. Chạy ""Sửa ảnh Windows"" (DISM) rồi chạy SFC lại."
             Write-Sub "Danh sách trong $script:CbsLog (dòng có 'Cannot repair member file')."
+            Add-Result 'SFC_CON_FILE_HONG' 'canh-bao' "SFC còn $($r.Unrepaired) file hệ thống không sửa được" $(if ($r.Repaired) { "Đã sửa $($r.Repaired) file. Danh sách file không sửa được trong $script:CbsLog." } else { "Danh sách trong $script:CbsLog." }) 'Chạy "DISM rồi SFC".' 'fix-win/dism-sfc'
             return 3
         }
-        if ($r.Repaired) { Write-Ok "SFC đã sửa $($r.Repaired) file hệ thống hỏng. Khởi động lại máy để dùng file mới." }
-        else { Write-Ok 'SFC không thấy file hệ thống nào hỏng.' }
+        if ($r.Repaired) { Write-Ok "SFC đã sửa $($r.Repaired) file hệ thống hỏng. Khởi động lại máy để dùng file mới."; Add-Result 'SFC_DA_SUA' 'ok' "SFC đã sửa $($r.Repaired) file hệ thống hỏng" '' 'Khởi động lại máy để dùng file mới.' }
+        else { Write-Ok 'SFC không thấy file hệ thống nào hỏng.'; Add-Result 'SFC_KHONG_THAY_LOI' 'ok' 'SFC không thấy file hệ thống nào hỏng' }
         return 0
     }
-    if (-not $r.Read) { Write-Warn "Không đọc được $script:CbsLog để xác nhận kết quả SFC." }
-    else { Write-Bad "SFC dừng giữa chừng (mã $code)." }
-    Write-Sub 'Thường gặp: máy đang chờ khởi động lại để cài cập nhật (khởi động lại rồi chạy lại), hoặc dịch vụ Windows Modules Installer (TrustedInstaller) bị tắt.'
+    $why = 'Thường gặp: máy đang chờ khởi động lại để cài cập nhật (khởi động lại rồi chạy lại), hoặc dịch vụ Windows Modules Installer (TrustedInstaller) bị tắt.'
+    if (-not $r.Read) { Write-Warn "Không đọc được $script:CbsLog để xác nhận kết quả SFC."; Add-Result 'SFC_KHONG_DOC_DUOC_KET_QUA' 'canh-bao' 'Không đọc được CBS.log để xác nhận kết quả SFC' "SFC trả mã $code." $why }
+    else { Write-Bad "SFC dừng giữa chừng (mã $code)."; Add-Result 'SFC_DUNG_GIUA_CHUNG' 'loi' "SFC dừng giữa chừng (mã $code)" '' $why }
+    Write-Sub $why
     if (-not $r.Read -and $code -eq 0) { return 0 }
     return 1
 }
@@ -286,6 +363,7 @@ function Invoke-Mang {
         Write-Line ''
         Write-Warn 'Card mạng sau đang đặt tay; đặt lại TCP/IP sẽ xoá, phải gõ lại sau khi khởi động lại:'
         foreach ($m in $manual) { Write-Sub ('{0}: {1}IP {2}, cổng {3}, DNS {4}' -f $m.Card, $(if ($m.Static) { 'tĩnh, ' } else { 'DHCP, ' }), $m.Ip, $m.Gateway, $(if ($m.Dns) { $m.Dns } else { 'tự động' })) }
+        Add-Result 'IP_DNS_DAT_TAY' 'canh-bao' ('Card mạng đang đặt IP, DNS tay: {0}' -f (($manual | ForEach-Object { $_.Card }) -join ', ')) 'Đặt lại TCP/IP xoá các thiết lập này; công cụ ghi chúng ra ket_qua\Mang_*.txt trước khi đặt lại.' 'Sau khi đặt lại và khởi động lại máy, gõ lại IP, DNS theo file đã ghi.'
     }
     Write-Line ''
     Write-Line 'Sẽ làm:'
@@ -301,19 +379,26 @@ function Invoke-Mang {
     if ($manual.Count) {
         $lines = @("Thiết lập mạng đặt tay trước khi đặt lại TCP/IP, máy $env:COMPUTERNAME, $(Get-Date -Format 'dd/MM/yyyy HH:mm')", '')
         foreach ($m in $manual) { $lines += ('{0}: {1} IP {2}; cổng {3}; DNS {4}' -f $m.Card, $(if ($m.Static) { 'tĩnh' } else { 'DHCP' }), $m.Ip, $m.Gateway, $m.Dns) }
-        try { $p = Save-Text ("Mang_{0}_{1}.txt" -f $env:COMPUTERNAME, (Get-Stamp)) $lines; Write-Ok "Đã ghi thiết lập cũ: $p" }
-        catch { Write-Bad ('Không ghi được thiết lập cũ nên chưa đổi gì: {0}' -f $_.Exception.Message.Trim()); return 1 }
+        try { $p = Save-Text ("Mang_{0}_{1}.txt" -f $env:COMPUTERNAME, (Get-Stamp)) $lines; Write-Ok "Đã ghi thiết lập cũ: $p"; Add-ResultFile 'Thiết lập mạng đặt tay trước khi đặt lại' $p }
+        catch {
+            Write-Bad ('Không ghi được thiết lập cũ nên chưa đổi gì: {0}' -f $_.Exception.Message.Trim())
+            Add-Result 'KHONG_GHI_DUOC_THIET_LAP_MANG' 'loi' 'Không ghi được thiết lập mạng cũ nên chưa đổi gì' $_.Exception.Message.Trim()
+            return 1
+        }
     }
     $done = 0; $fail = 0
     foreach ($step in @(@('ipconfig.exe', @('/flushdns')), @('netsh.exe', @('winsock', 'reset')), @('netsh.exe', @('int', 'ip', 'reset')))) {
         $label = ($step[0] -replace '\.exe$', '') + ' ' + ($step[1] -join ' ')
         $r = Invoke-Native $step[0] $step[1]
         if ($r.Code -eq 0) { Write-Ok $label; $done++ }
-        else { Write-Bad ('{0}: mã {1}. {2}' -f $label, $r.Code, $r.Output); $fail++ }
+        else { Write-Bad ('{0}: mã {1}. {2}' -f $label, $r.Code, $r.Output); $fail++; Add-Result 'BUOC_DAT_LAI_MANG_LOI' 'loi' ('{0}: mã {1}' -f $label, $r.Code) $r.Output }
     }
     Write-Line ''
     $code = Get-ResultCode $done $fail
-    if ($done) { Write-Warn 'Khởi động lại máy để thiết lập mạng mới có hiệu lực.' }
+    if ($done) {
+        Write-Warn 'Khởi động lại máy để thiết lập mạng mới có hiệu lực.'
+        Add-Result 'DA_DAT_LAI_MANG' 'ok' ('Đã đặt lại mạng ({0}/3 bước)' -f $done) '' 'Khởi động lại máy để thiết lập mạng mới có hiệu lực.'
+    }
     return $code
 }
 
@@ -339,12 +424,18 @@ function Invoke-TuongLua {
 
     if (-not (Test-Path -LiteralPath $script:OutDir)) { New-Item -ItemType Directory -Path $script:OutDir -Force | Out-Null }
     $r = Invoke-Native 'netsh.exe' @('advfirewall', 'export', $file)
-    if ($r.Code -ne 0 -or -not (Test-Path -LiteralPath $file)) { Write-Bad ('Không sao lưu được tường lửa (mã {0}) nên chưa đặt lại. {1}' -f $r.Code, $r.Output); return 1 }
+    if ($r.Code -ne 0 -or -not (Test-Path -LiteralPath $file)) {
+        Write-Bad ('Không sao lưu được tường lửa (mã {0}) nên chưa đặt lại. {1}' -f $r.Code, $r.Output)
+        Add-Result 'KHONG_SAO_LUU_DUOC_TUONG_LUA' 'loi' ('Không sao lưu được tường lửa (mã {0}) nên chưa đặt lại' -f $r.Code) $r.Output
+        return 1
+    }
     Write-Ok "Đã sao lưu tường lửa: $file"
+    Add-ResultFile 'Sao lưu tường lửa' $file
     if (-not (Read-YesNo 'Đặt lại tường lửa về mặc định? Các luật tự thêm sẽ mất (đã sao lưu ở trên)' $false)) { Write-Info 'Chưa đặt lại tường lửa.'; return 2 }
     $r = Invoke-Native 'netsh.exe' @('advfirewall', 'reset')
-    if ($r.Code -ne 0) { Write-Bad ('netsh advfirewall reset: mã {0}. {1}' -f $r.Code, $r.Output); return 1 }
+    if ($r.Code -ne 0) { Write-Bad ('netsh advfirewall reset: mã {0}. {1}' -f $r.Code, $r.Output); Add-Result 'DAT_LAI_TUONG_LUA_LOI' 'loi' ('netsh advfirewall reset: mã {0}' -f $r.Code) $r.Output; return 1 }
     Write-Ok 'Đã đặt lại tường lửa về mặc định.'
+    Add-Result 'DA_DAT_LAI_TUONG_LUA' 'ok' 'Đã đặt lại tường lửa về mặc định' "Bản sao lưu: $file" 'Phần mềm nào bị chặn thì cho phép lại khi Windows hỏi, hoặc chạy "Khôi phục tường lửa".'
     Write-Info 'Phần mềm nào bị chặn thì cho phép lại khi Windows hỏi, hoặc dùng mục Khôi phục tường lửa.'
     return 0
 }
@@ -357,14 +448,19 @@ function Invoke-TuongLuaKhoiPhuc {
         $f = Get-ChildItem -LiteralPath $script:OutDir -Filter 'TuongLua_*.wfw' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($f) { $file = $f.FullName }
     }
-    if (-not $file -or -not (Test-Path -LiteralPath $file)) { Write-Bad 'Không thấy bản sao lưu tường lửa (.wfw) trong ket_qua; chọn file bằng -TepSaoLuu.'; return 2 }
+    if (-not $file -or -not (Test-Path -LiteralPath $file)) {
+        Write-Bad 'Không thấy bản sao lưu tường lửa (.wfw) trong ket_qua; chọn file bằng -TepSaoLuu.'
+        Add-Result 'KHONG_THAY_BAN_SAO_LUU_TUONG_LUA' 'loi' 'Không thấy bản sao lưu tường lửa (.wfw)' '' 'Chọn file .wfw trong ô Bản sao lưu.'
+        return 2
+    }
     Write-Line "Bản sao lưu: $file ($((Get-Item -LiteralPath $file).LastWriteTime.ToString('dd/MM/yyyy HH:mm')))"
     Write-Line 'Toàn bộ luật tường lửa hiện tại sẽ được thay bằng luật trong bản sao lưu.'
     Write-Plan "netsh advfirewall import ""$file"""
     if (-not (Confirm-Change -DryRun:$DryRun -Ask:$Ask)) { return 0 }
     $r = Invoke-Native 'netsh.exe' @('advfirewall', 'import', $file)
-    if ($r.Code -ne 0) { Write-Bad ('netsh advfirewall import: mã {0}. {1}' -f $r.Code, $r.Output); return 1 }
+    if ($r.Code -ne 0) { Write-Bad ('netsh advfirewall import: mã {0}. {1}' -f $r.Code, $r.Output); Add-Result 'KHOI_PHUC_TUONG_LUA_LOI' 'loi' ('netsh advfirewall import: mã {0}' -f $r.Code) $r.Output; return 1 }
     Write-Ok 'Đã khôi phục tường lửa từ bản sao lưu.'
+    Add-Result 'DA_KHOI_PHUC_TUONG_LUA' 'ok' 'Đã khôi phục tường lửa từ bản sao lưu' $file
     return 0
 }
 
@@ -403,8 +499,11 @@ function Test-ChkdskScheduled {
 function Write-DiskHealth {
     param($Health)
     if (-not $Health.Known) { Write-Info "Không đọc được sức khoẻ ổ vật lý: $($Health.Text)" }
-    elseif ($Health.Healthy) { Write-Ok "Ổ vật lý: $($Health.Text)" }
-    else { Write-Bad "Ổ vật lý: $($Health.Text)" }
+    elseif ($Health.Healthy) { Write-Ok "Ổ vật lý: $($Health.Text)"; Add-Result 'O_VAT_LY_KHOE' 'ok' "Ổ vật lý: $($Health.Text)" }
+    else {
+        Write-Bad "Ổ vật lý: $($Health.Text)"
+        Add-Result 'O_VAT_LY_KHONG_KHOE' 'loi' "Ổ vật lý báo không khoẻ: $($Health.Text)" '' 'Cứu dữ liệu trước (CheckWinFix, Cứu dữ liệu), rồi thay ổ.'
+    }
 }
 
 function Invoke-ODiaQuet {
@@ -415,9 +514,9 @@ function Invoke-ODiaQuet {
     Write-DiskHealth $h
     if ($DryRun) { Write-Plan "Repair-Volume -DriveLetter $d -Scan (như chkdsk $d`: /scan)"; Write-Info 'Chạy thử: không chạy.'; return 0 }
     $r = Invoke-VolumeScan $d
-    if (-not $r.Ok) { Write-Bad "Không quét được ổ $d`: $($r.Message)"; return 1 }
-    if ($r.Result -eq 'NoErrorsFound') { Write-Ok "Ổ $d`: không có lỗi hệ thống file." }
-    else { Write-Warn "Ổ $d`: $($r.Result). Chạy ""Sửa lỗi ổ đĩa"" để sửa." }
+    if (-not $r.Ok) { Write-Bad "Không quét được ổ $d`: $($r.Message)"; Add-Result 'KHONG_QUET_DUOC_O_DIA' 'loi' "Không quét được ổ $d`:" $r.Message; return 1 }
+    if ($r.Result -eq 'NoErrorsFound') { Write-Ok "Ổ $d`: không có lỗi hệ thống file."; Add-Result 'O_DIA_KHONG_LOI' 'ok' "Ổ $d`: không có lỗi hệ thống file" }
+    else { Write-Warn "Ổ $d`: $($r.Result). Chạy ""Sửa lỗi ổ đĩa"" để sửa."; Add-Result 'O_DIA_CO_LOI' 'canh-bao' "Ổ $d`: có lỗi hệ thống file ($($r.Result))" '' 'Chạy "Sửa lỗi ổ đĩa".' 'fix-win/o-dia-sua' }
     if (-not $h.Healthy) { Write-Warn 'Ổ vật lý báo không khoẻ: cứu dữ liệu trước (CheckWinFix, Cứu dữ liệu), rồi thay ổ.' }
     return 0
 }
@@ -443,16 +542,21 @@ function Invoke-ODiaSua {
     if ($isSystem) {
         # cmd lấy từ Sysnative là bản 64 bit, tự tìm chkdsk trong System32 của nó.
         $code = Invoke-Visible (Get-SysExe 'cmd.exe') ("/c echo Y| chkdsk {0}: /f" -f $d)
-        if (Test-ChkdskScheduled $d) { Write-Ok "Đã hẹn chkdsk cho ổ $d`: ở lần khởi động lại tới. Khởi động lại máy, đừng bấm phím khi màn hình kiểm tra ổ hiện."; return 0 }
+        if (Test-ChkdskScheduled $d) {
+            Write-Ok "Đã hẹn chkdsk cho ổ $d`: ở lần khởi động lại tới. Khởi động lại máy, đừng bấm phím khi màn hình kiểm tra ổ hiện."
+            Add-Result 'DA_HEN_CHKDSK' 'ok' "Đã hẹn chkdsk cho ổ $d`: ở lần khởi động lại tới" '' 'Khởi động lại máy, đừng bấm phím khi màn hình kiểm tra ổ hiện.'
+            return 0
+        }
         Write-Warn "chkdsk chạy xong (mã $code) nhưng chưa thấy lịch kiểm tra ổ $d`: trong BootExecute; khởi động lại và xem có màn hình kiểm tra ổ không."
+        Add-Result 'CHUA_THAY_LICH_CHKDSK' 'canh-bao' "Chưa thấy lịch kiểm tra ổ $d`: sau khi chạy chkdsk (mã $code)" '' 'Khởi động lại và xem có màn hình kiểm tra ổ không.'
         return 3
     }
     $code = Invoke-Visible (Get-SysExe 'chkdsk.exe') ("{0}: /f /x" -f $d)
     switch ($code) {
-        0 { Write-Ok "chkdsk: ổ $d`: không có lỗi."; return 0 }
-        1 { Write-Ok "chkdsk: đã sửa lỗi trên ổ $d`:."; return 0 }
-        2 { Write-Ok "chkdsk: đã dọn ổ $d`:."; return 0 }
-        default { Write-Bad "chkdsk không kiểm tra hoặc không sửa hết lỗi ổ $d`: (mã $code)."; return 1 }
+        0 { Write-Ok "chkdsk: ổ $d`: không có lỗi."; Add-Result 'CHKDSK_KHONG_LOI' 'ok' "chkdsk: ổ $d`: không có lỗi"; return 0 }
+        1 { Write-Ok "chkdsk: đã sửa lỗi trên ổ $d`:."; Add-Result 'CHKDSK_DA_SUA' 'ok' "chkdsk: đã sửa lỗi trên ổ $d`:"; return 0 }
+        2 { Write-Ok "chkdsk: đã dọn ổ $d`:."; Add-Result 'CHKDSK_DA_DON' 'ok' "chkdsk: đã dọn ổ $d`:"; return 0 }
+        default { Write-Bad "chkdsk không kiểm tra hoặc không sửa hết lỗi ổ $d`: (mã $code)."; Add-Result 'CHKDSK_LOI' 'loi' "chkdsk không kiểm tra hoặc không sửa hết lỗi ổ $d`: (mã $code)"; return 1 }
     }
 }
 
@@ -473,11 +577,17 @@ function Invoke-Ram {
     if ($e) {
         $msg = (([string]$e.Message) -split "`r?`n")[0]
         $text = 'Lần kiểm tra trước ({0}): {1}' -f $e.TimeCreated.ToString('dd/MM/yyyy HH:mm'), $msg
-        if ($e.Level -le 3 -and $e.Level -gt 0) { Write-Warn $text } else { Write-Info $text }
-    } else { Write-Info 'Chưa thấy kết quả kiểm tra RAM nào trong nhật ký Windows.' }
+        if ($e.Level -le 3 -and $e.Level -gt 0) { Write-Warn $text; Add-Result 'RAM_LAN_TRUOC_CO_LOI' 'canh-bao' $text '' 'RAM lỗi: thay hoặc cắm lại từng thanh rồi kiểm tra lại.' }
+        else { Write-Info $text; Add-Result 'RAM_LAN_TRUOC' 'thong-tin' $text }
+    } else { Write-Info 'Chưa thấy kết quả kiểm tra RAM nào trong nhật ký Windows.'; Add-Result 'RAM_CHUA_KIEM_TRA' 'thong-tin' 'Chưa thấy kết quả kiểm tra RAM nào trong nhật ký Windows' }
     Write-Plan 'Mở Windows Memory Diagnostic (mdsched.exe): chọn khởi động lại ngay hoặc lần sau; máy kiểm tra RAM khoảng 10-20 phút rồi vào Windows, kết quả hiện ở góc màn hình và trong nhật ký.'
     if ($DryRun) { Write-Info 'Chạy thử: không mở.'; return 0 }
-    if (Start-MemTest) { Write-Ok 'Đã mở Windows Memory Diagnostic; chọn trong cửa sổ đó. Chạy lại mục này sau khi kiểm tra để xem kết quả.'; return 0 }
+    if (Start-MemTest) {
+        Write-Ok 'Đã mở Windows Memory Diagnostic; chọn trong cửa sổ đó. Chạy lại mục này sau khi kiểm tra để xem kết quả.'
+        Add-Result 'DA_MO_KIEM_TRA_RAM' 'ok' 'Đã mở Windows Memory Diagnostic' '' 'Chọn khởi động lại trong cửa sổ đó; chạy lại mục này sau khi kiểm tra để xem kết quả.'
+        return 0
+    }
+    Add-Result 'KHONG_MO_DUOC_KIEM_TRA_RAM' 'loi' 'Không mở được Windows Memory Diagnostic'
     return 1
 }
 
@@ -519,28 +629,44 @@ function Invoke-WindowsUpdate {
         foreach ($s in $script:WuServices) {
             if (Stop-Svc $s) { continue }
             Write-Bad "Không dừng được dịch vụ $s."; $stopped = $false
+            Add-Result 'KHONG_DUNG_DUOC_DICH_VU' 'loi' "Không dừng được dịch vụ $s" '' 'Khởi động lại máy rồi chạy lại.'
         }
         if (-not $stopped) { Write-Bad 'Chưa đổi tên thư mục nào vì còn dịch vụ đang chạy.'; return 1 }
         Write-Ok 'Đã dừng các dịch vụ Windows Update.'
         foreach ($d in $dirs) {
             if (-not (Test-Path -LiteralPath $d.Path)) { Write-Info "Không có $($d.Path), bỏ qua."; continue }
             try { Rename-Item -LiteralPath $d.Path -NewName $d.New -ErrorAction Stop; Write-Ok "Đã đổi tên $($d.Path) thành $($d.New)."; $done++ }
-            catch { Write-Bad ('Không đổi tên được {0}: {1}' -f $d.Path, $_.Exception.Message.Trim()); $fail++ }
+            catch { Write-Bad ('Không đổi tên được {0}: {1}' -f $d.Path, $_.Exception.Message.Trim()); $fail++; Add-Result 'KHONG_DOI_TEN_DUOC' 'loi' "Không đổi tên được $($d.Path)" $_.Exception.Message.Trim() 'Khởi động lại máy rồi chạy lại.' }
         }
     } finally {
         foreach ($s in $wasRunning) {
             if (Get-SvcRunning $s) { continue }
-            if (Start-Svc $s) { Write-Ok "Đã chạy lại dịch vụ $s." } else { Write-Warn "Chưa chạy lại được dịch vụ $s; Windows sẽ chạy khi cần hoặc sau khi khởi động lại." }
+            if (Start-Svc $s) { Write-Ok "Đã chạy lại dịch vụ $s." } else { Write-Warn "Chưa chạy lại được dịch vụ $s; Windows sẽ chạy khi cần hoặc sau khi khởi động lại."; Add-Result 'DICH_VU_CHUA_CHAY_LAI' 'canh-bao' "Chưa chạy lại được dịch vụ $s" '' 'Windows sẽ chạy khi cần hoặc sau khi khởi động lại.' }
         }
     }
     Write-Line ''
     $code = Get-ResultCode $done $fail
-    if ($done) { Write-Info 'Mở Settings > Windows Update > Check for updates. Chạy tốt rồi thì xoá các thư mục .old_ cho nhẹ ổ.' }
+    if ($done) {
+        Write-Info 'Mở Settings > Windows Update > Check for updates. Chạy tốt rồi thì xoá các thư mục .old_ cho nhẹ ổ.'
+        Add-Result 'DA_DAT_LAI_WINDOWS_UPDATE' 'ok' 'Đã đặt lại Windows Update' '' 'Mở Settings > Windows Update > Check for updates. Chạy tốt rồi thì xoá các thư mục .old_ cho nhẹ ổ.'
+    }
     return $code
 }
 
 # ---------------------------------------------------------------- menu, nâng quyền
 function Invoke-Mode {
+    # Chạy một chế độ, ghi file kết quả cho Trạm Tool. Trả mã thoát.
+    param([string]$Id, [switch]$Ask)
+    $script:Findings.Clear(); $script:Files.Clear()
+    $start = Get-Date
+    $code = Get-LastCode (Invoke-ModeCore $Id -Ask:$Ask)
+    Save-RunResult -CheDo $Id -Code $code -Start $start
+    return $code
+}
+
+function Get-LastCode { param($Out) $o = @($Out); if ($o.Count -and $o[-1] -is [int]) { return [int]$o[-1] }; return 1 }
+
+function Invoke-ModeCore {
     param([string]$Id, [switch]$Ask)
     try {
         switch ($Id) {
@@ -558,6 +684,7 @@ function Invoke-Mode {
         }
     } catch {
         Write-Bad ('Lỗi không lường trước: {0}' -f $_.Exception.Message.Trim())
+        Add-Result 'LOI_KHONG_LUONG_TRUOC' 'loi' ('Lỗi không lường trước: {0}' -f $_.Exception.Message.Trim())
         return 1
     }
 }

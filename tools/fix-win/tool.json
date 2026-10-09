@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "fix-win",
   "name": "Sửa lỗi Windows (DISM, SFC, mạng, ổ đĩa, Windows Update)",
-  "version": "2.0",
+  "version": "2.1",
   "category": "sua-loi",
   "icon": "window-wrench",
   "audience": "tech",
@@ -184,7 +184,8 @@
       "label": "Sao lưu tường lửa", "dir": "ket_qua", "glob": "TuongLua_%COMPUTERNAME%_*.wfw",
       "deleteNote": "Nút Khôi phục tường lửa cần file này để trả lại các luật đã mất khi đặt lại."
     },
-    { "label": "Thiết lập mạng đặt tay trước khi đặt lại", "dir": "ket_qua", "glob": "Mang_%COMPUTERNAME%_*.txt" }
+    { "label": "Thiết lập mạng đặt tay trước khi đặt lại", "dir": "ket_qua", "glob": "Mang_%COMPUTERNAME%_*.txt" },
+    { "label": "Kết quả", "dir": "ket_qua", "glob": "KetQua_SuaLoi_*_%COMPUTERNAME%_*.json", "ketQua": true }
   ],
   "pack": {
     "name": "SuaLoiWindows",

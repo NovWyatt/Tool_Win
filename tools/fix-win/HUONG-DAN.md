@@ -24,6 +24,11 @@ Bấm đúp `SUA_LOI_WINDOWS.bat` để mở menu, hoặc chạy từ Trạm Too
 - **RAM**: hiện kết quả lần kiểm tra trước trong nhật ký Windows, rồi mở Windows Memory Diagnostic.
 - **Windows Update**: đổi tên `SoftwareDistribution`, `catroot2` thành `.old_<thời gian>` (không xoá), chạy lại các dịch vụ đã chạy. Chạy tốt rồi thì xoá các thư mục `.old_` cho nhẹ ổ.
 
+Mỗi lần chạy ghi `ket_qua\KetQua_SuaLoi_<chế độ>_<tên máy>_<thời gian>.json` theo chuẩn `tramtool.ketqua/1` (xem
+`docs\THEM-CONG-CU.md`): Trạm Tool hiện kết quả từng việc có mã cố định (`ANH_WINDOWS_HONG_SUA_DUOC`,
+`SFC_CON_FILE_HONG`, `O_DIA_CO_LOI`, `O_VAT_LY_KHONG_KHOE`, `IP_DNS_DAT_TAY`...) kèm nút chạy tiếp khi có (vd ảnh
+Windows hỏng thì gợi ý *DISM rồi SFC*), và file sao lưu tường lửa, thiết lập mạng cũ đã ghi.
+
 Bản 1.0 có mục *Registry Cleanup* xoá khoá `DelegateFolders` mà Explorer dùng, và *Clean Temp* xoá hết `%TEMP%`; bản này bỏ cả hai.
 
 ## Mã thoát
