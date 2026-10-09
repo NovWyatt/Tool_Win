@@ -35,6 +35,7 @@ $j = Get-Content $res[0].FullName -Raw -Encoding UTF8 | ConvertFrom-Json
 Check ($j.maThoat -eq 0 -and $j.ma -eq 'XONG' -and $j.cheDo -eq 'sua' -and $j.trangThai -eq 'xong' -and $j.phienBan -eq $ToolVersion) "fix JSON: $($j.maThoat) $($j.ma) $($j.cheDo) $($j.trangThai) $($j.phienBan) soThayDoi=$($j.soThayDoi)"
 Check ($j.thuMucSaoLuu -eq $bk) 'fix JSON points to backup dir'
 Check (Test-Path (Join-Path $bk 'NhatKy_Sua.txt')) 'fix log written'
+Check ($j.chuan -eq 'tramtool.ketqua/1' -and @($j.tep | Where-Object { $_.duongDan -eq $bk }).Count -eq 1 -and $null -ne $j.tomTat -and $j.tomTat.canhBao -eq @($j.phatHien | Where-Object { $_.mucDo -eq 'canh-bao' }).Count) 'fix JSON theo chuẩn tramtool.ketqua/1 (tep, tomTat khớp phatHien)'
 
 Write-Host '== T1b: user edits HoaDon.xlsx after the fix, then undo via HOAN_TAC.bat ==' -ForegroundColor Cyan
 Edit-Zip (Join-Path $root 'scan\HoaDon.xlsx')
@@ -62,6 +63,8 @@ $res = @(Get-ChildItem (Join-Path $root 'out') -Filter 'KetQua_MyExcel_HoanTac_*
 Check ($res.Count -eq 1) 'undo result JSON written'
 $j = Get-Content $res[0].FullName -Raw -Encoding UTF8 | ConvertFrom-Json
 Check ($j.maThoat -eq 0 -and $j.cheDo -eq 'hoan-tac' -and @($j.giuLai).Count -eq 1 -and $j.giuLai[0] -eq $kept) "undo JSON: $($j.maThoat) $($j.ma) giuLai=$($j.giuLai -join ';')"
+$gi = @($j.phatHien | Where-Object { $_.ma -eq 'GIU_BAN_DA_SUA' })
+Check ($j.chuan -eq 'tramtool.ketqua/1' -and $gi.Count -eq 1 -and $gi[0].mucDo -eq 'thong-tin' -and $gi[0].tieuDe -like "*$kept") 'undo JSON: file giữ lại thành phát hiện thông tin'
 Check (@(Get-ChildItem $bk -Filter 'NhatKy_HoanTac_*.txt').Count -eq 1) 'undo log written'
 
 Assert-RealUntouched

@@ -5,6 +5,7 @@ import { api, icon } from './core.js';
 import { S, update } from './state.js';
 import { openDialog, toast } from './ui.js';
 import { refreshJobs, watchJob } from './jobs.js';
+import { loadServer } from './data.js';
 
 // Giá trị form đang nhập; file/thư mục chọn bằng hộp thoại gốc của Windows (máy chủ mở) nên giữ ở đây.
 const form = { toolId: '', actionId: '', picks: {} };
@@ -149,10 +150,23 @@ async function pickArg(spec) {
   } catch (e) { note.update('error', e.message); }
 }
 
+// Action mở giao diện web (webServer) mà giao diện đó đang chạy: mở lại trang, không hỏi, không mở thêm máy chủ.
+async function reopenServer(t, a) {
+  let s;
+  try { s = ((await api(`/api/server?id=${encodeURIComponent(t.id)}`)).items || {})[a.id]; } catch { return false; }
+  if (!s || !s.running) return false;
+  try {
+    await api('/api/server/open', { method: 'POST', body: { toolId: t.id, actionId: a.id } });
+    toast('success', `${t.name}: giao diện đang chạy (cổng ${s.port}), đã mở lại trong trình duyệt.`, { ms: 6000 });
+  } catch (e) { toast('error', e.message); }
+  return true;
+}
+
 export async function runAction(toolId, actionId, { values: given = null } = {}) {
   const t = S.byId.get(toolId);
   const a = t && (t.actions || []).find((x) => x.id === actionId);
   if (!a) return;
+  if (a.webServer && await reopenServer(t, a)) return;
   const specs = a.args || [];
   const risky = a.risk === 'modifies-system' || !!a.confirm;
   let values = {};
@@ -197,6 +211,7 @@ export async function runAction(toolId, actionId, { values: given = null } = {})
     if (r.ok) {
       watchJob(r.jobId);
       note.update('success', r.jobId ? `Đã mở ${t.name}. Theo dõi ở thanh Đang chạy phía dưới.` : r.message, { ms: 5000 });
+      if (a.webServer) setTimeout(() => loadServer(t), 3000); // máy chủ ghi file trạng thái sau khi mở cổng
     } else if (r.cancelled) {
       note.update('info', 'Đã huỷ: bạn chọn "Không" ở hộp thoại quyền Admin nên công cụ chưa chạy.');
     } else {

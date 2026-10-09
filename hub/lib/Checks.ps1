@@ -238,7 +238,8 @@ function Get-ToolProbes {
 function Get-ToolOutputs {
     # outputs[]: { label, dir (mặc định thư mục công cụ; nhận %BIEN%, {Desktop}, dấu * ở phần cuối),
     #              glob (nhiều mẫu cách nhau ';', nhận %COMPUTERNAME%...), type file|folder, recurse,
-    #              deletable (mặc định true: xoá được từ trạm), deleteNote (cảnh báo hiện khi xoá) }
+    #              deletable (mặc định true: xoá được từ trạm), deleteNote (cảnh báo hiện khi xoá),
+    #              ketQua (file JSON kết quả theo chuẩn của trạm, xem KetQua.ps1) }
     param($Tool, [int]$Limit = 40)
     $files = New-Object System.Collections.ArrayList
     $seen = @{}
@@ -261,6 +262,7 @@ function Get-ToolOutputs {
         $recurse = [bool](Get-Prop $o 'recurse' $false)
         $deletable = [bool](Get-Prop $o 'deletable' $true)
         $deleteNote = [string](Get-Prop $o 'deleteNote' '')
+        $isResult = [bool](Get-Prop $o 'ketQua' $false) -and -not $isFolder
         $globs = @(([Environment]::ExpandEnvironmentVariables([string](Get-Prop $o 'glob' '*'))) -split ';' | Where-Object { $_ })
         foreach ($d in $dirs) {
             foreach ($glob in $globs) {
@@ -274,6 +276,7 @@ function Get-ToolOutputs {
                             name = $f.Name; path = $f.FullName; isFolder = $isFolder
                             size = $(if ($isFolder) { 0 } else { $f.Length }); sizeText = $(if ($isFolder) { 'Thư mục' } else { Format-Size $f.Length })
                             modified = (Get-IsoTime $f.LastWriteTime); deletable = $deletable; deleteNote = $deleteNote
+                            ketQua = $isResult
                         })
                 }
             }

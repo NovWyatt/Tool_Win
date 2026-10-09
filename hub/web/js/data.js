@@ -73,8 +73,16 @@ export async function loadDocs(t) {
   update();
 }
 
+// Máy chủ giao diện web của các action có webServer (vd mdf2sql): đang chạy ở cổng nào.
+export const hasWebServer = (t) => (t.actions || []).some((a) => a.webServer);
+export async function loadServer(t) {
+  try { td(t.id).server = (await api(`/api/server?id=${encodeURIComponent(t.id)}`)).items || {}; } catch { td(t.id).server = {}; }
+  update();
+}
+
 export async function loadToolExtras(t) {
   const jobs = [];
+  if (hasWebServer(t)) jobs.push(loadServer(t));
   if ((t.requires || []).length) jobs.push(loadReqs(t));
   if ((t.probes || []).length) jobs.push(loadProbes(t));
   if ((t.outputs || []).length) jobs.push(loadToolOutputs(t));

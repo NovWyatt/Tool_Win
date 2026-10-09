@@ -54,7 +54,8 @@ Check (@(Get-ChildItem $usb -Force).Count -eq 0) 'không tạo gì ở nơi lưu
 Check ($r.Out -like '*CHẠY THỬ*' -and $r.Out -like '*Wi-Fi:*mạng đã lưu*') 'in kế hoạch'
 $j = @(Get-ChildItem $env:CDL_KET_QUA -Filter 'KetQua_ChuyenDuLieu_xuat_*.json')
 $k = if ($j.Count) { [IO.File]::ReadAllText($j[0].FullName) | ConvertFrom-Json } else { $null }
-Check ($j.Count -eq 1 -and $k.ChayThu -eq $true -and $k.MaThoat -eq 0 -and $null -eq $k.ThuMucSaoLuu -and $k.KetQua -eq 'xong') 'file kết quả: chạy thử, không ghi ThuMucSaoLuu'
+Check ($j.Count -eq 1 -and $k.chayThu -eq $true -and $k.maThoat -eq 0 -and $null -eq $k.thuMucSaoLuu -and $k.trangThai -eq 'xong') 'file kết quả: chạy thử, không ghi thuMucSaoLuu'
+Check ($k.chuan -eq 'tramtool.ketqua/1' -and $k.congCu -eq 'new-windows' -and $k.thongDiep -and $null -ne $k.tomTat -and @($k.tep).Count -eq 0) 'file kết quả theo chuẩn tramtool.ketqua/1'
 
 Write-Host '== kiểu Trạm Tool gọi (-Command, giá trị trong nháy đơn, có \ cuối)'
 $cmd = "& '$ps1' -Mode xuat -DryRun -Target '$usb\' -NoPause; if (`$?) { exit 0 }; if (`$LASTEXITCODE) { exit `$LASTEXITCODE }; exit 1"

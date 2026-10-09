@@ -6,6 +6,7 @@ import { section, toolRow, pinRow, runStateText, shortWhen, onRowKey, stop, empt
 import { runAction } from '../run.js';
 import { openPalette } from '../palette.js';
 import { loadHistory, loadDepsAll, loadSystem, reloadCatalog } from '../data.js';
+import { showResult } from '../result.js';
 
 export function homeLoad() {
   loadHistory();
@@ -13,7 +14,8 @@ export function homeLoad() {
   if (!S.depsLoaded) loadDepsAll();
 }
 
-// Những điều nên xử lý: công cụ hỏng hoặc thiếu yêu cầu, ổ đầy, máy bật quá lâu, lần chạy báo lỗi hôm nay.
+// Những điều nên xử lý: công cụ hỏng hoặc thiếu yêu cầu, ổ đầy, máy bật quá lâu, lần chạy hôm nay báo lỗi, làm
+// một phần hoặc tìm thấy lỗi (file kết quả).
 function attentionItems() {
   const out = [];
   for (const t of visibleTools()) {
@@ -44,16 +46,26 @@ function attentionItems() {
   const vis = new Set(visibleTools().map((t) => t.id));
   for (const h of S.history || []) {
     if (Date.now() - Date.parse(h.time) > 86400000) break;
-    if ((h.state !== 'failed' && h.state !== 'error') || seen.has(h.toolId) || !vis.has(h.toolId)) continue;
+    // Chỉ xét lần chạy mới nhất của mỗi công cụ: chạy lại ổn rồi thì thôi nhắc lần trước.
+    if (seen.has(h.toolId) || !vis.has(h.toolId) || h.state === 'running') continue;
     seen.add(h.toolId);
-    out.push({ ic: 'dismiss-circle', tone: 'danger', text: `${h.toolName}: "${h.actionLabel}" lúc ${clock(h.time)} ${runState(h).label.toLowerCase()}.`, act: 'Lịch sử', to: '#/history' });
+    const k = h.ketQua;
+    const errs = (k && k.tomTat && k.tomTat.loi) || 0;
+    const bad = h.state === 'failed' || h.state === 'error';
+    if (!bad && h.state !== 'partial' && !errs) continue;
+    const what = errs && !bad ? `tìm thấy ${errs} lỗi` : runState(h).label.toLowerCase();
+    out.push({
+      ic: bad ? 'dismiss-circle' : 'warning', tone: bad ? 'danger' : 'warning',
+      text: `${h.toolName}: "${h.actionLabel}" lúc ${clock(h.time)} ${what}.`,
+      act: k ? 'Xem' : 'Lịch sử', to: '#/history', run: k ? () => showResult(h.toolId, k.path) : null,
+    });
   }
   return out;
 }
 
 const noticeRow = (a) => html`<div class="notice-row ${a.tone}">
   ${icon(a.ic)}<span>${a.text}</span>
-  ${a.act ? btn(a.act, () => go(a.to), { sm: true }) : nothing}
+  ${a.act ? btn(a.act, () => (a.run ? a.run() : go(a.to)), { sm: true }) : nothing}
 </div>`;
 
 // Mỗi việc (công cụ + action) chỉ hiện lần chạy gần nhất.

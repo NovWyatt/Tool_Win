@@ -7,6 +7,7 @@ import { S, go, update } from '../state.js';
 import { pageHead, emptyState, skeleton, fileIcon, btn } from '../parts.js';
 import { toast, confirmDialog } from '../ui.js';
 import { loadOutputs, loadToolOutputs } from '../data.js';
+import { showResult } from '../result.js';
 
 const keyOf = (f) => `${f.toolId}|${f.path}`;
 const baseName = (p) => String(p).split('\\').pop();
@@ -40,6 +41,7 @@ export function fileRow(f, { selectable = false, showTool = true } = {}) {
     </div>
     <div class="facts"><span>${f.isFolder ? 'Thư mục' : f.sizeText}</span><span>${timeAgo(f.modified)}</span></div>
     <div class="side">
+      ${f.ketQua ? btn('Xem', () => showResult(f.toolId, f.path), { kind: 'ghost', sm: true, ic: 'eye', title: 'Xem công cụ tìm thấy gì' }) : nothing}
       ${btn('Mở', () => openOut(f, false), { kind: 'ghost', sm: true, ic: 'open' })}
       ${btn('Thư mục', () => openOut(f, true), { kind: 'ghost', sm: true, ic: 'folder', title: 'Mở thư mục chứa và chọn sẵn file' })}
       ${f.deletable ? html`<button class="icon-btn del" title="Xoá (chuyển vào Thùng rác)" aria-label="Xoá ${f.name}"

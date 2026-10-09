@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "myexcelfix",
   "name": "MyExcel VietQR: kiểm tra và sửa lỗi",
-  "version": "2026.10.2",
+  "version": "2026.10.3",
   "category": "van-phong",
   "icon": "table",
   "audience": "all",
@@ -57,7 +57,7 @@
   "outputs": [
     { "label": "Báo cáo kiểm tra", "dir": "%LOCALAPPDATA%\\MyExcelFix\\BaoCao", "glob": "BaoCao_MyExcel_%COMPUTERNAME%_*.txt" },
     { "label": "Bản sao báo cáo trên Desktop (để gửi)", "dir": "{Desktop}", "glob": "BaoCao_MyExcel_*.txt" },
-    { "label": "Kết quả JSON (kiểm tra, sửa, hoàn tác)", "dir": "%LOCALAPPDATA%\\MyExcelFix\\BaoCao", "glob": "KetQua_MyExcel_*_%COMPUTERNAME%_*.json" },
+    { "label": "Kết quả JSON (kiểm tra, sửa, hoàn tác)", "dir": "%LOCALAPPDATA%\\MyExcelFix\\BaoCao", "glob": "KetQua_MyExcel_*_%COMPUTERNAME%_*.json", "ketQua": true },
     { "label": "Sao lưu của lần sửa (dùng để hoàn tác)", "dir": "%LOCALAPPDATA%\\MyExcelFix\\SaoLuu", "type": "folder", "glob": "MyExcelFix_SaoLuu_*",
       "deleteNote": "\"Hoàn tác lần sửa\" cần đúng thư mục này. Xoá rồi thì không hoàn tác được lần sửa đó nữa." },
     { "label": "Sao lưu của bản cũ trên Desktop (có số tài khoản ngân hàng)", "dir": "{Desktop}", "type": "folder", "glob": "MyExcelFix_SaoLuu_*",
@@ -77,7 +77,6 @@
     "Báo cáo cũ của tài khoản khác ở Public Documents chỉ được chuyển sang thư mục riêng khi tài khoản đó chạy bản 2026.10.2; sao lưu cũ trên Desktop không tự chuyển (Trạm Tool liệt kê để xoá khi không cần hoàn tác nữa)."
   ],
   "upgrades": [
-    "P1: Trạm Tool đọc KetQua_MyExcel_*.json để hiện phát hiện theo mã và gợi ý bước sửa.",
     "P1: Trạm Tool liệt kê bản sao lưu (đọc manifest.json) ngay trong form Hoàn tác thay vì chọn trong cửa sổ dòng lệnh.",
     "P1: Thư mục common\\ dùng chung cho hai bản build (hàm nơi lưu, che số đang lặp ở cả hai); lưu nguồn UTF-8 có BOM."
   ]

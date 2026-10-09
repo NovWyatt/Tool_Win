@@ -32,7 +32,7 @@ try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 
 $script:ToolDir = $PSScriptRoot
 $script:MainScript = $PSCommandPath
-$script:Version = '2.0'
+$script:Version = '2.1'
 $script:ResultDir = if ($env:CDL_KET_QUA) { $env:CDL_KET_QUA } else { Join-Path $PSScriptRoot 'ket_qua' }
 $script:Started = $false   # đã bắt đầu ghi bản sao lưu / đổi máy
 $script:Out = $null        # xuất: thư mục DuLieu_SaoLuu đang ghi
@@ -108,17 +108,31 @@ function Show-Menu {
 }
 
 function Save-RunResult([int]$Code) {
-    # Tóm tắt lần chạy cho Trạm Tool; không có mật khẩu, khoá hay nội dung bản sao lưu
+    # Tóm tắt lần chạy cho Trạm Tool (chuẩn tramtool.ketqua/1); không có mật khẩu, khoá hay nội dung bản sao lưu.
+    # Bước nhập đọc lại thuMucSaoLuu của các lần xuất để gợi ý nơi lấy bản sao lưu.
     try {
         Ensure-Dir $script:ResultDir
         $dir = if ($Mode -eq 'xuat') { $script:Out } else { $script:In }
+        $bk = if ($script:Started -or ($Mode -eq 'nhap' -and $dir)) { [string]$dir } else { $null }
+        $what = switch ($Mode) { 'xuat' { 'Sao lưu' } 'nhap' { 'Nhập' } default { 'Chuyển dữ liệu' } }
+        $msg = switch ($Code) {
+            0 { if ($script:Opt.DryRun) { "Chạy thử: chỉ xem việc sẽ làm, máy không bị đổi." } else { "$what xong." } }
+            2 { 'Chưa làm gì: thiếu điều kiện hoặc đã dừng ở câu hỏi.' }
+            3 { "$what được một phần, xem các lỗi." }
+            default { "$what lỗi$(if ($script:Errors.Count) { ': ' + $script:Errors[0] })." }
+        }
+        $found = @(@($script:Errors.ToArray()) | ForEach-Object { [ordered]@{ ma = ''; mucDo = 'loi'; tieuDe = [string]$_ } }) +
+        @(@($script:Warnings.ToArray()) | ForEach-Object { [ordered]@{ ma = ''; mucDo = 'canh-bao'; tieuDe = [string]$_ } })
         $r = [ordered]@{
-            CongCu = 'new-windows'; PhienBan = $script:Version; CheDo = $Mode; ChayThu = [bool]$script:Opt.DryRun
-            MaThoat = $Code; KetQua = @{ 0 = 'xong'; 1 = 'loi'; 2 = 'chua-lam'; 3 = 'mot-phan' }[$Code]
-            ThuMucSaoLuu = $(if ($script:Started -or ($Mode -eq 'nhap' -and $dir)) { $dir } else { $null })
-            May = $env:COMPUTERNAME; NguoiDung = $env:USERNAME
-            BatDau = $script:RunStart.ToString('s'); KetThuc = (Get-Date).ToString('s')
-            Loi = @($script:Errors); LuuY = @($script:Warnings)
+            chuan = 'tramtool.ketqua/1'; congCu = 'new-windows'; cheDo = $Mode; phienBan = $script:Version
+            may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
+            batDau = $script:RunStart.ToString('s'); ketThuc = (Get-Date).ToString('s')
+            maThoat = $Code; trangThai = @{ 0 = 'xong'; 1 = 'loi'; 2 = 'thieu-dieu-kien'; 3 = 'mot-phan' }[$Code]
+            chayThu = [bool]$script:Opt.DryRun; thongDiep = $msg
+            tomTat = [ordered]@{ loi = $script:Errors.Count; canhBao = $script:Warnings.Count; thongTin = 0 }
+            phatHien = $found
+            tep = @($(if ($bk) { [ordered]@{ nhan = 'Thư mục sao lưu'; duongDan = $bk } }))
+            thuMucSaoLuu = $bk
         }
         $f = Join-Path $script:ResultDir ('KetQua_ChuyenDuLieu_{0}_{1}_{2:yyyyMMdd_HHmmss}.json' -f $Mode, $env:COMPUTERNAME, $script:RunStart)
         Save-JsonAtomic $r $f

@@ -7,7 +7,10 @@ if (Test-Path $root) { Remove-Item $root -Recurse -Force }
 $chk = Join-Path $root 'chk'
 New-Item -ItemType Directory $chk -Force | Out-Null
 Set-Content (Join-Path $chk "snapshot_$($env:COMPUTERNAME)_hong.json") '{ "a": ' -Encoding ASCII   # corrupt snapshot of another profile
-$envChk = @{ MYX_OUT = $chk; MYX_NO_NOTEPAD = '1'; MYX_NOPAUSE = '1' }
+# Hai bộ MyExcel giả (MYX_EXTRA_ROOT): máy nào cũng có ít nhất một lỗi bản Sửa xử lý được (NHIEU_BO_MYEXCEL)
+$fake = @((Join-Path $root 'gia\MyExcel'), (Join-Path $root 'gia\MyExcel_cu'))
+foreach ($d in $fake) { New-Item -ItemType Directory $d -Force | Out-Null; Set-Content (Join-Path $d 'MyExcel.xlam') 'xlam' -Encoding ASCII }
+$envChk = @{ MYX_OUT = $chk; MYX_NO_NOTEPAD = '1'; MYX_NOPAUSE = '1'; MYX_EXTRA_ROOT = ($fake -join ';') }
 
 Write-Host '== T4a: check (read-only) with a corrupt snapshot next to it ==' -ForegroundColor Cyan
 $r = Invoke-Bat "$Tool\CheckMyExcel_VietQR.bat" -Env $envChk -TimeoutSec 300
@@ -28,7 +31,17 @@ $items = @($j.phatHien)
 Check ($items.Count -ge 1) "phatHien has $($items.Count) item(s)"
 Check (@($items | Where-Object { $_.ma -notmatch '^[A-Z0-9_]+$' -or $_.mucDo -notin 'loi', 'canh-bao', 'thong-tin' -or -not $_.tieuDe -or -not $_.cachSua }).Count -eq 0) 'every finding has code, level, title, fix'
 Check ($j.tomTat.loi + $j.tomTat.canhBao + $j.tomTat.thongTin -eq $items.Count) "tomTat adds up: $($j.tomTat.loi)/$($j.tomTat.canhBao)/$($j.tomTat.thongTin)"
-Write-Host ('  codes: ' + (($items | ForEach-Object { "$($_.ma)($($_.mucDo))" }) -join ', '))
+Write-Host ('  codes: ' + (($items | ForEach-Object { "$($_.ma)($($_.mucDo))$(if ($_.chayTiep) { '>sua' })" }) -join ', '))
+Check ($j.chuan -eq 'tramtool.ketqua/1' -and @($j.tep).Count -eq 1 -and $j.tep[0].duongDan -eq $rep[0].FullName) 'chuẩn tramtool.ketqua/1, tep trỏ tới báo cáo'
+$next = @($items | Where-Object { $_.chayTiep })
+Check (@($items | Where-Object { $_.ma -eq 'NHIEU_BO_MYEXCEL' -and $_.chayTiep }).Count -eq 1) 'hai bộ MyExcel giả: NHIEU_BO_MYEXCEL có gợi ý chạy tiếp'
+Check ($next.Count -ge 1 -and @($next | Where-Object { $_.chayTiep.congCu -ne 'myexcelfix' -or $_.chayTiep.action -ne 'sua-loi' -or $_.mucDo -eq 'thong-tin' }).Count -eq 0) "lỗi bản Sửa xử lý được gợi ý chạy tiếp 'Sửa lỗi' ($($next.Count) mục)"
+$tj = Get-Content (Join-Path $Tool 'tool.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+Check (@($tj.actions | Where-Object { $_.id -eq 'sua-loi' }).Count -eq 1) "action 'sua-loi' có trong tool.json"
+# Trạm đọc lại đúng như công cụ ghi (hub\lib\KetQua.ps1)
+. "$HubDir\lib\Common.ps1"; . "$HubDir\lib\KetQua.ps1"
+$hr = Read-RunResult -Path $js[0].FullName
+Check ($hr.trangThai -eq 'xong' -and @($hr.phatHien).Count -eq $items.Count -and $hr.tomTat.loi -eq $j.tomTat.loi -and @($hr.phatHien | Where-Object { $_.chayTiep }).Count -eq $next.Count) 'Trạm đọc file kết quả: trạng thái, số phát hiện, gợi ý chạy tiếp khớp'
 Check ((Get-Content $rep[0].FullName -Raw -Encoding UTF8) -match ('Phiên bản công cụ\s*: ' + [regex]::Escape($ToolVersion))) 'report shows the tool version'
 
 Write-Host '== T4b: output folder cannot be created -> exit 1 ==' -ForegroundColor Cyan

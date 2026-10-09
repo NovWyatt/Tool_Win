@@ -59,7 +59,7 @@ ChuyenDuLieu.ps1 -Mode xuat|nhap [-Target <thư mục>] [-MaHoa] [-Driver mang|t
 - `-NoPause` (`-KhongDung`): không chờ Enter khi xong.
 - Hai file .bat nhận thêm các tham số trên, vd `2_NHAP_DU_LIEU.bat -Phan wifi -DryRun`.
 
-Mỗi lần chạy ghi `ket_qua\KetQua_ChuyenDuLieu_<xuat|nhap>_<máy>_<giờ>.json`: chế độ, mã thoát, thư mục bản sao lưu, lỗi, lưu ý. Không có mật khẩu hay khoá.
+Mỗi lần chạy ghi `ket_qua\KetQua_ChuyenDuLieu_<xuat|nhap>_<máy>_<giờ>.json` theo chuẩn kết quả của Trạm Tool (`tramtool.ketqua/1`): chế độ, mã thoát, trạng thái, chạy thử hay không, thư mục bản sao lưu (`thuMucSaoLuu`), lỗi và lưu ý thành danh sách `phatHien`. Trạm Tool hiện các mục này ở Lịch sử. Không có mật khẩu hay khoá. Bản 2.0 ghi tên trường viết hoa (`MaThoat`, `Loi`, `LuuY`); bước nhập và Trạm vẫn đọc được.
 
 ## Mã thoát
 

@@ -56,7 +56,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | Bài | Đọc gì |
 |---|---|
 | `new-windows/4_TienTrinh` | chạy thử xuất (`-DryRun`): tên mạng Wi-Fi đã lưu, máy in, ổ đĩa; không đọc mật khẩu |
-| `myexcelfix/3_KiemTra` | Kiểm tra MyExcel (chỉ đọc), kết quả ghi vào thư mục tạm |
+| `myexcelfix/3_KiemTra` | Kiểm tra MyExcel (chỉ đọc), kết quả ghi vào thư mục tạm; thêm hai bộ MyExcel giả (`MYX_EXTRA_ROOT`) để máy nào cũng có lỗi gợi ý *Sửa lỗi* |
 | `myexcelfix/5_KiemTraNoiLuu` | Kiểm tra MyExcel (chỉ đọc) với `LOCALAPPDATA`, `PUBLIC`, Desktop trỏ vào thư mục tạm |
 | `tram/3_KhoiChay` | Máy in LAN `-ChayThu -KhongDung` dò máy này và 127.0.0.1 |
 | `health-report/1_SuKien` | gọi `Get-WinEvent` thật với bộ lọc không khớp gì (nhật ký Application) để chắc mã "không có sự kiện" |
@@ -67,10 +67,10 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 
 | Bộ | Thử gì |
 |---|---|
-| `tinh` | cú pháp mọi `.ps1` (cả PowerShell nhúng trong `.bat`), BOM/CRLF, danh mục `tool.json`, lược đồ, không commit dữ liệu khách |
-| `tram` | lan can an toàn (điểm khôi phục, trả lại trạng thái, sửa winget), mã thoát qua Launcher, tham số từ `tool.json`, CaiDat |
+| `tinh` | cú pháp mọi `.ps1` (cả PowerShell nhúng trong `.bat`), BOM/CRLF, danh mục `tool.json`, lược đồ, không commit dữ liệu khách; action tự nâng quyền đợi cửa sổ Admin và trả mã của nó; công cụ khai `ketQua` có mã ghi theo chuẩn `tramtool.ketqua/1` |
+| `tram` | lan can an toàn (điểm khôi phục, trả lại trạng thái, sửa winget), mã thoát qua Launcher, tham số từ `tool.json`, CaiDat; `5_KetQua`: đọc file kết quả (chuẩn và cách ghi cũ), gắn vào lần chạy, mã 2/3 trong Lịch sử, theo dõi công cụ tự nâng quyền, máy chủ giao diện web giả (`server.json`, mở lại, tắt, đang bận) |
 | `new-windows` | mã hoá AES/HMAC, zip, xuất/nhập giữa hai "máy" giả, không lộ mật khẩu ra đĩa, chạy thử, hết đầu vào, hai `.bat` |
-| `myexcelfix` | sửa rồi hoàn tác trên bộ MyExcel giả, hết đầu vào giữa chừng, manifest cũ, kiểm tra chỉ đọc; nơi lưu riêng của tài khoản (sao lưu, báo cáo, chuyển file cũ khỏi Public Documents), che số và tên chủ tài khoản, `HOAN_TAC.bat` không tham số liệt kê bản sao lưu |
+| `myexcelfix` | sửa rồi hoàn tác trên bộ MyExcel giả, hết đầu vào giữa chừng, manifest cũ, kiểm tra chỉ đọc; JSON kết quả theo chuẩn của trạm (gợi ý chạy tiếp, trạm đọc lại khớp); nơi lưu riêng của tài khoản (sao lưu, báo cáo, chuyển file cũ khỏi Public Documents), che số và tên chủ tài khoản, `HOAN_TAC.bat` không tham số liệt kê bản sao lưu |
 | `office` | che khoá sản phẩm, đọc mẫu, gỡ, cài, kích hoạt (ODT, giấy phép, tiến trình đều giả) |
 | `bitlocker` | lưu khoá, tạm dừng, bật lại, mở khoá, giải mã, hoàn tác trên ổ giả; khoá không lọt vào báo cáo |
 | `don-o-c` | danh sách cho phép xoá, xoá theo tuổi file, junction, trình duyệt, WinSxS (trong thư mục cát) |
@@ -78,7 +78,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `health-report` | không có sự kiện thì [OK] thay vì [LOI]; tách phần PowerShell, nâng quyền khi thư mục có dấu `'` (không chạy `.bat` thật) |
 | `ghi-am-sang-word` | tên kết quả giữ đuôi file gốc, nhận kết quả bản cũ, `--ra` (Python của máy, không nạp mô hình) |
 | các bộ khác | `service-optimizer`, `clock-optimizer`, `fix-win`, `checkwinfix`, `may-in-lan`, `the-xe-nt` |
-| `mdf2sql` | `1_ChayTool`: hai `.bat` với `python.exe` giả (lối tắt Store, thiếu pyodbc, pip lỗi); `tools\mdf2sql\tests` (unittest): doctor, cổng riêng, `/api/health`, `/api/shutdown`, hộp thoại chọn file trong tiến trình con, CLI |
+| `mdf2sql` | `1_ChayTool`: hai `.bat` với `python.exe` giả (lối tắt Store, thiếu pyodbc, pip lỗi); `tools\mdf2sql\tests` (unittest): doctor, cổng riêng, `/api/health`, `/api/shutdown`, từ chối khi thiếu mã vẫn trả 403 (không mất câu trả lời), `doctor --ket-qua` theo chuẩn của trạm, hộp thoại chọn file trong tiến trình con, CLI |
 
 ## Viết bài thử mới
 

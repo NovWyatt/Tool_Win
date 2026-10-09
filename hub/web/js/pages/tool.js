@@ -3,11 +3,11 @@ import { html, nothing } from '../../vendor/lit-html/lit-html.js';
 import { unsafeHTML } from '../../vendor/lit-html/directives/unsafe-html.js';
 import { marked } from '../../vendor/marked.min.js';
 import DOMPurify from '../../vendor/purify.min.js';
-import { api, icon, enc, timeAgo, fmtDuration } from '../core.js';
+import { api, icon, enc, timeAgo, fmtDuration, clock } from '../core.js';
 import { S, go, isPinned, togglePin, primaryAction, lastRun, runState, catLabel, RISK } from '../state.js';
 import { section, emptyState, badge, runButton, skeleton, btn } from '../parts.js';
 import { toast } from '../ui.js';
-import { loadToolExtras, loadReqs, loadProbes, loadHistory, reloadCatalog } from '../data.js';
+import { loadToolExtras, loadReqs, loadProbes, loadHistory, reloadCatalog, loadServer } from '../data.js';
 import { fileRow } from './outputs.js';
 
 export function toolLoad(id) {
@@ -71,8 +71,32 @@ function readiness(t, d) {
   return items.length ? html`<ul class="readiness">${items}</ul>` : nothing;
 }
 
+async function serverOpen(t, a) {
+  try {
+    const r = await api('/api/server/open', { method: 'POST', body: { toolId: t.id, actionId: a.id } });
+    toast('success', `Đã mở lại giao diện (cổng ${r.port}) trong trình duyệt.`, { ms: 5000 });
+  } catch (e) { toast('error', e.message); loadServer(t); }
+}
+
+async function serverStop(t, a) {
+  try {
+    const r = await api('/api/server/stop', { method: 'POST', body: { toolId: t.id, actionId: a.id } });
+    toast(r.ok ? 'success' : 'warning', r.message, { ms: r.ok ? 5000 : 12000 });
+  } catch (e) { toast('error', e.message); }
+  setTimeout(() => loadServer(t), 800);
+}
+
+// Giao diện web của action đang chạy: cổng, từ lúc nào; mở lại hoặc tắt.
+function serverLine(t, a, d) {
+  const s = a.webServer && d.server && d.server[a.id];
+  if (!s || !s.running) return nothing;
+  return html`<div class="row-note ok">${icon('globe', 'ic-16')}<span>Đang chạy ở cổng ${s.port}${s.startedAt ? ` từ ${clock(s.startedAt)}` : ''}${s.busy ? `, đang làm ${s.busy} việc` : ''}.</span>
+    <button class="link" @click=${() => serverOpen(t, a)}>Mở lại</button>
+    <button class="link" @click=${() => serverStop(t, a)}>Tắt</button></div>`;
+}
+
 // Công cụ chỉ có một việc thì nút Chạy nằm ở đầu trang, dòng bên dưới chỉ mô tả.
-function actionRow(t, a, single) {
+function actionRow(t, a, single, d) {
   const last = lastRun(t.id, a.id);
   const risk = RISK[a.risk] || RISK['read-only'];
   return html`<div class="arow">
@@ -86,6 +110,7 @@ function actionRow(t, a, single) {
         ${last ? html`<span>${icon('history', 'ic-16')}${timeAgo(last.time)}: ${runState(last).label.toLowerCase()}</span>` : nothing}
         ${a.file ? html`<span class="mono">${a.file}</span>` : nothing}
       </div>
+      ${serverLine(t, a, d)}
       ${(a.changes || []).length ? html`<details class="changes"><summary>Công cụ có thể thay đổi</summary>
         <ul>${a.changes.map((c) => html`<li>${c}</li>`)}</ul></details>` : nothing}
     </div>
@@ -172,7 +197,7 @@ export function toolPage(id) {
     </header>
     ${notes.length ? html`<div class="tool-notes">${notes.map(([tone, text]) => html`<div class="notice ${tone}">${icon(NOTE_ICON[tone])}<span>${text}</span></div>`)}</div>` : nothing}
     ${section(single ? 'Việc công cụ làm' : 'Các việc chạy được', !single && actions.length ? 'Mỗi việc mở trong một cửa sổ riêng. Cửa sổ đang mở hiện ở thanh Đang chạy phía dưới.' : '',
-      actions.length ? html`<div class="actions-list">${actions.map((a) => actionRow(t, a, single))}</div>`
+      actions.length ? html`<div class="actions-list">${actions.map((a) => actionRow(t, a, single, d))}</div>`
         : emptyState('warning', 'Chưa có việc nào', 'Khai báo actions trong tool.json.'))}
     ${(t.probes || []).length ? section('Trạng thái hiện tại trên máy này', 'Chỉ đọc, không thay đổi gì.', html`<div class="panel">${probeRows(d)}</div>`,
       { tools: refresh('Đọc lại', () => loadProbes(t)) }) : nothing}

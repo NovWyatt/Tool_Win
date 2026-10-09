@@ -167,6 +167,7 @@ function Start-ToolAction {
         time = Get-IsoTime; toolId = $Tool.id; toolName = $Tool.name; actionId = $Action.id; actionLabel = $Action.label
         elevated = [bool]$Action.admin; args = $argValues; ok = $false; cancelled = $false; message = ''
     }
+    if ($Action.selfElevates -and -not $Action.admin) { $entry.selfElevates = $true }
     if ($null -ne $Values) { $entry.values = $Values }
     try {
         if ($Action.type -eq 'url') {
@@ -201,8 +202,14 @@ function Start-ToolAction {
                 $proc = Start-Process @sp
                 if ($proc) {
                     $result.pid = $proc.Id
-                    # Script tự nâng quyền sẽ mở bản Admin rồi thoát ngay, nên không theo dõi được cửa sổ thật.
-                    if (-not ($Action.selfElevates -and -not $Action.admin)) { $result.jobId = Register-ToolJob -Entry $entry -Process $proc -Snapshot $snapPath }
+                    # Giữ handle ngay: Start-Process không -Verb chỉ trả tiến trình theo PID, đóng rồi mới mở handle
+                    # thì không đọc được mã thoát. (-Verb RunAs đã giữ handle của ShellExecuteEx.)
+                    try { $null = $proc.Handle } catch { }
+                    # Công cụ có tool.json khai selfElevates thì cửa sổ đầu đợi cửa sổ Admin và trả mã thoát của nó
+                    # (quy ước, tests\tinh kiểm). Script chưa có tool.json thì không biết nó có đợi không: không theo dõi.
+                    if (-not ($Action.selfElevates -and -not $Action.admin -and (Get-Prop $Tool 'auto' $false))) {
+                        $result.jobId = Register-ToolJob -Entry $entry -Process $proc -Snapshot $snapPath -Tool $Tool
+                    }
                 }
                 if (-not $Action.admin) { Invoke-BringToFront -Process $proc }
                 $result.ok = $true
@@ -234,26 +241,41 @@ $script:Jobs = [ordered]@{}   # id -> thông tin gửi cho giao diện
 $script:JobProcs = @{}        # id -> @{ Process; Start; Ended } (giữ trong máy chủ)
 
 function Register-ToolJob {
-    param([Parameter(Mandatory)]$Entry, [Parameter(Mandatory)][System.Diagnostics.Process]$Process, [string]$Snapshot = '')
+    # $Tool: để tìm file kết quả JSON (outputs có ketQua) của lần chạy khi cửa sổ đóng.
+    param([Parameter(Mandatory)]$Entry, [Parameter(Mandatory)][System.Diagnostics.Process]$Process, [string]$Snapshot = '', $Tool = $null)
     $id = [guid]::NewGuid().ToString('N').Substring(0, 12)
     $script:Jobs[$id] = [ordered]@{
         id = $id; time = $Entry.time; toolId = $Entry.toolId; toolName = $Entry.toolName; actionId = $Entry.actionId
-        actionLabel = $Entry.actionLabel; elevated = $Entry.elevated; pid = $Process.Id
-        state = 'running'; exitCode = $null; endedAt = $null; durationSec = 0
+        actionLabel = $Entry.actionLabel; elevated = $Entry.elevated; selfElevates = [bool](Get-Prop $Entry 'selfElevates' $false); pid = $Process.Id
+        state = 'running'; exitCode = $null; endedAt = $null; durationSec = 0; ketQua = $null
     }
-    $script:JobProcs[$id] = @{ Process = $Process; Start = Get-Date; Ended = $null; Snapshot = $Snapshot }
+    $script:JobProcs[$id] = @{ Process = $Process; Start = Get-Date; Ended = $null; Snapshot = $Snapshot; Tool = $Tool }
     return $id
 }
 
 function Get-JobState {
-    # done: mã thoát 0; closed: người dùng đóng cửa sổ (0xC000013A); cancelled: chọn huỷ trước khi công cụ chạy
-    # (1223, vd ở bước tạo điểm khôi phục); failed: mã khác 0; ended: không đọc được mã.
+    # Theo quy ước mã thoát của công cụ: done 0; failed 1 (và mã lạ); blocked 2 (thiếu điều kiện hoặc người dùng từ
+    # chối, chưa làm gì); partial 3 (làm được một phần). closed: người dùng đóng cửa sổ (0xC000013A); cancelled: chọn
+    # huỷ trước khi công cụ chạy (1223, vd ở bước tạo điểm khôi phục); ended: không đọc được mã.
     param($ExitCode)
     if ($null -eq $ExitCode) { return 'ended' }
     if ($ExitCode -eq 0) { return 'done' }
+    if ($ExitCode -eq 2) { return 'blocked' }
+    if ($ExitCode -eq 3) { return 'partial' }
     if ($ExitCode -eq -1073741510) { return 'closed' }
     if ($ExitCode -eq 1223) { return 'cancelled' }
     return 'failed'
+}
+
+function Get-JobResult {
+    # Tóm tắt file kết quả JSON của lần chạy (công cụ khai outputs có ketQua), không có thì $null.
+    param($Tool, [datetime]$Start, [datetime]$End)
+    if (-not $Tool -or -not @(@(Get-Prop $Tool 'outputs' @()) | Where-Object { Get-Prop $_ 'ketQua' $false }).Count) { return $null }
+    try {
+        $path = Find-RunResult -Tool $Tool -Since $Start -Until $End
+        if ($path) { return (Get-RunResultSummary (Read-RunResult -Path $path)) }
+    } catch { Write-HubLog "Không đọc được kết quả JSON của $($Tool.name): $($_.Exception.Message)" 'warn' }
+    return $null
 }
 
 function Update-ToolJobs {
@@ -279,6 +301,8 @@ function Update-ToolJobs {
         $info.Ended = $now
         try { $p.Dispose() } catch { }
         $rec = [ordered]@{ type = 'end'; time = $job.time; endedAt = $job.endedAt; exitCode = $code; state = $job.state; durationSec = $job.durationSec }
+        $res = Get-JobResult -Tool $info.Tool -Start $info.Start -End $end
+        if ($res) { $rec.ketQua = $res; $job.ketQua = $res }
         if ($info.Snapshot -and (Test-Path -LiteralPath $info.Snapshot)) {
             # Số mục (dịch vụ, registry) đã khác so với lúc trước khi chạy.
             try { $rec.changed = @(Compare-RunSnapshot -Path $info.Snapshot | Where-Object { $_.changed }).Count } catch { }
@@ -316,7 +340,8 @@ function Show-ToolJobWindow {
 
 function Get-RunHistory {
     # Mỗi lần chạy là một dòng; dòng { type: 'end' } bổ sung kết quả khi cửa sổ công cụ đóng.
-    # state: running | done | closed | failed | ended | unknown (trạm tắt trước khi cửa sổ đóng) | cancelled | error
+    # state: running | done | blocked | partial | closed | failed | ended | unknown (trạm tắt trước khi cửa sổ đóng)
+    #        | cancelled | error. ketQua: tóm tắt file kết quả JSON của lần chạy (nếu có).
     # $RestoreLogPath: kết quả tạo điểm khôi phục (hub\safety\TaoDiemKhoiPhuc.ps1 ghi, mỗi dòng một lần chạy).
     param([string]$HistoryPath, [int]$Limit = 150, [string]$RestoreLogPath = '')
     if (-not (Test-Path -LiteralPath $HistoryPath)) { return @() }
@@ -342,7 +367,8 @@ function Get-RunHistory {
         $r = $runs[$i]
         $key = [string]$r.time
         $e = $ends[$key]
-        $state = if ($e) { [string]$e.state }
+        # Lần chạy ghi trước Trạm 1.4.0: mã 2, 3 đã ghi là failed.
+        $state = if ($e) { $(if ([string]$e.state -eq 'failed') { Get-JobState -ExitCode $e.exitCode } else { [string]$e.state }) }
         elseif ($running.ContainsKey($key)) { 'running' }
         elseif ($r.ok) { 'unknown' }
         elseif ([bool](Get-Prop $r 'cancelled' $false) -or [string]$r.message -match 'UAC') { 'cancelled' }
@@ -355,6 +381,8 @@ function Get-RunHistory {
             $r | Add-Member -NotePropertyName endedAt -NotePropertyValue $e.endedAt -Force
             $changed = Get-Prop $e 'changed' $null
             if ($null -ne $changed) { $r | Add-Member -NotePropertyName changed -NotePropertyValue $changed -Force }
+            $k = Get-Prop $e 'ketQua' $null
+            if ($k) { $r | Add-Member -NotePropertyName ketQua -NotePropertyValue $k -Force }
         } elseif ($running.ContainsKey($key)) {
             $r | Add-Member -NotePropertyName durationSec -NotePropertyValue $running[$key].durationSec -Force
         }

@@ -284,14 +284,23 @@ function Save-ResultJson([string]$LogPath) {
     $mode = if ($script:UndoMode) { 'hoan-tac' } else { 'sua' }
     $state = switch ($script:ExitCode) { 0 { 'xong' } 2 { 'thieu-dieu-kien' } 3 { 'mot-phan' } default { 'loi' } }
     $real = if ($null -ne $script:ChangesAtBackup) { $script:Changes - $script:ChangesAtBackup } else { 0 }
+    $bk = if ($script:UndoMode) { $script:UndoDir } else { $script:BackupDir }
+    # Chuẩn tramtool.ketqua/1: cảnh báo của lần sửa thành phát hiện mức canh-bao; file giữ lại khi hoàn tác là thông tin.
+    $found = @($script:Warnings.ToArray() | ForEach-Object { [ordered]@{ ma = ''; mucDo = 'canh-bao'; tieuDe = $_ } }) +
+    @($script:KeptFiles.ToArray() | ForEach-Object { [ordered]@{ ma = 'GIU_BAN_DA_SUA'; mucDo = 'thong-tin'; tieuDe = "Giữ bản đã sửa tiếp: $_" } })
+    $files = @()
+    if ($bk) { $files += [ordered]@{ nhan = 'Thư mục sao lưu'; duongDan = [string]$bk } }
+    if ($LogPath) { $files += [ordered]@{ nhan = 'Nhật ký'; duongDan = [string]$LogPath } }
     $r = [ordered]@{
-        congCu = 'myexcelfix'; cheDo = $mode; phienBan = $script:Version
+        chuan = 'tramtool.ketqua/1'; congCu = 'myexcelfix'; cheDo = $mode; phienBan = $script:Version
         may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
         batDau = $script:Started.ToString('s'); ketThuc = (Get-Date).ToString('s')
         maThoat = $script:ExitCode; trangThai = $state; ma = $script:Reason; thongDiep = $script:ReasonText
+        tomTat = [ordered]@{ loi = 0; canhBao = $script:Warnings.Count; thongTin = $script:KeptFiles.Count }
+        phatHien = $found; tep = $files
         soThayDoi = $real; soCanhBao = $script:Problems; canhBao = @($script:Warnings)
         giuLai = @($script:KeptFiles)
-        thuMucSaoLuu = $(if ($script:UndoMode) { $script:UndoDir } else { $script:BackupDir })
+        thuMucSaoLuu = $bk
         nhatKy = $LogPath
     }
     $name = 'KetQua_MyExcel_{0}_{1}_{2}_{3}.json' -f $(if ($script:UndoMode) { 'HoanTac' } else { 'Sua' }), $env:COMPUTERNAME, ($env:USERNAME -replace '[^\w\.-]', '_'), $script:Stamp
@@ -300,7 +309,7 @@ function Save-ResultJson([string]$LogPath) {
         if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null }
         Move-OldResults $dir
         $path = Join-Path $dir $name
-        [IO.File]::WriteAllText($path, ($r | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
+        [IO.File]::WriteAllText($path, ($r | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding $false))
         Say "  Kết quả (JSON): $path" 'DarkGray'
     } catch { Say "  Không ghi được file kết quả JSON: $($_.Exception.Message)" 'DarkGray' }
 }

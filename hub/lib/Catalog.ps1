@@ -112,6 +112,15 @@ function ConvertTo-HubAction {
     if ($rpRaw -eq $true -and -not $canRp) { [void]$Problems.Add("Action '$id': restorePoint chỉ dùng được cho action console .bat, .cmd, .ps1 có admin: true.") }
     $restorePoint = $canRp -and $(if ($null -ne $rpRaw) { [bool]$rpRaw } else { $risk -eq 'modifies-system' })
 
+    # Máy chủ giao diện web: đang chạy thì trạm mở lại trang thay vì mở thêm (KetQua.ps1, Get-ToolServer).
+    $web = $null
+    $webRaw = Get-Prop $Raw 'webServer' $null
+    if ($webRaw) {
+        $sf = [string](Get-Prop $webRaw 'stateFile' ''); $app = [string](Get-Prop $webRaw 'app' '')
+        if ($sf -and $app) { $web = [ordered]@{ stateFile = $sf; app = $app } }
+        else { [void]$Problems.Add("Action '$id': webServer cần stateFile và app.") }
+    }
+
     return [ordered]@{
         id           = $id
         label        = $label
@@ -121,6 +130,7 @@ function ConvertTo-HubAction {
         type         = $type
         admin        = $admin
         selfElevates = [bool](Get-Prop $Raw 'selfElevates' $false)
+        webServer    = $web
         risk         = $risk
         restorePoint = $restorePoint
         primary      = [bool](Get-Prop $Raw 'primary' $false)

@@ -24,4 +24,23 @@ foreach ($t in $cat) {
     Check ($missing.Count -eq 0) "$($t.id): file của mọi action đều có ($($missing -join ', '))"
 }
 
+# Quy ước selfElevates: cửa sổ đầu đợi cửa sổ Admin (-Wait -PassThru) và trả đúng mã thoát của nó, để trạm (và người
+# bấm đúp) biết công cụ chạy xong ra sao. Script tự mở bản Admin rồi thoát ngay thì Lịch sử luôn ghi "Xong".
+foreach ($t in $cat) {
+    foreach ($a in @($t.actions | Where-Object { $_.selfElevates -and $_.exists })) {
+        $text = [IO.File]::ReadAllText((Join-Path $t.dir $a.file), [Text.Encoding]::UTF8)
+        $waits = $text -match '-Verb\s+RunAs[^\r\n]*-Wait[^\r\n]*-PassThru' -and $text -match 'exit\s+\$p\.ExitCode'
+        Check $waits "$($t.id)/$($a.id): tự nâng quyền thì đợi cửa sổ Admin và trả mã thoát của nó ($($a.file))"
+    }
+}
+
+# Công cụ khai output kết quả JSON (ketQua) phải có file ghi theo chuẩn: tìm chữ 'tramtool.ketqua/1' trong mã nguồn.
+foreach ($t in $cat) {
+    if (-not @(@($t.outputs) | Where-Object { Get-Prop $_ 'ketQua' $false }).Count) { continue }
+    $src = @(Get-ChildItem -LiteralPath $t.dir -Recurse -File -Include *.ps1, *.bat, *.cmd, *.py -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '\\(tests|\.venv|node_modules|LuuTru)\\' } |
+            Where-Object { [IO.File]::ReadAllText($_.FullName) -match 'tramtool\.ketqua/1' })
+    Check ($src.Count -gt 0) "$($t.id): khai outputs ketQua và có mã ghi theo chuẩn tramtool.ketqua/1"
+}
+
 Complete-Test

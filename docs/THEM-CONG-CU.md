@@ -70,7 +70,8 @@ Lỗi trạm phát hiện khi đọc (thiếu file, sai mức rủi ro, flag sai
 | `type` | `console` (mặc định): chạy `.bat`/`.cmd`/`.ps1` trong cửa sổ riêng. `open`: mở file bằng chương trình mặc định. `url`: mở trang web (khai báo `url` thay cho `file`). |
 | `file` | Đường dẫn tương đối trong thư mục công cụ. Trỏ ra ngoài thư mục công cụ thì trạm từ chối. |
 | `admin` | `true`: trạm mở bằng quyền Admin, Windows hỏi UAC. Bấm "Không" thì trạm báo đã huỷ. |
-| `selfElevates` | Script tự xin quyền Admin khi bấm đúp ngoài trạm. Chỉ để ghi nhận: trạm dựa vào `admin` để quyết định. |
+| `selfElevates` | Script tự xin quyền Admin khi bấm đúp ngoài trạm. Trạm vẫn dựa vào `admin` để quyết định cách mở. Script phải **đợi** cửa sổ Admin và trả đúng mã thoát của nó (xem *Quy ước viết script*), để Lịch sử ghi đúng kết quả. |
+| `webServer` | Nút mở giao diện web cục bộ (vd mdf2sql): `{ "stateFile": "%LOCALAPPDATA%\\mdf2sql\\server.json", "app": "mdf2sql" }`. Giao diện đang chạy thì bấm nút là mở lại trang cũ thay vì mở thêm cửa sổ; trang công cụ hiện *Đang chạy ở cổng N* với nút **Mở lại**, **Tắt**. Xem mục *Giao diện web cục bộ*. |
 | `risk` | `read-only` (chỉ đọc), `asks-before-change` (script tự hỏi trước khi sửa), `modifies-system` (thay đổi máy). Thiếu thì coi là `modifies-system`. |
 | `confirm`, `changes` | Cảnh báo riêng và danh sách thay đổi, hiện trong hộp xác nhận. Hộp xác nhận hiện khi `risk` là `modifies-system` hoặc có `confirm`. |
 | `primary` | Nút chính. Không khai báo thì nút đầu tiên là nút chính. |
@@ -206,10 +207,73 @@ hại máy (registry, dịch vụ của phần mềm mà công cụ gỡ hoặc 
   lưu để hoàn tác, dữ liệu có mật khẩu, bằng chứng còn cần gửi đi.
 - `deletable: false`: không cho xoá từ trạm. Dùng cho file nằm bên trong một bản sao lưu (xoá lẻ làm hỏng cả bộ)
   hoặc file công cụ còn đọc lại.
+- `ketQua: true`: các file này là kết quả máy đọc được (`.json` theo chuẩn ở mục dưới). Trạm gắn file vào lần chạy
+  trong Lịch sử và có nút **Xem** để hiện các phát hiện.
 
 Trạm liệt kê kết quả mới nhất ở trang công cụ và trang **Kết quả gần đây**, có nút Mở, Thư mục và Xoá.
 Trạm chỉ mở, xoá file nằm trong danh sách kết quả đã khai báo. Xoá là chuyển vào Thùng rác (ổ USB, ổ mạng không có
 Thùng rác thì Windows hỏi trước khi xoá hẳn).
+
+## Kết quả máy đọc được (`tramtool.ketqua/1`)
+
+Công cụ chẩn đoán hoặc sửa lỗi nên ghi thêm một file JSON mỗi lần chạy, để trạm hiện *tìm thấy gì* mà không phải
+mở báo cáo chữ. Đã dùng: MyExcelFix (kiểm tra, sửa, hoàn tác), Chuyển dữ liệu (xuất, nhập), `mdf2sql doctor --ket-qua`.
+
+```json
+{
+  "chuan": "tramtool.ketqua/1",
+  "congCu": "myexcelfix", "cheDo": "kiem-tra", "phienBan": "2026.10.3",
+  "may": "PC-KETOAN", "taiKhoan": "ketoan",
+  "batDau": "2026-10-09T14:02:11", "ketThuc": "2026-10-09T14:02:40",
+  "maThoat": 0, "trangThai": "xong", "chayThu": false,
+  "ma": "XONG", "thongDiep": "Kiểm tra xong: 2 lỗi, 1 cảnh báo.",
+  "tomTat": { "loi": 2, "canhBao": 1, "thongTin": 0 },
+  "phatHien": [
+    { "ma": "ADDIN_CHUA_BAT", "mucDo": "loi", "tieuDe": "Add-in MyExcel.xlam chưa được bật",
+      "chiTiet": "", "cachSua": "Chạy Sửa lỗi, hoặc bật trong Excel > Options > Add-ins.",
+      "chayTiep": { "congCu": "myexcelfix", "action": "sua-loi" } }
+  ],
+  "tep": [ { "nhan": "Báo cáo", "duongDan": "C:\\Users\\ketoan\\AppData\\Local\\MyExcelFix\\BaoCao\\BaoCao_MyExcel_....txt" } ]
+}
+```
+
+| Trường | Ý nghĩa |
+|---|---|
+| `chuan` | Luôn `tramtool.ketqua/1`. Bài thử tĩnh kiểm công cụ khai `ketQua` có chữ này trong mã nguồn. |
+| `congCu` | `id` trong `tool.json`. Trạm bỏ qua file của công cụ khác. |
+| `cheDo`, `phienBan`, `may`, `taiKhoan` | Chế độ chạy (vd `kiem-tra`, `sua`, `xuat`), phiên bản công cụ, tên máy, tài khoản Windows. |
+| `batDau`, `ketThuc` | Giờ máy, dạng `yyyy-MM-ddTHH:mm:ss` (PowerShell: `Get-Date -Format s`). |
+| `maThoat` | Đúng mã thoát của script: `0` xong, `1` lỗi, `2` thiếu điều kiện, `3` làm được một phần. |
+| `trangThai` | `xong`, `loi`, `thieu-dieu-kien`, `mot-phan`. Thiếu thì trạm suy từ `maThoat`. |
+| `chayThu` | `true` khi chạy thử (không đổi gì trên máy). |
+| `ma`, `thongDiep` | Mã kết quả cố định (vd `XONG`, `THIEU_QUYEN`) và một câu cho người dùng. |
+| `tomTat` | Số phát hiện theo mức `loi`, `canhBao`, `thongTin`. Thiếu thì trạm tự đếm. |
+| `phatHien` | Mỗi mục: `ma` (chữ hoa, `_`, cố định giữa các phiên bản), `mucDo` (`loi`, `canh-bao`, `thong-tin`, `ok`), `tieuDe`, `chiTiet`, `cachSua`. |
+| `phatHien[].chayTiep` | Gợi ý nút chạy tiếp: `{ "congCu": "<id>", "action": "<id action>" }`. Trạm hiện nút, người dùng bấm thì vẫn qua form, hộp xác nhận như chạy thường. Chỉ gợi ý khi nút đó thật sự sửa được lỗi này. |
+| `tep` | File, thư mục liên quan (báo cáo, bản sao lưu, nhật ký): `nhan` và `duongDan` tuyệt đối. Trạm chỉ mở thư mục chứa file trong Explorer, không chạy file. |
+
+- Trường riêng của công cụ cứ ghi thêm (vd `soThayDoi`, `giuLai`), trạm bỏ qua.
+- Không ghi mật khẩu, khoá, số tài khoản ngân hàng hay nội dung file của khách vào file kết quả.
+- Ghi file tạm rồi đổi tên (tránh trạm đọc file dở). Tên file nên có `%COMPUTERNAME%` và giờ, vd
+  `KetQua_<công cụ>_<chế độ>_<máy>_<yyyyMMdd_HHmmss>.json`; khai báo thư mục, mẫu tên trong `outputs` với `"ketQua": true`.
+- Trạm gắn file vào lần chạy khi file sửa trong khoảng *lúc mở − 2 giây* đến *lúc đóng + 15 giây* và đúng `congCu`.
+  Tối đa 2 MB, hiện 300 phát hiện đầu.
+- Trạm đọc tên trường không phân biệt hoa thường, nhận cả cách ghi cũ (`MaThoat`, `Loi`, `LuuY`; `tieu_de`,
+  `cach_sua`; mức `bad`, `warn`, `info`), nhưng công cụ mới nên ghi đúng chuẩn.
+
+## Giao diện web cục bộ (`webServer`)
+
+Công cụ mở giao diện trong trình duyệt (máy chủ chỉ nghe `127.0.0.1`) khai báo `webServer` trên action mở giao diện.
+Máy chủ cần:
+
+- Khi chạy, ghi file trạng thái (đường dẫn trong `stateFile`, nhận `%BIEN%`):
+  `{ "app": "mdf2sql", "pid": 1234, "port": 8765, "url": "http://127.0.0.1:8765/?k=<mã>", "token": "<mã>", "started": "...", "version": "1.2.0" }`.
+  Tắt thì xoá file (chỉ khi `pid` vẫn là của mình).
+- `GET /api/health` trả `{ "ok": true, "app": "...", "pid": ..., "jobs_running": 0 }`, không lộ mã.
+- `POST /api/shutdown` với header `X-Token: <mã>`: đang làm việc thì trả `409`, còn lại trả `200` rồi dừng.
+
+Trạm chỉ tin file trạng thái khi `app` khớp, `url` là `http://127.0.0.1:<port>/` và `/api/health` trả đúng `app`,
+`pid`. Địa chỉ kèm mã không gửi lên trình duyệt của trạm: trạm tự mở trang bằng trình duyệt mặc định.
 
 ## Đóng gói gửi khách (`pack`)
 
@@ -233,9 +297,17 @@ Nên liệt kê tên file cụ thể để gói không lẫn báo cáo, dữ li�
 - Kiểm tra quyền Admin bằng `fltmc >nul 2>&1` thay cho `net session` (lệnh này cần dịch vụ Server).
 - Kiểm tra mã lỗi của từng lệnh trước khi in "thành công"; thoát với mã khác 0 khi thất bại.
 - Mã thoát: `0` xong, `1` lỗi, `2` thiếu điều kiện (quyền Admin, phần mềm, thiết bị), `3` làm được một phần. Trạm
-  ghi mã vào Lịch sử (khác 0 hiện *Báo lỗi, mã N*). Từ Trạm 1.1.1, `.ps1` gọi `exit N` thì trạm nhận đúng `N`;
-  trước đó mọi mã khác 0 thành 1. Mã `1223` (người dùng huỷ) Lịch sử hiện *Đã huỷ*: dùng khi người dùng chọn không
-  làm nữa trước khi đổi gì.
+  ghi mã vào Lịch sử: `1` và mã lạ hiện *Báo lỗi, mã N*, `2` hiện *Chưa làm*, `3` hiện *Làm được một phần* (từ Trạm
+  1.4.0). Từ Trạm 1.1.1, `.ps1` gọi `exit N` thì trạm nhận đúng `N`; trước đó mọi mã khác 0 thành 1. Mã `1223`
+  (người dùng huỷ) Lịch sử hiện *Đã huỷ*: dùng khi người dùng chọn không làm nữa trước khi đổi gì.
+- Script tự nâng quyền (`selfElevates`) thì cửa sổ đầu phải đợi cửa sổ Admin và trả mã của nó, không mở rồi thoát ngay:
+
+  ```powershell
+  $p = Start-Process powershell.exe -Verb RunAs -ArgumentList $argList -Wait -PassThru
+  exit $p.ExitCode
+  ```
+
+  Bài thử tĩnh `tinh/3_DanhMuc` kiểm quy ước này cho mọi action `selfElevates`.
 - Script thay đổi máy nên có chế độ chạy thử (công tắc `-ChayThu` trong `args`, `id` là `chay-thu`): in việc sẽ làm
   rồi thoát, không đổi gì. Một script nhiều chế độ thì mỗi chế độ một action, chọn bằng `fixedArgs` (vd `["-Mode", "chan-doan"]`),
   như `tools\may-in-lan`.

@@ -13,7 +13,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$HubVersion = '1.3.0'
+$HubVersion = '1.4.0'
 $HubDir = $PSScriptRoot
 $RootDir = Split-Path $HubDir -Parent
 if (-not $ToolsDir) { $ToolsDir = Join-Path $RootDir 'tools' }
@@ -32,6 +32,7 @@ $RestoreLogFile = Join-Path $DataDir 'restore-points.jsonl'
 . (Join-Path $HubDir 'lib\AnToan.ps1')
 . (Join-Path $HubDir 'lib\Launcher.ps1')
 . (Join-Path $HubDir 'lib\Checks.ps1')
+. (Join-Path $HubDir 'lib\KetQua.ps1')
 
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
 $Host.UI.RawUI.WindowTitle = 'Trạm Tool - máy chủ (đóng cửa sổ này để tắt trạm)'
@@ -286,6 +287,49 @@ function Invoke-Api {
             foreach ($t in $State.Catalog) { foreach ($o in @(Get-ToolOutputs -Tool $t -Limit 15)) { [void]$all.Add($o) } }
             return @{ items = @($all | Sort-Object { $_.modified } -Descending | Select-Object -First 80) }
         }
+        'GET /api/result' {
+            # File kết quả JSON (chuẩn của trạm) của công cụ: chỉ đọc file đang được liệt kê là kết quả có ketQua.
+            $tool = Get-ToolById $q['id']
+            $path = [string]$q['path']
+            if (-not @(Get-ToolOutputs -Tool $tool -Limit 1000 | Where-Object { $_.ketQua -and $_.path -eq $path }).Count) {
+                throw 'File này không phải kết quả JSON của công cụ (có thể đã bị xoá hoặc đổi tên).'
+            }
+            return (Read-RunResult -Path $path)
+        }
+        'POST /api/result/reveal' {
+            # Mở Explorer tới file, thư mục mà kết quả ghi (mục tep); chỉ chọn sẵn, không chạy file.
+            $b = Read-Body $Ctx
+            $tool = Get-ToolById ([string](Get-Prop $b 'toolId' ''))
+            $path = [string](Get-Prop $b 'path' '')
+            if (-not @(Get-ToolOutputs -Tool $tool -Limit 1000 | Where-Object { $_.ketQua -and $_.path -eq $path }).Count) { throw 'File này không phải kết quả JSON của công cụ.' }
+            $files = @((Read-RunResult -Path $path).tep)
+            $i = [int](Get-Prop $b 'index' -1)
+            if ($i -lt 0 -or $i -ge $files.Count) { throw 'Không có mục này trong kết quả.' }
+            Open-HubPath -Path $files[$i].duongDan -Reveal
+            return @{ ok = $true }
+        }
+        'GET /api/server' {
+            $tool = Get-ToolById $q['id']
+            $items = [ordered]@{}
+            foreach ($a in @($tool.actions | Where-Object { $_.webServer })) { $items[$a.id] = Get-ToolServer -Tool $tool -Action $a }
+            return @{ id = $tool.id; items = $items }
+        }
+        'POST /api/server/open' {
+            $b = Read-Body $Ctx
+            $tool = Get-ToolById ([string](Get-Prop $b 'toolId' ''))
+            $action = Get-ActionById -Tool $tool -Id ([string](Get-Prop $b 'actionId' ''))
+            $port = Open-ToolServer -Tool $tool -Action $action
+            Write-HubLog "Mở lại giao diện đang chạy: $($tool.name) (cổng $port)"
+            return @{ ok = $true; port = $port }
+        }
+        'POST /api/server/stop' {
+            $b = Read-Body $Ctx
+            $tool = Get-ToolById ([string](Get-Prop $b 'toolId' ''))
+            $action = Get-ActionById -Tool $tool -Id ([string](Get-Prop $b 'actionId' ''))
+            $r = Stop-ToolServer -Tool $tool -Action $action
+            Write-HubLog "Tắt giao diện: $($tool.name): $($r.message)"
+            return $r
+        }
         'GET /api/docs' {
             $tool = Get-ToolById $q['id']
             if (-not $tool.hasDocs) { throw 'Công cụ này chưa có hướng dẫn.' }
@@ -364,6 +408,15 @@ function Invoke-Api {
             $tool = Get-ToolById ([string](Get-Prop $b 'toolId' ''))
             $action = Get-ActionById -Tool $tool -Id ([string](Get-Prop $b 'actionId' ''))
             $values = Get-Prop $b 'values' $null
+            if ($action.webServer) {
+                # Giao diện web của công cụ đang chạy: mở lại trang đó, không mở thêm máy chủ thứ hai.
+                $srv = Get-ToolServer -Tool $tool -Action $action
+                if ($srv.running) {
+                    $port = Open-ToolServer -Tool $tool -Action $action
+                    Write-HubLog "Mở lại giao diện đang chạy: $($tool.name) (cổng $port)"
+                    return @{ ok = $true; reopened = $true; port = $port; message = "Giao diện đang chạy (cổng $port), đã mở lại trong trình duyệt." }
+                }
+            }
             $argv = Resolve-ActionArguments -Action $action -Values $values
             # Lan can: điểm khôi phục theo lựa chọn ở hộp xác nhận (mặc định theo Cài đặt); ghi trạng thái trước khi
             # chạy với mọi action đổi máy. Chạy thử thì không làm cả hai.

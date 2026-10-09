@@ -120,6 +120,9 @@ export function runState(h) {
   switch (h.state) {
     case 'running': return { label: 'Đang chạy', color: 'brand', icon: 'window-console', dur };
     case 'done': return { label: 'Xong', color: 'success', icon: 'check-circle', dur };
+    // Mã 2: thiếu điều kiện hoặc người dùng từ chối, công cụ chưa làm gì. Mã 3: làm được một phần.
+    case 'blocked': return { label: 'Chưa làm', color: 'warning', icon: 'warning', dur };
+    case 'partial': return { label: 'Làm được một phần', color: 'warning', icon: 'warning', dur };
     case 'failed': return { label: h.exitCode != null ? `Báo lỗi, mã ${h.exitCode}` : 'Báo lỗi', color: 'danger', icon: 'dismiss-circle', dur };
     case 'closed': return { label: 'Đã đóng cửa sổ', color: 'subtle', icon: 'dismiss', dur };
     case 'ended': return { label: 'Đã kết thúc', color: 'subtle', icon: 'checkmark', dur };

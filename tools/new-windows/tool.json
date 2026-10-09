@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "new-windows",
   "name": "Chuyển dữ liệu khi cài lại Windows",
-  "version": "2.0",
+  "version": "2.1",
   "category": "cai-lai-may",
   "icon": "laptop",
   "audience": "tech",
@@ -78,7 +78,7 @@
     }
   ],
   "outputs": [
-    { "label": "Kết quả các lần xuất, nhập (không có mật khẩu)", "dir": "ket_qua", "glob": "KetQua_ChuyenDuLieu_*.json" },
+    { "label": "Kết quả các lần xuất, nhập (không có mật khẩu)", "dir": "ket_qua", "glob": "KetQua_ChuyenDuLieu_*.json", "ketQua": true },
     { "label": "Bản sao lưu bản cũ để cạnh công cụ (có mật khẩu Wi-Fi, khoá BitLocker)", "type": "folder", "glob": "DuLieu_SaoLuu",
       "deleteNote": "Bản 2026.10 trở về trước để bản sao lưu cạnh công cụ. Chỉ xoá khi đã nhập xong trên máy mới (ổ BitLocker đã cho tự mở khoá hoặc đã giải mã) hoặc đã chép bản sao lưu sang nơi khác. Thùng rác vẫn giữ mật khẩu Wi-Fi và khoá BitLocker cho tới khi dọn Thùng rác." },
     { "label": "Bản sao lưu cũ để cạnh công cụ", "type": "folder", "glob": "DuLieu_SaoLuu_cu_*",

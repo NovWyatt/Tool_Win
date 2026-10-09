@@ -8,12 +8,14 @@ import { toast, confirmDialog, openDialog } from '../ui.js';
 import { loadHistory } from '../data.js';
 import { refreshJobs, watchJob } from '../jobs.js';
 import { openRestoreUi } from './system.js';
+import { resultLine } from '../result.js';
 
 let filter = 'all'; // all | problems
 
 export function historyLoad() { loadHistory(); }
 
-const isProblem = (h) => h.state === 'failed' || h.state === 'error';
+// Cần xem: báo lỗi, không mở được, làm một phần, chưa làm; hoặc công cụ tìm thấy lỗi (file kết quả).
+const isProblem = (h) => ['failed', 'error', 'partial', 'blocked'].includes(h.state) || !!(h.ketQua && h.ketQua.tomTat && h.ketQua.tomTat.loi);
 
 async function removeRuns(times) {
   try {
@@ -136,12 +138,12 @@ function historyRow(h) {
   return html`<div class="hrow">
     <span class="when">${clock(h.time)}</span>
     <div>
-      <div class="hrow-title"><span class="name">${t ? t.name : h.toolName}</span>${runStateText(h)}${h.elevated ? badge('brand', 'Admin', 'shield') : nothing}</div>
+      <div class="hrow-title"><span class="name">${t ? t.name : h.toolName}</span>${runStateText(h)}${h.elevated || h.selfElevates ? badge('brand', 'Admin', 'shield') : nothing}</div>
       <div class="sub">${h.actionLabel}</div>
       ${vals ? html`<div class="row-args" title=${vals}>${vals}</div>`
         : args.length ? html`<div class="row-args mono" title=${args.join('\n')}>${args.join('   ')}</div>` : nothing}
       ${h.state === 'error' && h.message ? html`<div class="row-args">${h.message}</div>` : nothing}
-      ${rpLine(h)}${snapLine(h)}
+      ${resultLine(h.toolId, h.ketQua)}${rpLine(h)}${snapLine(h)}
     </div>
     <div class="side">
       ${a && a.exists && h.state !== 'running' ? btn('Chạy lại', () => runAction(t.id, a.id, { values: h.values || null }),
@@ -169,9 +171,9 @@ export function historyPage() {
     ${head}
     <div class="tabs" role="group" aria-label="Lọc">
       <button class="tab" aria-pressed=${filter === 'all'} @click=${() => setFilter('all')}>Tất cả<span class="count">${all.length}</span></button>
-      <button class="tab" aria-pressed=${filter === 'problems'} ?disabled=${!problems} @click=${() => setFilter('problems')}>Có lỗi<span class="count">${problems}</span></button>
+      <button class="tab" aria-pressed=${filter === 'problems'} ?disabled=${!problems} @click=${() => setFilter('problems')}>Cần xem<span class="count">${problems}</span></button>
     </div>
     ${list.length ? groupByDay(list, (h) => h.time).map((g) => html`<div class="day"><h2>${g.label}</h2><div class="stack">${g.items.map(historyRow)}</div></div>`)
-      : emptyState('check-circle', 'Không có lần chạy nào báo lỗi', '')}
+      : emptyState('check-circle', 'Không có lần chạy nào cần xem', '')}
   </div>`;
 }

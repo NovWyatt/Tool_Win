@@ -5,10 +5,10 @@ rem  MyExcel VietQR - script kiem tra loi theo profile Windows (chi DOC, khong s
 rem  Cach dung: copy file nay sang may bi loi, DOUBLE-CLICK trong profile bi loi.
 rem  KHONG "Run as administrator" bang tai khoan khac (se doc sai HKCU).
 rem  Ma thoat: 0 kiem tra xong, 1 khong ghi duoc bao cao, 2 chay sai tai khoan.
-rem  Phien ban: 2026.10.2
+rem  Phien ban: 2026.10.3
 rem ==========================================================================
 chcp 65001 >nul
-title MyExcel VietQR - Kiem tra loi (2026.10.2)
+title MyExcel VietQR - Kiem tra loi (2026.10.3)
 set "MYX_SELF=%~f0"
 set "MYX_PS=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" set "MYX_PS=%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
@@ -56,7 +56,7 @@ function Test-VietConsole {
 }
 function Txt([string]$Text) { if ($script:NoDau) { return (Remove-Diacritics $Text) }; return $Text }
 $script:NoDau = -not (Test-VietConsole)
-$script:Version  = '2026.10.2'   # build.ps1 thay bằng version trong tool.json
+$script:Version  = '2026.10.3'   # build.ps1 thay bằng version trong tool.json
 $script:Report   = New-Object System.Collections.Generic.List[string]
 $script:Findings = New-Object System.Collections.Generic.List[object]
 $script:Snap     = [ordered]@{}
@@ -1327,22 +1327,30 @@ try {
     $reportPath = $null
 }
 
-# Kết quả máy đọc được cho Trạm Tool: mỗi phát hiện có mã ổn định, mức độ, cách sửa
+# Kết quả máy đọc được cho Trạm Tool (chuẩn tramtool.ketqua/1): mỗi phát hiện có mã ổn định, mức độ, cách sửa;
+# lỗi mà bản Sửa xử lý được thì gợi ý chạy tiếp "Sửa lỗi".
 $levelMap = @{ 'LOI' = 'loi'; 'CANHBAO' = 'canh-bao'; 'THONGTIN' = 'thong-tin' }
+$fixable = @('ADDIN_CHUA_BAT', 'ADDIN_SAI_CHO', 'ADDIN_TRUNG', 'ADDIN_BI_VO_HIEU', 'NHIEU_BO_MYEXCEL', 'THU_MUC_CHUA_TIN_CAY',
+    'THU_MUC_CON_CHUA_TIN_CAY', 'EXD_CU', 'QR_BI_CHAN', 'FILE_BI_CHAN', 'DU_LIEU_MYEXCEL_CU')
 $result = [ordered]@{
-    congCu = 'myexcelfix'; cheDo = 'kiem-tra'; phienBan = $script:Version
+    chuan = 'tramtool.ketqua/1'; congCu = 'myexcelfix'; cheDo = 'kiem-tra'; phienBan = $script:Version
     may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
     batDau = $script:Started.ToString('s'); ketThuc = (Get-Date).ToString('s')
     maThoat = $exitCode; trangThai = $(switch ($exitCode) { 0 { 'xong' } 2 { 'thieu-dieu-kien' } default { 'loi' } })
     ma = $reason; thongDiep = $reasonText
     tomTat = [ordered]@{ loi = $nLoi; canhBao = $nWarn; thongTin = ($sorted.Count - $nLoi - $nWarn) }
-    phatHien = @($sorted | ForEach-Object { [ordered]@{ ma = $_.Code; mucDo = $levelMap[$_.Level]; tieuDe = $_.Title; cachSua = $_.Fix } })
+    phatHien = @($sorted | ForEach-Object {
+            $f = [ordered]@{ ma = $_.Code; mucDo = $levelMap[$_.Level]; tieuDe = $_.Title; cachSua = $_.Fix }
+            if ($exitCode -eq 0 -and $_.Level -ne 'THONGTIN' -and $fixable -contains $_.Code) { $f.chayTiep = [ordered]@{ congCu = 'myexcelfix'; action = 'sua-loi' } }
+            $f
+        })
     baoCao = $reportPath
+    tep = @($(if ($reportPath) { [ordered]@{ nhan = 'Báo cáo'; duongDan = $reportPath } }))
 }
 try {
     if (-not (Test-Path -LiteralPath $outDir)) { New-Item -ItemType Directory -Path $outDir -Force -ErrorAction Stop | Out-Null }
     $jsonPath = Join-Path $outDir ("KetQua_MyExcel_KiemTra_{0}_{1}_{2}.json" -f $env:COMPUTERNAME, $safeUser, $stamp)
-    [IO.File]::WriteAllText($jsonPath, ($result | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
+    [IO.File]::WriteAllText($jsonPath, ($result | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding $false))
     Write-Host (Txt "  Kết quả (JSON): $jsonPath") -ForegroundColor DarkGray
 } catch { Write-Host (Txt "  Không ghi được file kết quả JSON: $($_.Exception.Message)") -ForegroundColor DarkGray }
 if ($exitCode -eq 2) { Write-Host (Txt '  => Kết quả này KHÔNG dùng được: chạy lại bằng double-click trong đúng profile bị lỗi.') -ForegroundColor Red }

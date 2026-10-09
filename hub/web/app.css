@@ -286,6 +286,7 @@ button.link:hover, .link-btn:hover { text-decoration: underline; text-underline-
 .state .ic { width: 15px; height: 15px; }
 .state.success .ic { color: var(--ok); }
 .state.danger { color: var(--danger); font-weight: 600; }
+.state.warning { color: var(--warn); font-weight: 600; }
 .state.brand { color: var(--accent-text); font-weight: 600; }
 
 .catalog { margin-top: 44px; }
@@ -456,6 +457,39 @@ button.link:hover, .link-btn:hover { text-decoration: underline; text-underline-
 .row-note .ic { width: 15px; height: 15px; }
 .row-note.ok .ic { color: var(--ok); }
 .row-note.warn .ic { color: var(--warn); }
+.row-note.danger .ic { color: var(--danger); }
+
+/* Kết quả JSON của công cụ (js/result.js): trạng thái, số đếm, từng phát hiện với cách sửa. */
+.res-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.res-msg { margin: 12px 0 0; font-size: 14.5px; line-height: 1.6; max-width: 72ch; }
+.res-ok { display: flex; align-items: center; gap: 7px; margin: 16px 0 0; color: var(--text-2); font-size: 13.5px; }
+.res-ok .ic { color: var(--ok); }
+.findings { display: grid; margin-top: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.finding { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px 16px; }
+.finding + .finding { border-top: 1px solid var(--line); }
+.finding > .ic { margin-top: 3px; color: var(--text-3); }
+.finding.loi > .ic { color: var(--danger); }
+.finding.canh-bao > .ic { color: var(--warn); }
+.finding.ok > .ic { color: var(--ok); }
+.finding .t { font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.finding .d { margin-top: 3px; font-size: 13px; color: var(--text-2); white-space: pre-line; overflow-wrap: anywhere; }
+.finding .fix { margin-top: 5px; font-size: 13px; line-height: 1.55; color: var(--text-2); overflow-wrap: anywhere; }
+.finding .fix b { color: var(--text); font-weight: 600; }
+.finding .next { margin-top: 8px; }
+.finding .code { font: 500 11px/1.9 var(--mono); color: var(--text-3); white-space: nowrap; }
+.res-more { margin-top: 14px; font-size: 13px; }
+.res-more summary { cursor: pointer; color: var(--accent-text); font-weight: 500; width: fit-content; }
+.res-files { display: grid; gap: 6px; margin-top: 16px; font-size: 13px; }
+.res-file { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: baseline; }
+.res-file .k { color: var(--text-3); }
+.res-file .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.res-src { display: flex; align-items: center; gap: 6px; margin: 16px 0 0; }
+@media (max-width: 640px) {
+  .finding { grid-template-columns: 16px minmax(0, 1fr); }
+  .finding .code { grid-column: 2; }
+  .res-file { grid-template-columns: minmax(0, 1fr) auto; }
+  .res-file .k { grid-column: 1 / -1; }
+}
 .hrow .side { display: flex; align-items: center; gap: 4px; }
 
 .selbar {

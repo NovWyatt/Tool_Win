@@ -5,6 +5,8 @@ import { repeat } from '../vendor/lit-html/directives/repeat.js';
 import { api, icon, enc, fmtElapsed, fmtDuration } from './core.js';
 import { S, update, go, runState } from './state.js';
 import { toast } from './ui.js';
+import { resultSentence, resultTone, showResult } from './result.js';
+import { loadToolOutputs, loadServer, hasWebServer } from './data.js';
 
 let pollTimer = null;
 let tickTimer = null;
@@ -37,12 +39,28 @@ export async function refreshJobs() {
 
 function onFinished(j) {
   const t = S.byId.get(j.toolId);
-  // Kết quả mới có thể đã được tạo: tải lại khi mở trang tương ứng.
+  // Kết quả mới có thể đã được tạo: trang công cụ đang mở thì tải lại ngay, trang khác tải lại khi mở.
   S.outputs = null;
-  if (S.toolData[j.toolId]) S.toolData[j.toolId].outs = null;
+  if (t && S.route.name === 'tool' && S.route.id === t.id) {
+    if ((t.outputs || []).length) loadToolOutputs(t);
+    if (hasWebServer(t)) loadServer(t);
+  } else if (S.toolData[j.toolId]) S.toolData[j.toolId].outs = null;
   api('/api/history').then((h) => { S.history = h.items || []; update(); }).catch(() => {});
-  if (j.state === 'failed') {
+  const k = j.ketQua;
+  if (k) {
+    // Công cụ ghi file kết quả: báo luôn tìm thấy gì, kể cả khi chạy nhanh.
+    const tone = resultTone(k);
+    const st = runState(j);
+    toast(tone === 'danger' ? 'error' : tone === 'warn' ? 'warning' : 'success',
+      `${j.toolName}: ${j.actionLabel} ${st.label.toLowerCase()}. ${resultSentence(k)}`, {
+        ms: tone === 'ok' ? 8000 : 15000, action: { label: 'Xem chi tiết', run: () => showResult(j.toolId, k.path) },
+      });
+  } else if (j.state === 'failed') {
     toast('error', `${j.toolName}: ${j.actionLabel} báo lỗi (mã ${j.exitCode}) sau ${fmtDuration(j.durationSec)}.`, {
+      ms: 12000, action: { label: 'Mở công cụ', run: () => go(`#/tool/${enc(j.toolId)}`) },
+    });
+  } else if (j.state === 'blocked' || j.state === 'partial') {
+    toast('warning', `${j.toolName}: ${j.actionLabel} ${runState(j).label.toLowerCase()} (mã ${j.exitCode}). Xem lời báo trong cửa sổ công cụ.`, {
       ms: 12000, action: { label: 'Mở công cụ', run: () => go(`#/tool/${enc(j.toolId)}`) },
     });
   } else if (j.durationSec >= 30 && j.state === 'done') {
@@ -87,8 +105,8 @@ function jobItem(j) {
       </span>
       <span class="job-time">${live ? fmtElapsed(elapsed(j)) : `${st.label}${st.dur != null ? ` sau ${fmtDuration(st.dur)}` : ''}`}</span>
     </button>
-    ${live && !j.elevated ? html`<button class="icon-btn sm" title="Hiện cửa sổ công cụ" aria-label="Hiện cửa sổ" @click=${() => focusJob(j)}>${icon('open', 'ic-16')}</button>` : nothing}
-    ${live && j.elevated ? html`<span class="job-shield" title="Chạy với quyền Admin">${icon('shield', 'ic-16')}</span>` : nothing}
+    ${live && !j.elevated && !j.selfElevates ? html`<button class="icon-btn sm" title="Hiện cửa sổ công cụ" aria-label="Hiện cửa sổ" @click=${() => focusJob(j)}>${icon('open', 'ic-16')}</button>` : nothing}
+    ${live && (j.elevated || j.selfElevates) ? html`<span class="job-shield" title=${j.selfElevates ? 'Công cụ tự xin quyền Admin' : 'Chạy với quyền Admin'}>${icon('shield', 'ic-16')}</span>` : nothing}
     ${!live ? html`<button class="icon-btn sm" title="Ẩn khỏi thanh này" aria-label="Ẩn" @click=${() => dismiss([j.id])}>${icon('dismiss', 'ic-16')}</button>` : nothing}
   </div>`;
 }

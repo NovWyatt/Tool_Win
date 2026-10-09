@@ -26,9 +26,11 @@ Kết quả:
 - `%PUBLIC%\Documents\MyExcelCheck\snapshot_<máy>_<tài khoản>.json`: cấu hình đo được (không có dữ liệu ngân hàng),
   để ở thư mục chung để lần kiểm tra ở tài khoản khác tự so sánh, chỉ ra khác biệt giữa tài khoản lỗi và tài khoản
   chạy được. Snapshot hỏng của tài khoản khác chỉ bị bỏ qua.
-- `KetQua_MyExcel_KiemTra_<máy>_<tài khoản>_<giờ>.json` cạnh báo cáo: mỗi phát hiện có mã cố định (vd
-  `ADDIN_CHUA_BAT`, `THU_MUC_CHUA_TIN_CAY`), mức độ (`loi`, `canh-bao`, `thong-tin`) và cách sửa. Mã không đổi khi
-  sửa câu chữ; mã cũng in trong ngoặc ở phần *Kết luận* của báo cáo.
+- `KetQua_MyExcel_KiemTra_<máy>_<tài khoản>_<giờ>.json` cạnh báo cáo, theo chuẩn kết quả của Trạm Tool
+  (`tramtool.ketqua/1`): mỗi phát hiện có mã cố định (vd `ADDIN_CHUA_BAT`, `THU_MUC_CHUA_TIN_CAY`), mức độ (`loi`,
+  `canh-bao`, `thong-tin`) và cách sửa. Mã không đổi khi sửa câu chữ; mã cũng in trong ngoặc ở phần *Kết luận* của
+  báo cáo. Lỗi mà bản Sửa xử lý được có thêm `chayTiep` trỏ tới nút *Sửa lỗi*: Trạm Tool hiện nút đó ngay cạnh phát
+  hiện. File kết quả của Sửa, Hoàn tác cũng theo chuẩn này (cảnh báo, file giữ lại thành `phatHien`).
 
 Mã thoát: `0` kiểm tra xong (kể cả khi có phát hiện), `1` không ghi được báo cáo, `2` chạy sai tài khoản (kết quả
 không phải của tài khoản bị lỗi).
