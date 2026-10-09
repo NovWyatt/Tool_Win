@@ -256,6 +256,11 @@ mở báo cáo chữ. Đã dùng: MyExcelFix (kiểm tra, sửa, hoàn tác), Ch
 - Không ghi mật khẩu, khoá, số tài khoản ngân hàng hay nội dung file của khách vào file kết quả.
 - Ghi file tạm rồi đổi tên (tránh trạm đọc file dở). Tên file nên có `%COMPUTERNAME%` và giờ, vd
   `KetQua_<công cụ>_<chế độ>_<máy>_<yyyyMMdd_HHmmss>.json`; khai báo thư mục, mẫu tên trong `outputs` với `"ketQua": true`.
+- File có tên máy nên để trong `ket_qua\` (git bỏ qua). Công cụ ghi cạnh script (như CheckWinFix) thì thêm mẫu tên vào
+  `.gitignore` và vào danh sách mẫu của `tests\tinh\5_DuLieuKhach.ps1`.
+- Mỗi chỗ ghi phát hiện dùng mã viết thẳng trong lời gọi (vd `Add-Finding -Ma 'O_DIA_DAY' warn ...`) để bài thử duyệt
+  cây cú pháp kiểm mọi chỗ đều có mã, mã không trùng, `chayTiep` trỏ tới action có thật. Cho đổi thư mục kết quả bằng
+  biến môi trường (vd `OFFICE_KET_QUA`) để bài thử chạy thật ghi vào thư mục tạm.
 - Trạm gắn file vào lần chạy khi file sửa trong khoảng *lúc mở − 2 giây* đến *lúc đóng + 15 giây* và đúng `congCu`.
   Tối đa 2 MB, hiện 300 phát hiện đầu.
 - Trạm đọc tên trường không phân biệt hoa thường, nhận cả cách ghi cũ (`MaThoat`, `Loi`, `LuuY`; `tieu_de`,

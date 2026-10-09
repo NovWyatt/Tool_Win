@@ -1,6 +1,6 @@
 # Phân tích và hướng nâng cấp
 
-Cập nhật 09/10/2026. Đánh giá 17 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
+Cập nhật 10/10/2026. Đánh giá 17 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
 và lộ trình nâng cấp theo mức ưu tiên.
 
 Danh sách lỗi và hướng nâng cấp đầy đủ của từng công cụ nằm trong `issues` và `upgrades` của `tool.json`,
@@ -92,6 +92,13 @@ Mức ưu tiên:
   đọc lại danh sách đã cài (`winget export`) thay vì tin mã thoát của bộ cài; danh sách sửa được trong
   `DanhSach.json`. Cả hai ghi JSON theo chuẩn của trạm kèm nút sửa. Kiểm tra đã chạy thật bằng quyền thường trên máy
   phát triển; sửa giờ, sửa token, cài, cập nhật mới chạy thử và thử bằng giả lập.
+- **JSON kết quả cho mọi công cụ chẩn đoán, sửa (10/10/2026)**: Máy in LAN 1.1, BitLocker 1.1, Dọn ổ C 1.1, Sửa lỗi
+  Windows 2.1, Office 1.1 và bốn script chuyên sâu của CheckWinFix (bản 1.1) ghi theo chuẩn `tramtool.ketqua/1`: mỗi
+  phát hiện một mã cố định, nút chạy tiếp trỏ tới nút sửa có thật; chạy thử, thiếu quyền Admin, làm được một phần có
+  trạng thái riêng; khoá khôi phục BitLocker, khoá sản phẩm Office không vào JSON. Chẩn đoán phần cứng nay tách lỗi
+  của ổ USB, ổ đã rút như Thu thập thông tin (bản cũ coi hơn 50 sự kiện ổ đĩa bất kỳ là ổ cứng hỏng, và đã báo nhầm
+  như vậy trên máy phát triển). Kiểm tra, chẩn đoán đã chạy thật bằng quyền thường trên máy phát triển; nút sửa vẫn mới
+  chạy thử và thử bằng giả lập.
 
 ## Đã sửa trong đợt này
 
@@ -135,13 +142,19 @@ Mức ưu tiên:
 | `6a2b7d1` | Giờ máy và chữ ký số (mới) | Công cụ mới `tools\gio-chu-ky-so`: Kiểm tra (quyền thường) đo độ lệch giờ bằng NTP, dự phòng giờ của trang http; múi giờ; Windows Time; Smart Card, Certificate Propagation; đầu đọc thẻ qua WinSCard; chứng thư ký số trong kho của tài khoản (chỉ xem có khoá riêng, không mở); phần mềm ký số. *Sửa giờ* (bật dịch vụ, đồng bộ, đặt múi giờ Việt Nam, đồng bộ xong vẫn lệch thì đặt giờ; máy trong domain không đổi cấu hình), *Sửa token*, *Trả lại* giá trị của lần sửa đầu. |
 | `3220163` | Bộ ứng dụng văn phòng (mới) | Công cụ mới `tools\bo-ung-dung`: Kiểm tra (`winget export`, nhận cả ứng dụng không cài bằng winget), *Cài ứng dụng* (ô chọn từng ứng dụng, mặc định theo `DanhSach.json`, bỏ qua ứng dụng đã có, bộ gõ cùng nhóm chỉ cài một, đọc lại danh sách đã cài sau khi cài), *Cập nhật ứng dụng* (tách đã cập nhật, đã mới nhất, lỗi); bài thử kiểm danh sách khớp ô chọn và tên cờ không trùng tiền tố tham số của script. |
 | `a5ef3e4` | MyExcelFix | 2026.10.2: sao lưu, báo cáo, JSON kết quả vào `%LOCALAPPDATA%\MyExcelFix` (riêng từng tài khoản, không đồng bộ OneDrive); Public Documents chỉ còn snapshot cấu hình, báo cáo cũ của tài khoản đang chạy tự chuyển sang; che tên chủ tài khoản; `ThongTinKhaiBao.txt` chỉ khi đặt lại; `HOAN_TAC.bat` không tham số liệt kê bản sao lưu. |
+| `b10a66d` | Máy in mạng LAN | 1.1: Chẩn đoán ghi `KetQua_MayIn_ChanDoan_*.json` (42 mã cố định, nút sửa trỏ tới các nút sửa của công cụ). |
+| `b6f4435` | BitLocker | 1.1: Kiểm tra ghi `KetQua_BitLocker_KiemTra_*.json` (16 mã; chỉ có Mã khoá, không có khoá khôi phục); chạy bằng quyền thường thì không kết luận ổn. |
+| `37af08d` | Dọn ổ C an toàn | 1.1: mọi chế độ ghi `KetQua_DonOC_*.json` (mục chiếm từ 1 GB, rác dọn được, kết quả dọn, WinSxS; cùng mức thì mục lớn lên trước). |
+| `d434eb4` | Sửa lỗi Windows | 2.1: mọi chế độ ghi `KetQua_SuaLoi_*.json` (44 mã: ảnh Windows hỏng sửa được, SFC còn file hỏng, ổ đĩa có lỗi, IP/DNS đặt tay...), gợi ý chạy tiếp, kèm file sao lưu tường lửa, thiết lập mạng cũ. |
+| `4feccd6` | Gỡ sạch và cài Office theo mẫu | 1.1: Kiểm tra ghi 20 mã cố định; gỡ, cài, kích hoạt, trả lại chưa xong thì tóm các dòng lỗi đã in; JSON qua cùng bộ lọc che khoá như báo cáo. |
+| `a82cec4` | CheckWinFix | Chẩn đoán phần cứng, Giải mã WHEA, Xuất bằng chứng, Sụp nguồn bản 1.1 ghi `KetQua_CheckWinFix_PhanCung_*.json` (và `_GiaiMaWhea_`, `_BangChung_`, `_SupNguon_`), mã in kèm trong báo cáo; Chẩn đoán phần cứng tách lỗi ổ USB, ổ đã rút; `.gitignore` bỏ qua `KetQua_CheckWinFix_*.json` (cả file của Thu thập thông tin, trước đó chưa bỏ qua). |
 
 ## Bảng tổng quan
 
 | Công cụ | Dành cho | Đánh giá | Việc nên làm trước |
 |---|---|---|---|
-| CheckWinFix | Mọi người | Bộ chẩn đoán đầy đủ nhất: 24 nhóm thông tin, khoảng 60 cảnh báo tự động có mã cố định (lỗi sự kiện so theo nguồn + mã, cả mức Warning), trạm hiện từng cảnh báo và gợi ý script chạy tiếp; tuỳ chọn kiểm tra sâu (DISM, `chkdsk /scan`); chạy đúng với mọi đường dẫn. *Cứu dữ liệu* bản 2.0 an toàn hơn (ổ vật lý khác, MD5 khi SQL dừng, luôn bật lại dịch vụ), mới thử bằng giả lập. | P1: lõi dùng chung, JSON kết quả cho các script chuyên sâu, đọc EventData ở các mục còn lại. |
-| Sửa lỗi Windows | Kỹ thuật | Bản 2.0: DISM rồi SFC, đặt lại mạng (ghi lại IP/DNS đặt tay trước), đặt lại tường lửa (sao lưu `.wfw`, hỏi lại, khôi phục được), quét và sửa ổ đĩa (xem sức khoẻ ổ trước), kiểm tra RAM, đặt lại Windows Update (đổi tên có thời gian); mỗi lệnh kiểm tra kết quả thật. Mới thử bằng giả lập. | P1: nhật ký tóm tắt CBS/DISM; DISM dùng ISO khi Windows Update không tải được. |
+| CheckWinFix | Mọi người | Bộ chẩn đoán đầy đủ nhất: 24 nhóm thông tin, khoảng 60 cảnh báo tự động có mã cố định (lỗi sự kiện so theo nguồn + mã, cả mức Warning), trạm hiện từng cảnh báo và gợi ý script chạy tiếp; tuỳ chọn kiểm tra sâu (DISM, `chkdsk /scan`); chạy đúng với mọi đường dẫn. Bốn script chuyên sâu (phần cứng, WHEA, bằng chứng, sụp nguồn) cũng ghi kết luận có mã cho trạm. *Cứu dữ liệu* bản 2.0 an toàn hơn (ổ vật lý khác, MD5 khi SQL dừng, luôn bật lại dịch vụ), mới thử bằng giả lập. | P1: lõi dùng chung, đọc EventData ở các mục còn lại. |
+| Sửa lỗi Windows | Kỹ thuật | Bản 2.0: DISM rồi SFC, đặt lại mạng (ghi lại IP/DNS đặt tay trước), đặt lại tường lửa (sao lưu `.wfw`, hỏi lại, khôi phục được), quét và sửa ổ đĩa (xem sức khoẻ ổ trước), kiểm tra RAM, đặt lại Windows Update (đổi tên có thời gian); mỗi lệnh kiểm tra kết quả thật. Bản 2.1: trạm hiện kết quả từng việc có mã, gợi ý chạy tiếp. Mới thử bằng giả lập. | P1: nhật ký tóm tắt CBS/DISM; DISM dùng ISO khi Windows Update không tải được. |
 | Kiểm tra và sửa lỗi Wi-Fi | Mọi người | Bản 1.1 thêm `KET_NOI_WIFI.bat`: gọi thẳng API Wi-Fi (không phụ thuộc ngôn ngữ Windows), sửa lỗi *Can't connect to this network* khi vào mạng mới sau khi máy thức dậy, chẩn đoán từ nhật ký WLAN theo mã lý do. Phần kết nối mới chạy thử, chưa chạy thật. Menu cũ `fixwf.bat` vẫn tìm card bằng chữ. | P1: tự sửa sau khi máy thức dậy; gộp menu cũ vào `KetNoiWifi.ps1`. |
 | Máy in mạng LAN và thư mục chia sẻ | Mọi người | Chẩn đoán 11 nhóm, chỉ nút sửa theo mã lỗi; 8 nút sửa in việc sẽ làm, hỏi trước, có Chạy thử, ghi nhật ký hoàn tác; nới bảo mật tách riêng, hỏi 2 lần; không bật SMB1. Mới kiểm chứng trên máy phát triển. | P1: chạy các nút sửa ở văn phòng thật; Local Port `\\MÁY\máy-in` thay cho nới RPC; dò máy in trong mạng. |
 | Tối ưu Windows | Kỹ thuật | Gộp *Tắt/bật dịch vụ nền* và *Tối ưu đồng hồ hệ thống* (bản 2.0 của cả hai giữ nguyên). Một nút Kiểm tra xem cả dịch vụ lẫn đồng hồ, trạm hiện phát hiện kèm nút sửa. Dịch vụ: xét kiểu khởi động thật, lưu kiểu khởi động gốc trước khi tắt, *Bật lại* trả đúng giá trị cũ (kể cả Tự động trễ); Tối ưu ổ đĩa (TRIM cho SSD) và wisvc trên máy Insider phải đồng ý riêng. Đồng hồ: đổi thẳng trong BCD, đọc lại sau khi đổi, *Trả về mặc định* xoá sạch cả ba thiết lập, tạm dừng BitLocker 1 lần khởi động khi cần. Phần đổi máy mới thử bằng giả lập. | P1: kiểm tra TRIM thật thay vì chỉ cảnh báo; đo trước/sau (LatencyMon) rồi mới khuyên tối ưu đồng hồ. |
@@ -186,14 +199,14 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
    `.venv` riêng, `requirements-lock.txt` khoá phiên bản, `CAI_DAT.ps1` tự cài lại được trên máy mới.
 8. **Kết quả chỉ là chữ.** Trạm không biết công cụ chạy xong hay lỗi, tìm thấy gì. Quy ước: mỗi lần chạy ghi thêm
    một file JSON theo chuẩn `tramtool.ketqua/1` (máy, thời gian, mã thoát, trạng thái, phát hiện, mức độ, cách sửa,
-   công cụ chạy tiếp, file liên quan; xem `docs\THEM-CONG-CU.md`). Đã làm cho MyExcelFix, Chuyển dữ liệu khi cài lại
-   Windows, `mdf2sql doctor`, *Thu thập thông tin* của CheckWinFix, Kiểm tra của Tối ưu Windows, Giờ máy và chữ ký
-   số, Bộ ứng dụng văn phòng; Trạm 1.4.0 đọc và
-   hiện trong Lịch sử. Còn lại: Sửa lỗi Windows, Máy in LAN, BitLocker, Dọn ổ C, Office, các script chuyên sâu của
-   CheckWinFix.
+   công cụ chạy tiếp, file liên quan; xem `docs\THEM-CONG-CU.md`). Đã làm cho mọi công cụ chẩn đoán, sửa: MyExcelFix,
+   Chuyển dữ liệu khi cài lại Windows, `mdf2sql doctor`, CheckWinFix (Thu thập thông tin và bốn script chuyên sâu), Tối
+   ưu Windows, Giờ máy và chữ ký số, Bộ ứng dụng văn phòng, Sửa lỗi Windows, Máy in LAN, BitLocker, Dọn ổ C, Office;
+   Trạm 1.4.0 đọc và hiện trong Lịch sử. Chưa ghi: Wi-Fi, DWG sang PDF, Ghi âm sang Word, File thẻ xe .nt, Đăng xuất
+   GitHub (kết quả là file đầu ra hoặc thao tác một lần, mã thoát đã đủ cho Lịch sử).
 9. **Bài thử không nằm trong repo.** Các nút đổi máy chủ yếu được thử bằng giả lập, nhưng bài thử chỉ nằm ở thư mục
    tạm của phiên làm việc nên sửa sau không chạy lại được. Đã làm: `tests\` với một trình chạy chung
-   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 40 bài cho 17 bộ (cú pháp, mã hoá file, danh mục và lược đồ
+   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 47 bài cho 17 bộ (cú pháp, mã hoá file, danh mục và lược đồ
    `tool.json`, không commit dữ liệu khách, lan can và kết quả JSON của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
    Tối ưu Windows, Giờ máy và chữ ký số, Bộ ứng dụng văn phòng, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe,
    Đăng xuất GitHub, Ghi âm sang Word, `.bat` của mdf2sql) và `tools\mdf2sql\tests` (unittest).
@@ -224,8 +237,8 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 - [x] Chuẩn JSON kết quả chung; Trạm đọc để hiện *tìm thấy gì* và gợi ý công cụ chạy tiếp (Trạm 1.4.0; MyExcelFix,
       Chuyển dữ liệu khi cài lại Windows, `mdf2sql doctor` đã ghi theo chuẩn).
 - [x] JSON kết quả theo chuẩn cho *Thu thập thông tin* của CheckWinFix (2026.10.3) và Kiểm tra của Tối ưu Windows.
-- [ ] JSON kết quả theo chuẩn cho Sửa lỗi Windows, Máy in LAN, BitLocker, Dọn ổ C, Office, các script chuyên sâu của
-      CheckWinFix.
+- [x] JSON kết quả theo chuẩn cho Sửa lỗi Windows (2.1), Máy in LAN (1.1), BitLocker (1.1), Dọn ổ C (1.1), Office
+      (1.1), các script chuyên sâu của CheckWinFix (1.1).
 - [x] Trạm đợi tiến trình xong trong nền, ghi mã thoát và thời gian chạy vào Lịch sử (Trạm 1.1.0). Công cụ tự nâng
       quyền: cửa sổ đầu đợi cửa sổ Admin và trả mã của nó (bài thử tĩnh kiểm), trạm theo dõi cả khi mở bằng quyền
       thường (Trạm 1.4.0).
@@ -387,8 +400,7 @@ PowerToys Command Palette, Raycast, Linear (ô Ctrl+K), UniGetUI (bảng tác v�
   `--no-browser`). Lần thử đó tìm ra lỗi: trạm gửi thân `{}` kèm lệnh tắt, máy chủ tắt ngay nên Windows cắt kết nối
   giữa lúc trạm đang ghi (trạm báo lỗi dù đã tắt); nay gửi POST rỗng, bài thử kiểm độ dài thân bằng 0.
 
-**Hướng tiếp**: các mục *Trạm* trong lộ trình ở trên (JSON kết quả cho các công cụ còn lại, tiến độ, cập nhật công
-cụ); loại probe `script` chỉ đọc (BitLocker, SMB); thư viện nhật ký hoàn tác chung.
+**Hướng tiếp**: các mục *Trạm* trong lộ trình ở trên (tiến độ, cập nhật công cụ); loại probe `script` chỉ đọc (BitLocker, SMB); thư viện nhật ký hoàn tác chung.
 
 ## Công cụ Windows nên thêm
 
@@ -578,6 +590,8 @@ Mới có nguồn cộng đồng hoặc chưa thử; kiểm tra trên máy thậ
 - UltraViewer bản miễn phí có cho dùng thương mại không.
 - Yêu cầu eSigner của thuế điện tử.
 - Giấy phép các font .Vn (TCVN3).
+- Mã sự kiện MemoryDiagnostics-Results: Chẩn đoán phần cứng coi 1102, 1202 là test RAM báo lỗi (1101, 1201 là không
+  lỗi); chưa có máy RAM lỗi để đối chiếu.
 
 ## Thư viện bên thứ ba
 
