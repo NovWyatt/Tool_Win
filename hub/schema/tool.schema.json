@@ -199,6 +199,34 @@
         "dryRun": {
           "description": "bool: công tắc này là chế độ chạy thử (không đổi máy); bật thì trạm không tạo điểm khôi phục, không ghi trạng thái. Thiếu thì mặc định true khi id là chay-thu.",
           "type": "boolean"
+        },
+        "goiY": {
+          "description": "file / folder: form liệt kê sẵn các mục có trên máy (vd thư mục sao lưu) để bấm chọn, khỏi mở hộp thoại.",
+          "type": "object",
+          "required": ["nguon"],
+          "additionalProperties": false,
+          "properties": {
+            "nguon": {
+              "description": "Nơi tìm: thư mục (nhận %BIEN%, {Desktop}) và mẫu tên.",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["dir"],
+                "additionalProperties": false,
+                "properties": {
+                  "dir": { "type": "string" },
+                  "glob": { "type": "string", "default": "*" },
+                  "nhan": { "description": "Nhãn nhỏ cạnh mục, vd Desktop (bản cũ).", "type": "string" }
+                }
+              }
+            },
+            "json": { "description": "folder: tên file JSON trong mỗi thư mục; thiếu hoặc hỏng thì không liệt kê thư mục đó. Dùng cho loc và moTa.", "type": "string", "pattern": "^[A-Za-z0-9._-]+\\.json$" },
+            "loc": { "description": "Chỉ liệt kê mục có trường JSON bằng giá trị này (nhận %BIEN%, không phân biệt hoa thường), vd {\"User\": \"%USERNAME%\"}.", "type": "object", "additionalProperties": { "type": "string" } },
+            "locNhan": { "description": "Câu báo số mục bị loc bỏ, {n} là số mục; vd Có {n} bản của tài khoản khác không hiện.", "type": "string" },
+            "moTa": { "description": "Dòng mô tả từ JSON: {Truong} giá trị, {Truong#} số phần tử, {Truong?chữ} chữ khi trường có giá trị.", "type": "string" },
+            "sapXep": { "description": "moi-nhat: theo giờ sửa; ten: theo tên giảm dần (tên có ngày giờ).", "enum": ["moi-nhat", "ten"], "default": "moi-nhat" }
+          }
         }
       },
       "allOf": [

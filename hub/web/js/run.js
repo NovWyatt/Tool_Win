@@ -8,7 +8,8 @@ import { refreshJobs, watchJob } from './jobs.js';
 import { loadServer } from './data.js';
 
 // Giá trị form đang nhập; file/thư mục chọn bằng hộp thoại gốc của Windows (máy chủ mở) nên giữ ở đây.
-const form = { toolId: '', actionId: '', picks: {} };
+// goiY: danh sách mục có sẵn trên máy cho ô chọn có goiY (tải khi mở form); seq: bỏ kết quả về muộn của form trước.
+const form = { toolId: '', actionId: '', picks: {}, goiY: {}, seq: 0 };
 
 // Giá trị lần chạy trước của chính action này (lưu trong lịch sử) để điền sẵn.
 function lastValues(toolId, actionId) {
@@ -20,6 +21,41 @@ function pickText(spec) {
   const v = form.picks[spec.id] || [];
   if (!v.length) return '';
   return v.length > 1 ? `${v.length} mục: ${v.join('; ')}` : v[0];
+}
+
+// Mục có sẵn trên máy (vd bản sao lưu), bấm để chọn thay cho hộp thoại; mới nhất trước.
+function suggestList(spec) {
+  const g = form.goiY[spec.id];
+  if (!g) return nothing;
+  if (g.loading) return html`<div class="goiy-msg">Đang tìm trên máy...</div>`;
+  if (g.error) return html`<div class="goiy-msg">Không liệt kê được: ${g.error}</div>`;
+  const hidden = g.an ? html`<div class="hint">${g.anNhan ? g.anNhan.replace('{n}', g.an) : `Có ${g.an} mục khác không hiện.`}</div>` : nothing;
+  if (!g.items.length) return html`<div class="goiy-msg">Không thấy mục nào trên máy này.</div>${hidden}`;
+  const cur = (form.picks[spec.id] || [])[0] || '';
+  const choose = (p) => { form.picks[spec.id] = [p]; redrawForm(); };
+  return html`<div class="goiy" role="radiogroup" aria-labelledby="lbl-${spec.id}">
+      ${g.items.map((it) => html`<label class="goiy-item${cur === it.path ? ' on' : ''}" title=${it.path}>
+        <input type="radio" name="goiy-${spec.id}" .checked=${live(cur === it.path)} @change=${() => choose(it.path)}>
+        <span class="goiy-text"><span class="goiy-title">${it.moTa || it.name}</span>
+          <span class="goiy-sub">${it.nhan ? html`<span class="tag">${it.nhan}</span>` : nothing}${it.moTa ? it.name : nothing}</span></span>
+      </label>`)}
+    </div>
+    ${g.tong > g.items.length ? html`<div class="hint">Hiện ${g.items.length} trên ${g.tong} mục, mới nhất trước.</div>` : nothing}${hidden}`;
+}
+
+async function loadSuggest(t, a, spec) {
+  const seq = form.seq;
+  form.goiY[spec.id] = { loading: true };
+  let g;
+  try {
+    const r = await api(`/api/suggest?id=${encodeURIComponent(t.id)}&action=${encodeURIComponent(a.id)}&arg=${encodeURIComponent(spec.id)}`);
+    g = { items: r.items || [], tong: r.tong || 0, an: r.an || 0, anNhan: r.anNhan || '' };
+  } catch (e) { g = { error: e.message }; }
+  if (seq !== form.seq) return;
+  form.goiY[spec.id] = g;
+  // Chưa có giá trị (lần trước để trống hoặc chạy lần đầu): chọn sẵn mục mới nhất, như công cụ hỏi trong cửa sổ.
+  if (g.items && g.items.length && !(form.picks[spec.id] || []).length) form.picks[spec.id] = [g.items[0].path];
+  redrawForm();
 }
 
 // Công tắc đang bật: theo giá trị đã có (lần trước, hoặc đọc lại khi vẽ lại form), không có thì theo mặc định.
@@ -41,7 +77,7 @@ function field(spec, prev) {
         <button class="btn secondary" @click=${() => pickArg(spec)}>${icon('folder')}Chọn</button>
         ${text ? html`<button class="icon-btn" aria-label="Bỏ chọn" title="Bỏ chọn"
           @click=${() => { form.picks[spec.id] = []; redrawForm(); }}>${icon('dismiss')}</button>` : nothing}
-      </div>${help}${err}</div>`;
+      </div>${spec.goiY ? suggestList(spec) : nothing}${help}${err}</div>`;
   }
   if (spec.type === 'bool') {
     // Công tắc chạy thử: vẽ lại để ô điểm khôi phục theo kịp.
@@ -176,10 +212,13 @@ export async function runAction(toolId, actionId, { values: given = null } = {})
     form.toolId = toolId;
     form.actionId = actionId;
     form.picks = {};
+    form.goiY = {};
+    form.seq++;
     for (const s of specs) {
       if ((s.type === 'file' || s.type === 'folder') && prev && Array.isArray(prev[s.id])) form.picks[s.id] = prev[s.id].slice();
     }
     current = { t, a, prev, rp: S.settings.restorePoint !== false, filled: !!prev };
+    for (const s of specs) if (s.goiY) loadSuggest(t, a, s);
     let collected = null;
     const ok = await openDialog({
       title: specs.length ? a.label : `Chạy "${a.label}"?`,

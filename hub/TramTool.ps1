@@ -285,6 +285,14 @@ function Invoke-Api {
             return $all
         }
         'GET /api/probes' { $tool = Get-ToolById $q['id']; return @{ id = $tool.id; items = @(Get-ToolProbes -Tool $tool) } }
+        'GET /api/suggest' {
+            # Gợi ý cho ô chọn file/thư mục (goiY trong tool.json), vd các bản sao lưu để hoàn tác.
+            $tool = Get-ToolById $q['id']
+            $action = Get-ActionById -Tool $tool -Id ([string]$q['action'])
+            $spec = @($action.args | Where-Object { $_.id -eq [string]$q['arg'] -and $_.goiY }) | Select-Object -First 1
+            if (-not $spec) { throw 'Tham số này không có danh sách gợi ý.' }
+            return (Get-ArgSuggestions -Tool $tool -Spec $spec)
+        }
         'GET /api/outputs' {
             if ($q['id']) { $tool = Get-ToolById $q['id']; return @{ items = @(Get-ToolOutputs -Tool $tool) } }
             $all = New-Object System.Collections.ArrayList

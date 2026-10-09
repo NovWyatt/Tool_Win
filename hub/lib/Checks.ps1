@@ -285,6 +285,66 @@ function Get-ToolOutputs {
     return @($files | Sort-Object { $_.modified } -Descending | Select-Object -First $Limit)
 }
 
+# ---------------------------------------------------------------- Gợi ý cho tham số chọn file/thư mục
+function Format-GoiYMoTa {
+    # Mẫu mô tả từ JSON của mục: {Truong} giá trị, {Truong#} số phần tử, {Truong?chữ} chữ khi trường có giá trị.
+    # Chỉ trường cấp đầu; thiếu trường thì rỗng (hoặc 0).
+    param([string]$Template, $Data)
+    return [regex]::Replace($Template, '\{([A-Za-z0-9_]+)(#|\?[^}]*)?\}', {
+            param($m)
+            $p = $Data.PSObject.Properties[$m.Groups[1].Value]
+            $v = if ($p) { $p.Value } else { $null }
+            $items = @(@($v) | Where-Object { $null -ne $_ -and [string]$_ -ne '' })
+            $mod = $m.Groups[2].Value
+            if ($mod -eq '#') { return [string]$items.Count }
+            if ($mod.StartsWith('?')) { return $(if ($items.Count -and $v -ne $false -and [string]$v -ne '0') { $mod.Substring(1) } else { '' }) }
+            if ($v -is [Array]) { return ($items -join ', ') }
+            return [string]$v
+        })
+}
+
+function Get-ArgSuggestions {
+    # goiY của tham số file/folder: các mục có trên máy khớp nguon (dir + glob), để chọn ngay trong form.
+    # json (folder): đọc file JSON trong thư mục; thiếu, hỏng, quá 2 MB thì bỏ mục đó. loc: chỉ giữ mục có trường JSON
+    # bằng giá trị (nhận %BIEN%), số mục bị bỏ trả trong 'an'. Chỉ trả đường dẫn, tên, nhãn, mô tả: không trả cả JSON.
+    param($Tool, $Spec, [int]$Limit = 30)
+    $g = $Spec.goiY
+    $items = New-Object System.Collections.ArrayList
+    $seen = @{}
+    $hidden = 0
+    foreach ($s in @($g.nguon)) {
+        $dir = Expand-HubPath -Path ([string]$s.dir) -BaseDir $Tool.dir
+        if (-not (Test-Path -LiteralPath $dir -PathType Container)) { continue }
+        $gci = @{ LiteralPath = $dir; Filter = [Environment]::ExpandEnvironmentVariables([string]$s.glob); ErrorAction = 'SilentlyContinue' }
+        if ($Spec.type -eq 'folder') { $gci.Directory = $true } else { $gci.File = $true }
+        foreach ($f in @(Get-ChildItem @gci)) {
+            if ($seen.ContainsKey($f.FullName)) { continue }
+            $seen[$f.FullName] = $true
+            $data = $null
+            if ($g.json) {
+                $jp = Join-Path $f.FullName $g.json
+                $ji = Get-Item -LiteralPath $jp -ErrorAction SilentlyContinue
+                if (-not $ji -or $ji.PSIsContainer -or $ji.Length -gt 2MB) { continue }
+                try { $data = Get-Content -LiteralPath $jp -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop } catch { continue }
+                if ($null -eq $data -or $data -is [Array]) { continue }
+                $match = $true
+                foreach ($k in @($g.loc.Keys)) {
+                    $p = $data.PSObject.Properties[$k]
+                    if (-not $p -or [string]$p.Value -ne [Environment]::ExpandEnvironmentVariables([string]$g.loc[$k])) { $match = $false; break }
+                }
+                if (-not $match) { $hidden++; continue }
+            }
+            [void]$items.Add([ordered]@{
+                    path = $f.FullName; name = $f.Name; nhan = [string]$s.nhan
+                    moTa = $(if ($g.moTa -and $data) { Format-GoiYMoTa -Template $g.moTa -Data $data } else { '' })
+                    modified = (Get-IsoTime $f.LastWriteTime)
+                })
+        }
+    }
+    $sorted = if ($g.sapXep -eq 'ten') { $items | Sort-Object { $_.name } -Descending } else { $items | Sort-Object { $_.modified } -Descending }
+    return [ordered]@{ items = @($sorted | Select-Object -First $Limit); tong = $items.Count; an = $hidden; anNhan = [string]$g.locNhan }
+}
+
 # ---------------------------------------------------------------- Đóng gói gửi khách
 function New-ToolPackage {
     param($Tool, [string]$DestDir = [Environment]::GetFolderPath('Desktop'))

@@ -110,6 +110,19 @@ Khi nút có `args`, bấm **Chạy** sẽ mở form. Trình duyệt chỉ gửi
   Trạm báo lỗi ngay trên form.
 - `dryRun: true` trên một ô `bool` đánh dấu đó là chế độ chạy thử: khi được chọn, trạm không tạo điểm khôi phục và không
   ghi trạng thái. Ô `bool` có `id` là `chay-thu` tự được coi là chạy thử.
+- `goiY` trên ô `file`/`folder`: form liệt kê sẵn các mục có trên máy (vd bản sao lưu để hoàn tác), bấm để chọn thay cho
+  hộp thoại; chưa có giá trị thì chọn sẵn mục đầu. Trạm chỉ gửi cho trình duyệt đường dẫn, tên, nhãn và dòng mô tả.
+
+  | Trường | Ý nghĩa |
+  |---|---|
+  | `nguon` | Nơi tìm: `[{ "dir": "%LOCALAPPDATA%\\...", "glob": "SaoLuu_*", "nhan": "Desktop, bản cũ" }]` (`dir` nhận `%BIEN%`, `{Desktop}`, đường dẫn tương đối tính từ thư mục công cụ) |
+  | `json` | Chỉ `folder`: tên file JSON trong mỗi thư mục (vd `manifest.json`); thiếu, hỏng hoặc quá 2 MB thì không liệt kê thư mục đó |
+  | `loc` | Chỉ giữ mục có trường JSON bằng giá trị (nhận `%BIEN%`, không phân biệt hoa thường), vd `{ "User": "%USERNAME%" }` |
+  | `locNhan` | Câu báo số mục bị lọc, `{n}` là số mục |
+  | `moTa` | Dòng mô tả từ JSON: `{Truong}` giá trị, `{Truong#}` số phần tử, `{Truong?chữ}` chữ khi trường có giá trị |
+  | `sapXep` | `moi-nhat` (theo giờ sửa, mặc định) hoặc `ten` (tên giảm dần, khi tên có ngày giờ) |
+
+  Ví dụ: ô *Bản sao lưu cần hoàn tác* trong `tools\myexcelfix\tool.json`.
 
 Script nhận tham số như khi gọi từ dòng lệnh:
 

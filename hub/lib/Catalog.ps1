@@ -82,6 +82,30 @@ function ConvertTo-HubAction {
         }
         $required = [bool](Get-Prop $a 'required' $false)
         if ($null -ne (Get-Prop $a 'optional' $null)) { $required = -not [bool](Get-Prop $a 'optional' $true) }
+        # Gợi ý: form liệt kê sẵn file/thư mục có trên máy (Get-ArgSuggestions trong Checks.ps1).
+        $goiY = $null
+        $gRaw = Get-Prop $a 'goiY' $null
+        if ($gRaw) {
+            $nguon = @()
+            foreach ($s in @(Get-Prop $gRaw 'nguon' @())) {
+                $d = [string](Get-Prop $s 'dir' '')
+                if ($d) { $nguon += [ordered]@{ dir = $d; glob = [string](Get-Prop $s 'glob' '*'); nhan = [string](Get-Prop $s 'nhan' '') } }
+            }
+            $json = [string](Get-Prop $gRaw 'json' '')
+            $loc = [ordered]@{}
+            $locRaw = Get-Prop $gRaw 'loc' $null
+            if ($locRaw) { foreach ($p in $locRaw.PSObject.Properties) { $loc[$p.Name] = [string]$p.Value } }
+            if ($argType -notin 'file', 'folder') { [void]$Problems.Add("Action '$id': goiY chỉ dùng cho tham số file, folder.") }
+            elseif (-not $nguon.Count) { [void]$Problems.Add("Action '$id': goiY của '$argId' cần ít nhất một nguon có dir.") }
+            elseif ($json -and ($json -notmatch '^[A-Za-z0-9._-]+\.json$' -or $argType -ne 'folder')) { [void]$Problems.Add("Action '$id': goiY.json chỉ là tên file .json, cho tham số folder.") }
+            elseif ($loc.Count -and -not $json) { [void]$Problems.Add("Action '$id': goiY.loc cần goiY.json.") }
+            else {
+                $goiY = [ordered]@{
+                    nguon = $nguon; json = $json; loc = $loc; locNhan = [string](Get-Prop $gRaw 'locNhan' '')
+                    moTa = [string](Get-Prop $gRaw 'moTa' ''); sapXep = [string](Get-Prop $gRaw 'sapXep' 'moi-nhat')
+                }
+            }
+        }
         $argsOut += [ordered]@{
             id          = $argId
             type        = $argType
@@ -100,6 +124,7 @@ function ConvertTo-HubAction {
             # Tham số "Chạy thử": khi được chọn, trạm không tạo điểm khôi phục, không ghi trạng thái. Mặc định nhận
             # theo quy ước tham số bool có id 'chay-thu'.
             dryRun      = [bool](Get-Prop $a 'dryRun' ($argType -eq 'bool' -and $argId -eq 'chay-thu'))
+            goiY        = $goiY
         }
         $n++
     }

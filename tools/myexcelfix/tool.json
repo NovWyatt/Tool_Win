@@ -50,7 +50,19 @@
       "description": "Không chọn thư mục thì liệt kê các bản sao lưu của tài khoản này (thư mục riêng và Desktop của bản cũ), mới nhất trước, để chọn. Lưu cấu hình hiện tại vào TruocHoanTac_<giờ> trong thư mục sao lưu, rồi khôi phục cấu hình Excel và dữ liệu MyExcel, đổi tên lại thư mục bộ cài, chép lại các file Excel đã sửa liên kết. File Excel đã được sửa tiếp sau lần sửa thì bản hiện tại được giữ thành <tên>.truoc_hoantac.xlsx. Luôn dùng bản sửa mới nhất, kể cả với thư mục sao lưu của bản cũ. Mã thoát: 0 xong, 1 lỗi, 2 chưa hoàn tác gì, 3 một phần.",
       "confirm": "Lỗi VietQR cũ có thể quay lại. File Excel nào đã nhập thêm dữ liệu sau lần sửa sẽ trở về bản trước khi sửa; bản có dữ liệu mới được giữ ở <tên>.truoc_hoantac.xlsx cạnh file.",
       "args": [
-        { "id": "thu-muc", "type": "folder", "label": "Thư mục sao lưu MyExcelFix_SaoLuu_... (không bắt buộc)", "help": "Bỏ trống: công cụ liệt kê các bản sao lưu của tài khoản này để chọn. Từ bản 2026.10.2 sao lưu nằm trong %LOCALAPPDATA%\\MyExcelFix\\SaoLuu, bản cũ hơn trên Desktop." }
+        { "id": "thu-muc", "type": "folder", "label": "Bản sao lưu cần hoàn tác",
+          "help": "Danh sách là các bản sao lưu của tài khoản đang mở trạm, mới nhất trước (đọc manifest.json). Bấm Chọn để lấy thư mục khác; bỏ trống thì công cụ liệt kê trong cửa sổ để chọn.",
+          "goiY": {
+            "nguon": [
+              { "dir": "%LOCALAPPDATA%\\MyExcelFix\\SaoLuu", "glob": "MyExcelFix_SaoLuu_*" },
+              { "dir": "{Desktop}", "glob": "MyExcelFix_SaoLuu_*", "nhan": "Desktop, bản cũ" }
+            ],
+            "json": "manifest.json",
+            "loc": { "User": "%USERNAME%" },
+            "locNhan": "Có {n} bản sao lưu của tài khoản Windows khác không hiện; muốn hoàn tác bản đó thì đăng nhập đúng tài khoản ấy.",
+            "moTa": "Sửa lúc {Time}: {Workbooks#} file Excel{ResetKeys?, có đặt lại dữ liệu MyExcel}",
+            "sapXep": "ten"
+          } }
       ]
     }
   ],
@@ -77,7 +89,6 @@
     "Báo cáo cũ của tài khoản khác ở Public Documents chỉ được chuyển sang thư mục riêng khi tài khoản đó chạy bản 2026.10.2; sao lưu cũ trên Desktop không tự chuyển (Trạm Tool liệt kê để xoá khi không cần hoàn tác nữa)."
   ],
   "upgrades": [
-    "P1: Trạm Tool liệt kê bản sao lưu (đọc manifest.json) ngay trong form Hoàn tác thay vì chọn trong cửa sổ dòng lệnh.",
     "P1: Thư mục common\\ dùng chung cho hai bản build (hàm nơi lưu, che số đang lặp ở cả hai); lưu nguồn UTF-8 có BOM."
   ]
 }

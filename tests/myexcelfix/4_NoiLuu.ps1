@@ -62,6 +62,28 @@ Check (-not ((Get-Content (Join-Path $bkB 'NhatKy_Sua.txt') -Raw -Encoding UTF8)
 Check ($r.Out -match [regex]::Escape($info)) 'chỉ rõ đường dẫn ThongTinKhaiBao.txt để khai báo lại'
 Check (@(Get-ChildItem $desk -Force -ErrorAction SilentlyContinue).Count -eq 0) 'vẫn không ghi gì ra Desktop'
 
+Write-Host '== T5b2: Trạm Tool liệt kê bản sao lưu trong form Hoàn tác (goiY, đọc manifest.json bản sửa vừa ghi) ==' -ForegroundColor Cyan
+& {
+    . "$HubDir\lib\Common.ps1"; . "$HubDir\lib\Catalog.ps1"; . "$HubDir\lib\Checks.ps1"
+    $oldLad = $env:LOCALAPPDATA
+    $env:LOCALAPPDATA = $lad   # trạm mở rộng %LOCALAPPDATA% của chính nó; {Desktop} là Desktop thật nên chỉ xét mục trong thư mục tạm
+    try {
+        $probs = New-Object System.Collections.ArrayList
+        $m = Read-JsonFile (Join-Path $Tool 'tool.json')
+        $raw = @($m.actions | Where-Object { $_.id -eq 'hoan-tac' })[0]
+        $act = ConvertTo-HubAction -Raw $raw -ToolDir $Tool -Problems $probs
+        $spec = @($act.args | Where-Object { $_.goiY })[0]
+        Check ($spec -and $spec.id -eq 'thu-muc' -and $probs.Count -eq 0) "tool.json: ô thư mục của Hoàn tác có goiY ($($probs -join '; '))"
+        $g = Get-ArgSuggestions -Tool ([pscustomobject]@{ id = 'myexcelfix'; dir = $Tool }) -Spec $spec
+        $mine = @($g.items | Where-Object { $_.path.StartsWith($envDir, [StringComparison]::OrdinalIgnoreCase) })
+        Check ($mine.Count -eq 2 -and $mine[0].path -eq $bkB -and $mine[1].path -eq $bkA) "hai bản vừa sửa, mới nhất trước ($(@($mine | ForEach-Object { Split-Path $_.path -Leaf }) -join ', '))"
+        Check ($mine[0].moTa -match '^Sửa lúc \d\d/\d\d/\d{4} \d\d:\d\d:\d\d: \d+ file Excel, có đặt lại dữ liệu MyExcel$') "bản đặt lại dữ liệu: $($mine[0].moTa)"
+        Check ($mine[1].moTa -match '^Sửa lúc .+: \d+ file Excel$') "bản không đặt lại: $($mine[1].moTa)"
+        $js = $g | ConvertTo-Json -Depth 5
+        Check ($js -notmatch '000011112222|RegExcel|ResetKeys|Workbooks') 'trạm chỉ trả đường dẫn, tên, mô tả: không trả nội dung manifest hay số tài khoản'
+    } finally { $env:LOCALAPPDATA = $oldLad }
+}
+
 Write-Host '== T5c: HOAN_TAC.bat không kèm thư mục: liệt kê cả bản cũ trên Desktop, chọn bản mới nhất ==' -ForegroundColor Cyan
 $legacy = Join-Path $desk 'MyExcelFix_SaoLuu_20250101_000000'
 Copy-Item -LiteralPath $bkA -Destination $legacy -Recurse
