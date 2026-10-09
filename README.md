@@ -63,7 +63,7 @@ driver...): trạm kiểm tra khi mở trang công cụ và có nút **Cài** ch
 | `tools\ghi-am-sang-word` | Ghi âm sang Word | Nhận dạng giọng nói tiếng Việt offline trên card NVIDIA, xuất Word có mốc thời gian. |
 | `tools\mdf2sql` | Khôi phục .mdf sang .sql | Đọc file SQL Server .mdf (kể cả tắt đột ngột, thiếu .ldf), xuất .sql cho SQL Server hoặc MySQL. Git submodule. |
 | `tools\the-xe-nt` | File thẻ xe .nt | Chuyển danh sách Excel sang file .nt cho phần mềm giữ xe (ITS Pro), kèm file thử 1 thẻ; kiểm tra file .nt như phần mềm đọc, so từng thẻ với danh sách Excel; chuyển file .nt sang Excel kèm kết quả từng thẻ; sửa file của bên bán bị mất số 0 ở CardID. Không cần Excel. |
-| `tools\new-windows` | Chuyển dữ liệu khi cài lại Windows | Sao lưu và khôi phục Wi-Fi, máy in, khoá BitLocker, driver mạng, dữ liệu Claude. |
+| `tools\new-windows` | Chuyển dữ liệu khi cài lại Windows | Sao lưu ra USB hoặc ổ chọn rồi khôi phục Wi-Fi, máy in, khoá BitLocker, driver mạng, dữ liệu Claude; tuỳ chọn mã hoá mật khẩu Wi-Fi và cấu hình Claude; không dùng bản sao lưu dở dang. |
 | `tools\bitlocker` | BitLocker và khoá khôi phục | Kiểm tra ổ mã hoá, khoá khôi phục đã lưu ở đâu; lưu khoá ra file, USB; tạm dừng trước khi cập nhật BIOS; mở khoá, giải mã ổ dữ liệu; có hoàn tác. |
 | `tools\github-logout` | Đăng xuất GitHub | Xoá thông tin đăng nhập GitHub mà Git lưu trong Windows. |
 

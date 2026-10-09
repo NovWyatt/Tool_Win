@@ -29,7 +29,7 @@ Mức ưu tiên:
 - **Lan can an toàn (Trạm 1.2.0)**: điểm khôi phục hệ thống trước công cụ đổi máy bằng quyền Admin, ghi dịch vụ và
   registry trước khi chạy để xem thay đổi và trả lại, kiểm tra và sửa winget. Đã thử bằng giả lập, chưa tạo điểm khôi
   phục thật (máy phát triển đang tắt Bảo vệ hệ thống).
-- **Cần sửa trước khi đưa người khác dùng (P0)**: Chuyển dữ liệu khi cài lại Windows.
+- **Cần sửa trước khi đưa người khác dùng (P0)**: Khôi phục .mdf sang .sql (lệnh `doctor`, tự lùi sang cổng trống).
 - **CheckWinFix 2026.10.2**: *Cứu dữ liệu* chọn nơi lưu trên ổ vật lý khác, dừng mọi instance SQL Server, đối chiếu
   MD5 khi SQL còn dừng, luôn bật lại dịch vụ (nhớ cả khi cửa sổ bị đóng), luôn ghi vào thư mục mới; bảng cảnh báo so
   theo nguồn + mã sự kiện, đọc cả mức Warning, tách lỗi ổ đĩa theo từng Disk; kiểm tra Admin bằng `fltmc`. Cứu dữ
@@ -46,6 +46,11 @@ Mức ưu tiên:
   Hoàn tác; hoàn tác lưu cấu hình hiện tại trước, so dấu SHA-256 từng file Excel và giữ bản đã sửa tiếp thành
   `*.truoc_hoantac.xlsx`; JSON kết quả với mã phát hiện cố định; `build.ps1` đóng dấu phiên bản. Mới thử bằng giả
   lập (registry thử, bộ MyExcel giả), chưa chạy trên máy có MyExcel thật.
+- **Chuyển dữ liệu khi cài lại Windows 2.0**: chọn nơi lưu (gợi ý USB, ổ dữ liệu; không cho để trong thư mục Trạm
+  Tool), tuỳ chọn mã hoá mật khẩu Wi-Fi và cấu hình Claude vào `BiMat.aes` (AES-256, PBKDF2-SHA256, HMAC; không ghi ra
+  đĩa dạng chữ); `manifest.json` ghi đang làm/xong/một phần/lỗi, bước nhập bỏ bản chưa xong và hỏi trước khi dùng
+  bản `_cu_`; `-Mode -Target -DryRun -Yes -NoPause`, mã thoát 0/1/2/3, JSON kết quả; các bước chép lỗi không còn
+  báo [OK]. Mới thử bằng giả lập (Wi-Fi, máy in, BitLocker, driver, Claude giả) và chạy thử chỉ đọc trên máy thật.
 - **Khôi phục .mdf sang .sql**: máy phát triển nay đã có ODBC Driver 17 và SQL Server Express (09/10/2026), trạm báo
   đủ yêu cầu; máy mới thì `CAI_DAT.bat` cài ODBC Driver 18 và LocalDB (cần quyền Admin).
 
@@ -91,7 +96,7 @@ Mức ưu tiên:
 | DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5-35 phút). | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
 | Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn. | P1: tên kết quả giữ đuôi file gốc, lưu tiến độ để chạy tiếp, chỉ chạy lại bằng CPU khi đúng là lỗi card. |
 | Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. | P0: lệnh `doctor` kiểm tra môi trường, không dùng chung cổng 8760. |
-| Chuyển dữ liệu khi cài lại Windows | Kỹ thuật | Sao lưu Wi-Fi kèm mật khẩu, máy in kèm driver, dữ liệu Claude, khoá BitLocker, driver mạng; bước nhập mở khoá ổ BitLocker, cài lại driver. Bản sao lưu nằm cạnh script, chứa bí mật dạng chữ thường. | P0: chọn nơi lưu ngoài thư mục công cụ, đánh dấu sao lưu đã xong, chạy thử trước. |
+| Chuyển dữ liệu khi cài lại Windows | Kỹ thuật | Bản 2.0: sao lưu Wi-Fi kèm mật khẩu, máy in kèm driver, dữ liệu Claude, khoá BitLocker, driver mạng ra nơi chọn (USB trước), tuỳ chọn mã hoá phần bí mật; manifest đánh dấu đã xong, bước nhập không dùng bản dở; có Chạy thử. Mới thử bằng giả lập. | P1: kiểm đếm file và SHA-256; hỏi bật tự mở khoá ổ BitLocker sau khi mở. |
 | BitLocker và khoá khôi phục | Mọi người | Kiểm tra từng ổ (mã hoá, tạm dừng, bị khoá), khoá khôi phục đã lưu ở đâu, TPM, các lần máy phải nhập khoá; kết luận theo thứ tự nên làm. 6 nút đổi máy có Chạy thử, nhật ký hoàn tác; khoá 48 số không bao giờ vào báo cáo, nhật ký. Chưa chạy trên ổ mã hoá thật, mới thử bằng giả lập. | P1: chạy thật trên máy có BitLocker; sao lưu khoá lên tài khoản Microsoft; lưu gói khoá `.KPG`. |
 | Đăng xuất GitHub | Kỹ thuật | Nhỏ, đúng việc; có thể sót mục đăng nhập lưu theo tài khoản. | P1: lọc `cmdkey /list` theo `github`. |
 
@@ -100,15 +105,16 @@ Mức ưu tiên:
 Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy ước chung thay vì vá từng nơi.
 
 1. **Kiểm tra quyền Admin sai cách hoặc không kiểm tra.** CheckWinFix, Wi-Fi dùng `net session` (cần dịch vụ Server,
-   bị tắt là báo nhầm hoặc tự mở lại không dừng; nay đã đổi sang `fltmc`, còn Báo cáo sức khoẻ và Chuyển dữ liệu khi
-   cài lại Windows). Sửa lỗi Windows, Tắt/bật dịch vụ, Tối ưu đồng hồ không kiểm tra gì (đã sửa ở bản 2.0 của cả ba).
+   bị tắt là báo nhầm hoặc tự mở lại không dừng; nay đã đổi sang `fltmc`, còn Báo cáo sức khoẻ; Chuyển dữ liệu khi cài
+   lại Windows 2.0 kiểm tra trong PowerShell). Sửa lỗi Windows, Tắt/bật dịch vụ, Tối ưu đồng hồ không kiểm tra gì (đã sửa ở bản 2.0 của cả ba).
    Quy ước: `fltmc >nul 2>&1` để kiểm tra, tự nâng quyền đúng một lần, không được thì báo rõ và thoát.
 2. **Báo thành công giả.** Lỗi bị giấu bằng `>nul 2>&1` rồi in *thành công*; mã thoát luôn 0. Quy ước: kiểm tra
    `errorlevel` (hoặc `$LASTEXITCODE`) sau mỗi lệnh thay đổi máy; mã thoát `0` xong, `1` lỗi, `2` thiếu điều kiện,
    `3` thành công một phần.
 3. **Bí mật và dữ liệu khách nằm cạnh script.** Bản sao lưu cài lại máy có mật khẩu Wi-Fi, token và hội thoại Claude;
    sao lưu MyExcelFix trên Desktop (thường đồng bộ OneDrive) có số tài khoản ngân hàng; báo cáo có tên máy khách.
-   Quy ước: dữ liệu khách để trong `ket_qua\` hoặc `du-lieu\` (git bỏ qua), cho chọn nơi lưu, có tuỳ chọn nén mật khẩu.
+   Quy ước: dữ liệu khách để trong `ket_qua\` hoặc `du-lieu\` (git bỏ qua), cho chọn nơi lưu, có tuỳ chọn nén mật khẩu
+   (đã làm ở Chuyển dữ liệu khi cài lại Windows 2.0: chọn nơi lưu, mã hoá `BiMat.aes`).
 4. **Trùng lặp.** Báo cáo sức khoẻ trùng CheckWinFix; Tắt/bật dịch vụ và Tối ưu đồng hồ cùng là *tối ưu*;
    Sửa lỗi Windows nên là bước *Sửa* sau khi CheckWinFix chẩn đoán ra bệnh.
 5. **Phụ thuộc ngôn ngữ Windows.** Đọc chữ trong thông điệp sự kiện, output `netsh` tiếng Anh. Windows tiếng Việt hoặc
@@ -134,7 +140,8 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 - [x] Tắt/bật dịch vụ: xét kiểu khởi động, lưu trạng thái gốc ra file để *bật lại* trả đúng giá trị cũ (bản 2.0).
 - [x] MyExcelFix: dừng có thông báo khi hết đầu vào; hoàn tác giữ bản hiện tại nếu file đã đổi sau khi sửa; mã thoát
       (bản 2026.10.1, kèm JSON kết quả).
-- [ ] Chuyển dữ liệu khi cài lại Windows: chọn nơi lưu, `manifest.json` đánh dấu đang làm/xong, `-DryRun`, mã thoát.
+- [x] Chuyển dữ liệu khi cài lại Windows: chọn nơi lưu, `manifest.json` đánh dấu đang làm/xong, `-DryRun`, mã thoát
+      (bản 2.0, kèm tuỳ chọn mã hoá `BiMat.aes` và JSON kết quả).
 - [ ] Khôi phục .mdf: `mdf2sql doctor`; tự lùi sang cổng trống, không dùng chung cổng.
 
 ### Giai đoạn 2: chuẩn hoá (P1)

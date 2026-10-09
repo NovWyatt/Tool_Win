@@ -2,42 +2,56 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "new-windows",
   "name": "Chuyển dữ liệu khi cài lại Windows",
-  "version": "2026.10",
+  "version": "2.0",
   "category": "cai-lai-may",
   "icon": "laptop",
   "audience": "tech",
   "summary": "Sao lưu Wi-Fi (kèm mật khẩu), máy in (driver, cổng, cấu hình), khoá BitLocker, driver mạng và dữ liệu Claude trước khi cài lại Windows, rồi khôi phục sau khi cài xong.",
-  "description": "Không sao lưu tài liệu, trình duyệt, Zalo, font hay danh sách ứng dụng. Thư mục dự án chỉ được liệt kê (thu-muc-du-an.txt), phải tự chép. Ổ dữ liệu mã hoá BitLocker sẽ bị khoá sau khi cài lại: khoá khôi phục được lưu vào bản sao lưu để bước nhập tự mở ổ.",
-  "tags": ["cài lại Windows", "sao lưu", "khôi phục", "Wi-Fi", "máy in", "driver", "BitLocker", "Claude"],
+  "description": "Bản sao lưu là thư mục DuLieu_SaoLuu ở nơi bạn chọn (gợi ý USB hoặc ổ dữ liệu; không cho để trong thư mục Trạm Tool). Có thể mã hoá mật khẩu Wi-Fi và cấu hình Claude bằng mật khẩu riêng (BiMat.aes, AES-256). manifest.json ghi bản sao lưu đã xong hay bị ngắt giữa chừng; bước nhập chỉ dùng bản đã xong và hỏi trước khi dùng bản _cu_. Không sao lưu tài liệu, trình duyệt, Zalo, font hay danh sách ứng dụng; thư mục dự án chỉ được liệt kê (thu-muc-du-an.txt), phải tự chép. Ổ dữ liệu mã hoá BitLocker sẽ bị khoá sau khi cài lại: khoá khôi phục được lưu vào bản sao lưu để bước nhập tự mở ổ.",
+  "tags": ["cài lại Windows", "sao lưu", "khôi phục", "Wi-Fi", "máy in", "driver", "BitLocker", "Claude", "mã hoá"],
+  "docs": "HUONG-DAN.md",
   "actions": [
     {
       "id": "xuat",
       "label": "1. Xuất dữ liệu (trước khi cài lại)",
-      "file": "1_XUAT_DU_LIEU.bat",
+      "file": "ChuyenDuLieu.ps1",
+      "fixedArgs": ["-Mode", "xuat"],
       "type": "console",
       "admin": true,
-      "selfElevates": true,
       "risk": "asks-before-change",
       "primary": true,
       "duration": "2-15 phút, tuỳ dung lượng ~\\.claude",
-      "description": "Tạo thư mục DuLieu_SaoLuu cạnh file .bat: hồ sơ Wi-Fi, máy in (driver, cổng TCP/IP, cấu hình in, máy in mặc định), ~\\.claude, ~\\.claude.json, dữ liệu Claude Desktop, bản HTML đọc được của các hội thoại Claude Code, khoá khôi phục BitLocker của các ổ đang mã hoá và driver mạng (hỏi trước; chọn được mọi driver của hãng hoặc không lưu).",
-      "confirm": "Bản sao lưu chứa mật khẩu Wi-Fi, khoá khôi phục BitLocker dạng chữ thường và toàn bộ hội thoại Claude, nằm trong thư mục công cụ (git đã bỏ qua). Chép ra USB, không để trên ổ đang mã hoá BitLocker, rồi xoá khỏi máy khi xong.",
+      "description": "Tạo DuLieu_SaoLuu ở nơi chọn: hồ sơ Wi-Fi, máy in (driver, cổng TCP/IP, cấu hình in, máy in mặc định), ~\\.claude, ~\\.claude.json, dữ liệu Claude Desktop, bản HTML đọc được của các hội thoại Claude Code, khoá khôi phục BitLocker của các ổ đang mã hoá và driver mạng. Không chọn nơi lưu thì cửa sổ hỏi (USB, ổ cứng ngoài xếp trước, ổ Windows sau cùng). Mã hoá thì gõ mật khẩu trong cửa sổ, không qua trạm.",
+      "confirm": "Bản sao lưu chứa mật khẩu Wi-Fi, khoá khôi phục BitLocker và toàn bộ hội thoại Claude. Nên lưu ra USB và bật mã hoá; không để trên ổ đang mã hoá BitLocker; xoá khi đã nhập xong.",
       "changes": [
-        "Hỏi trước khi tự đóng Claude",
-        "Đổi tên bản sao lưu cũ thành DuLieu_SaoLuu_cu_<giờ>",
+        "Hỏi trước khi tự đóng Claude Desktop (không đụng Claude Code)",
+        "Đổi tên bản sao lưu cũ cùng chỗ thành DuLieu_SaoLuu_cu_<giờ>",
         "Có thể bật dịch vụ Wi-Fi, Print Spooler nếu đang tắt (không trả lại như cũ)"
+      ],
+      "args": [
+        { "id": "noi-luu", "type": "folder", "flag": "-Target", "label": "Nơi lưu (USB hoặc ổ dữ liệu, tạo DuLieu_SaoLuu trong đó)", "placeholder": "Để trống: cửa sổ hỏi" },
+        { "id": "ma-hoa", "type": "bool", "flag": "-MaHoa", "label": "Mã hoá mật khẩu Wi-Fi và cấu hình Claude (đặt mật khẩu trong cửa sổ)" },
+        {
+          "id": "driver", "type": "choice", "flag": "-Driver", "label": "Sao lưu driver", "default": "mang",
+          "options": [
+            { "value": "mang", "label": "Driver mạng của hãng (Wi-Fi, mạng dây), nhỏ, nên có" },
+            { "value": "tat-ca", "label": "Mọi driver của hãng (có thể vài GB)" },
+            { "value": "khong", "label": "Không sao lưu driver" }
+          ]
+        },
+        { "id": "chay-thu", "type": "bool", "flag": "-DryRun", "dryRun": true, "label": "Chạy thử: chỉ xem sẽ lưu gì, không ghi file, không đọc mật khẩu" }
       ]
     },
     {
       "id": "nhap",
       "label": "2. Nhập dữ liệu (sau khi cài lại)",
-      "file": "2_NHAP_DU_LIEU.bat",
+      "file": "ChuyenDuLieu.ps1",
+      "fixedArgs": ["-Mode", "nhap"],
       "type": "console",
       "admin": true,
-      "selfElevates": true,
       "risk": "modifies-system",
       "duration": "3-15 phút",
-      "description": "Đọc DuLieu_SaoLuu cạnh file .bat rồi cho chọn: [1] tất cả, [2] Wi-Fi, [3] máy in, [4] Claude, [5] mở khoá ổ BitLocker, [6] cài driver đã sao lưu. Wi-Fi và máy in đã có thì bỏ qua.",
+      "description": "Tự tìm DuLieu_SaoLuu ở gốc các ổ, USB, cạnh công cụ (hoặc thư mục chọn ở dưới), bỏ qua bản chưa xong, hỏi trước khi dùng bản _cu_. Bản có mã hoá thì hỏi mật khẩu trong cửa sổ. Wi-Fi và máy in đã có thì bỏ qua.",
       "confirm": "Chỉ chạy trên máy VỪA cài lại Windows. Phần Claude chép cấu hình từ bản sao lưu đè lên ~\\.claude, .claude.json và Claude Desktop (cấu hình cũ được lưu bản .truoc-khoi-phuc-*); hội thoại và file Cowork trên máy mới hơn bản sao lưu được giữ nguyên.",
       "changes": [
         "Nạp driver đã sao lưu vào Windows và cài cho thiết bị phù hợp (pnputil)",
@@ -45,39 +59,45 @@
         "Thêm hồ sơ Wi-Fi, cài driver và máy in, đặt máy in mặc định",
         "Chép dữ liệu Claude Code, Claude Desktop, thư mục Cowork; sửa đường dẫn nếu tên tài khoản đổi",
         "Có thể chuyển dịch vụ Wi-Fi, Print Spooler sang Automatic nếu đang tắt"
+      ],
+      "args": [
+        { "id": "ban-sao-luu", "type": "folder", "flag": "-Target", "label": "Thư mục bản sao lưu", "placeholder": "Để trống: tự tìm ở gốc các ổ, USB" },
+        {
+          "id": "phan", "type": "choice", "flag": "-Phan", "label": "Khôi phục", "default": "tat-ca",
+          "options": [
+            { "value": "tat-ca", "label": "Tất cả: driver, ổ BitLocker, Wi-Fi, máy in, Claude" },
+            { "value": "wifi", "label": "Chỉ Wi-Fi" },
+            { "value": "may-in", "label": "Chỉ máy in" },
+            { "value": "claude", "label": "Chỉ Claude (thoát hẳn Claude Desktop trước)" },
+            { "value": "bitlocker", "label": "Chỉ mở khoá ổ BitLocker" },
+            { "value": "driver", "label": "Chỉ cài driver đã sao lưu (máy mới thiếu driver Wi-Fi, mạng dây)" }
+          ]
+        },
+        { "id": "chay-thu", "type": "bool", "flag": "-DryRun", "dryRun": true, "label": "Chạy thử: chỉ xem sẽ khôi phục gì, không đổi máy" }
       ]
     }
   ],
   "outputs": [
-    { "label": "Thư mục sao lưu (có mật khẩu Wi-Fi, khoá BitLocker)", "type": "folder", "glob": "DuLieu_SaoLuu",
-      "deleteNote": "Đây là bản sao lưu để khôi phục Wi-Fi, máy in, ổ BitLocker, driver và dữ liệu Claude sau khi cài lại Windows. Chỉ xoá khi đã nhập xong trên máy mới (ổ BitLocker đã cho tự mở khoá hoặc đã giải mã) hoặc đã chép bản sao lưu sang nơi khác. Thùng rác vẫn giữ mật khẩu Wi-Fi và khoá BitLocker cho tới khi dọn Thùng rác." },
-    { "label": "Các bản sao lưu cũ", "type": "folder", "glob": "DuLieu_SaoLuu_cu_*",
-      "deleteNote": "Bản sao lưu cũ, cũng chứa mật khẩu Wi-Fi và có thể có khoá BitLocker. Xoá khi bản DuLieu_SaoLuu mới đã đủ; Thùng rác vẫn giữ mật khẩu, khoá cho tới khi dọn Thùng rác." },
-    { "label": "Hướng dẫn khôi phục", "dir": "DuLieu_SaoLuu", "glob": "HUONG_DAN.txt", "deletable": false },
-    { "label": "Nhật ký xuất, nhập", "dir": "DuLieu_SaoLuu", "glob": "nhat-ky-*.txt", "deletable": false },
-    { "label": "Khoá khôi phục BitLocker", "dir": "DuLieu_SaoLuu\\BitLocker", "glob": "BitLocker_KhoaKhoiPhuc_*.txt", "deletable": false },
-    { "label": "Trạng thái BitLocker lúc xuất (không có khoá)", "dir": "DuLieu_SaoLuu\\BitLocker", "glob": "trang-thai.txt", "deletable": false },
-    { "label": "Danh sách driver đã sao lưu", "dir": "DuLieu_SaoLuu\\Driver", "glob": "danh-sach.txt", "deletable": false },
-    { "label": "Hội thoại Claude Code (đọc bằng trình duyệt)", "dir": "DuLieu_SaoLuu\\Claude\\HoiThoai-Code", "glob": "index.html", "deletable": false }
+    { "label": "Kết quả các lần xuất, nhập (không có mật khẩu)", "dir": "ket_qua", "glob": "KetQua_ChuyenDuLieu_*.json" },
+    { "label": "Bản sao lưu bản cũ để cạnh công cụ (có mật khẩu Wi-Fi, khoá BitLocker)", "type": "folder", "glob": "DuLieu_SaoLuu",
+      "deleteNote": "Bản 2026.10 trở về trước để bản sao lưu cạnh công cụ. Chỉ xoá khi đã nhập xong trên máy mới (ổ BitLocker đã cho tự mở khoá hoặc đã giải mã) hoặc đã chép bản sao lưu sang nơi khác. Thùng rác vẫn giữ mật khẩu Wi-Fi và khoá BitLocker cho tới khi dọn Thùng rác." },
+    { "label": "Bản sao lưu cũ để cạnh công cụ", "type": "folder", "glob": "DuLieu_SaoLuu_cu_*",
+      "deleteNote": "Bản sao lưu cũ, cũng chứa mật khẩu Wi-Fi và có thể có khoá BitLocker. Thùng rác vẫn giữ mật khẩu, khoá cho tới khi dọn Thùng rác." }
   ],
   "issues": [
-    "Bản sao lưu chứa bí mật (mật khẩu Wi-Fi, token MCP trong cấu hình Claude, toàn bộ hội thoại) dạng chữ thường ngay cạnh script; các bản _cu_ nhân thêm số bản.",
+    "Không mã hoá thì bản sao lưu chứa mật khẩu Wi-Fi, token MCP trong cấu hình Claude dạng chữ thường; khoá BitLocker và hội thoại Claude luôn dạng chữ thường.",
+    "WLAN API lỗi thì công cụ dùng netsh: hồ sơ Wi-Fi kèm mật khẩu được ghi tạm vào C:\\Windows\\Temp rồi xoá ngay, kể cả khi đã chọn mã hoá.",
     "Máy in dùng driver có sẵn của Windows (IPP, PCL6, PS, Generic) bị bỏ qua khi nhập vì bước cài driver chỉ cài driver ngoài.",
-    "Không có dấu 'sao lưu đã xong': xuất bị ngắt giữa chừng thì bước nhập có thể tự lấy một bản _cu_ cũ.",
-    "Kiểm tra 'Claude đang chạy' bắt cả phiên Claude Code; chọn T khi xuất sẽ đóng cả các phiên Claude Code đang mở.",
-    "Nâng quyền bằng tài khoản Admin khác thì sao lưu/khôi phục nhầm hồ sơ của tài khoản Admin đó.",
-    "Một số bước báo [OK] cả khi chép lỗi (.claude.json, driver máy in, phần Claude Desktop).",
+    "Nâng quyền bằng tài khoản Admin khác thì sao lưu/khôi phục hồ sơ của tài khoản Admin đó (công cụ cảnh báo và hỏi trước).",
     "Chỉ lưu được khoá BitLocker của ổ đang mở và có khoá khôi phục 48 số; ổ dữ liệu đang khoá lúc xuất thì không có khoá trong bản sao lưu (công cụ có cảnh báo).",
-    "Phần BitLocker chưa chạy trên ổ mã hoá thật (máy thử không có ổ mã hoá), mới thử bằng giả lập; ổ mở bằng khoá sẽ khoá lại sau khi khởi động lại.",
-    "Driver sao lưu là bản đang cài trên máy cũ (vd. Intel AX201 23.60), có thể cũ hơn bản trên Windows Update; chọn [T] có thể vài GB và nạp cả driver của thiết bị không còn dùng."
+    "Phần BitLocker, Wi-Fi, máy in, driver mới thử bằng giả lập (máy thử không có ổ mã hoá, không xuất thật mật khẩu Wi-Fi); ổ mở bằng khoá sẽ khoá lại sau khi khởi động lại.",
+    "Driver sao lưu là bản đang cài trên máy cũ (vd. Intel AX201 23.60), có thể cũ hơn bản trên Windows Update; chọn mọi driver có thể vài GB và nạp cả driver của thiết bị không còn dùng."
   ],
   "upgrades": [
-    "P0: Chọn nơi lưu (mặc định ổ không phải ổ hệ thống hoặc USB), không cho lưu trong thư mục công cụ; tuỳ chọn nén có mật khẩu cho Wi-Fi và cấu hình Claude.",
-    "P0: manifest.json ghi 'đang làm' lúc bắt đầu và 'xong'/'một phần' lúc kết thúc; bước nhập từ chối bản chưa xong và hỏi trước khi dùng bản _cu_.",
-    "P0: Tham số -Mode, -Target, -DryRun, -Yes, -NoPause; mã thoát 0/1/2/3 để Trạm Tool biết kết quả.",
     "P1: Kiểm đếm số file, dung lượng, SHA-256 file nhỏ; chạy thử (robocopy /L) xuất plan.json để xem trước.",
     "P1: Cài driver có sẵn của Windows bằng Add-PrinterDriver -Name; hỏi trước khi đổi kiểu khởi động dịch vụ và trả lại sau.",
     "P1: Sau khi mở khoá ổ BitLocker, hỏi bật tự mở khoá ngay (như công cụ BitLocker, chế độ mo-khoa) để khỏi bị khoá lại sau khi khởi động lại.",
+    "P1: Tuỳ chọn mã hoá cả khoá BitLocker và hội thoại Claude; bỏ đường netsh (ghi tạm mật khẩu ra đĩa) khi đã chọn mã hoá.",
     "P2: Thêm phần tuỳ chọn: winget export, thư mục người dùng (xem trước dung lượng), dấu trang trình duyệt, font."
   ]
 }

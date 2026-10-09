@@ -28,9 +28,12 @@ BaoCao_MyExcel_*.txt
 snapshot_*.json
 NhatKy_Sua*.txt
 MyExcelFix_SaoLuu_*/
+KetQua_MyExcel_*.json
 
-# New_w: bản sao lưu chứa mật khẩu Wi-Fi, dữ liệu Claude
+# Chuyển dữ liệu khi cài lại Windows: bản sao lưu có mật khẩu Wi-Fi, khoá BitLocker, dữ liệu Claude; kết quả có tên máy
 DuLieu_SaoLuu*/
+BiMat.aes
+KetQua_ChuyenDuLieu_*.json
 
 # BitLocker: khoá khôi phục mở được cả ổ đĩa, báo cáo có tên máy
 BitLocker_KhoaKhoiPhuc_*.txt
