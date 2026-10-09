@@ -1,6 +1,6 @@
 # Phân tích và hướng nâng cấp
 
-Cập nhật 09/10/2026. Đánh giá 15 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
+Cập nhật 09/10/2026. Đánh giá 17 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
 và lộ trình nâng cấp theo mức ưu tiên.
 
 Danh sách lỗi và hướng nâng cấp đầy đủ của từng công cụ nằm trong `issues` và `upgrades` của `tool.json`,
@@ -83,6 +83,15 @@ Mức ưu tiên:
   khi máy có SSD, trả đồng hồ về mặc định khi đang ép HPET); hai script đã thử kỹ giữ nguyên và chạy riêng được; file
   trạng thái gốc ở chỗ cũ tự chuyển sang. Thu thập thông tin đã chạy thật bằng quyền thường trên máy phát triển; Kiểm
   tra dịch vụ chạy thật, phần đồng hồ cần quyền Admin nên mới thử bằng giả lập.
+- **Công cụ mới: Giờ máy và chữ ký số, Bộ ứng dụng văn phòng** (mục 6, 8 của *Công cụ Windows nên thêm*). Giờ máy và
+  chữ ký số: ký số thuế, hoá đơn điện tử, BHXH báo lỗi thì Kiểm tra (quyền thường) đo độ lệch giờ với máy chủ giờ
+  (NTP, mạng chặn thì đọc giờ của trang http), múi giờ, dịch vụ giờ, dịch vụ Smart Card, đầu đọc token, chứng thư ký
+  số (hết hạn, chưa tới ngày hiệu lực vì giờ máy chậm, thiếu chứng thư gốc), phần mềm ký số; *Sửa giờ*, *Sửa token*
+  lưu giá trị cũ để *Trả lại*; không hỏi PIN, không đọc khoá riêng. Bộ ứng dụng văn phòng: cài một lượt Zalo, bộ gõ
+  tiếng Việt, 7-Zip, đọc PDF, UltraViewer, Chrome... từ nguồn winget, bỏ qua ứng dụng đã có, hai bộ gõ chỉ cài một,
+  đọc lại danh sách đã cài (`winget export`) thay vì tin mã thoát của bộ cài; danh sách sửa được trong
+  `DanhSach.json`. Cả hai ghi JSON theo chuẩn của trạm kèm nút sửa. Kiểm tra đã chạy thật bằng quyền thường trên máy
+  phát triển; sửa giờ, sửa token, cài, cập nhật mới chạy thử và thử bằng giả lập.
 
 ## Đã sửa trong đợt này
 
@@ -123,6 +132,8 @@ Mức ưu tiên:
 | `31fe2b4` (submodule) | Khôi phục .mdf sang .sql | mdf2sql 1.2.0: `doctor --ket-qua` theo chuẩn của trạm; `tool.json` khai `webServer`; máy chủ đọc hết thân yêu cầu rồi mới trả 403 (trước đó Windows cắt kết nối, bài thử chập chờn WinError 10053); `Chay_tool.bat` tự đóng khi tắt bình thường. |
 | `389c4e1` | CheckWinFix | 2026.10.3: *Thu thập thông tin* ghi `KetQua_CheckWinFix_ThuThap_*.json` theo chuẩn của trạm (mỗi cảnh báo một mã cố định, một mức, gợi ý script chạy tiếp), cảnh báo nghiêm trọng lên đầu báo cáo; hai câu hỏi lấy từ form của trạm; lỗi nguồn `disk` trên ổ USB hoặc ổ đã rút chỉ là cảnh báo; *Kiểm tra sâu* (DISM ScanHealth, `Repair-Volume -Scan`) thay *Báo cáo sức khoẻ máy* (đã xoá). |
 | `389c4e1` | Tối ưu Windows | Gộp *Tắt/bật dịch vụ nền* và *Tối ưu đồng hồ hệ thống* vào `tools\toi-uu` (giữ lịch sử file): Kiểm tra chung ghi JSON kèm nút sửa, menu chung có hai menu con; *Bật lại dịch vụ* chọn được từng dịch vụ; file trạng thái gốc ở chỗ cũ tự chuyển sang. |
+| `6a2b7d1` | Giờ máy và chữ ký số (mới) | Công cụ mới `tools\gio-chu-ky-so`: Kiểm tra (quyền thường) đo độ lệch giờ bằng NTP, dự phòng giờ của trang http; múi giờ; Windows Time; Smart Card, Certificate Propagation; đầu đọc thẻ qua WinSCard; chứng thư ký số trong kho của tài khoản (chỉ xem có khoá riêng, không mở); phần mềm ký số. *Sửa giờ* (bật dịch vụ, đồng bộ, đặt múi giờ Việt Nam, đồng bộ xong vẫn lệch thì đặt giờ; máy trong domain không đổi cấu hình), *Sửa token*, *Trả lại* giá trị của lần sửa đầu. |
+| `3220163` | Bộ ứng dụng văn phòng (mới) | Công cụ mới `tools\bo-ung-dung`: Kiểm tra (`winget export`, nhận cả ứng dụng không cài bằng winget), *Cài ứng dụng* (ô chọn từng ứng dụng, mặc định theo `DanhSach.json`, bỏ qua ứng dụng đã có, bộ gõ cùng nhóm chỉ cài một, đọc lại danh sách đã cài sau khi cài), *Cập nhật ứng dụng* (tách đã cập nhật, đã mới nhất, lỗi); bài thử kiểm danh sách khớp ô chọn và tên cờ không trùng tiền tố tham số của script. |
 | `a5ef3e4` | MyExcelFix | 2026.10.2: sao lưu, báo cáo, JSON kết quả vào `%LOCALAPPDATA%\MyExcelFix` (riêng từng tài khoản, không đồng bộ OneDrive); Public Documents chỉ còn snapshot cấu hình, báo cáo cũ của tài khoản đang chạy tự chuyển sang; che tên chủ tài khoản; `ThongTinKhaiBao.txt` chỉ khi đặt lại; `HOAN_TAC.bat` không tham số liệt kê bản sao lưu. |
 
 ## Bảng tổng quan
@@ -143,6 +154,8 @@ Mức ưu tiên:
 | Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. Có `doctor` kiểm tra môi trường; giao diện giữ cổng riêng, tự lùi khi cổng bận; hộp thoại chọn file chạy trong tiến trình riêng; Trạm mở lại, tắt giao diện đang chạy và hiện kết quả `doctor`. | P1: `.venv` riêng khoá phiên bản pyodbc; dọn database tạm, thư mục làm việc bị bỏ lại. |
 | Chuyển dữ liệu khi cài lại Windows | Kỹ thuật | Bản 2.0: sao lưu Wi-Fi kèm mật khẩu, máy in kèm driver, dữ liệu Claude, khoá BitLocker, driver mạng ra nơi chọn (USB trước), tuỳ chọn mã hoá phần bí mật; manifest đánh dấu đã xong, bước nhập không dùng bản dở; có Chạy thử. Mới thử bằng giả lập. | P1: kiểm đếm file và SHA-256; hỏi bật tự mở khoá ổ BitLocker sau khi mở. |
 | BitLocker và khoá khôi phục | Mọi người | Kiểm tra từng ổ (mã hoá, tạm dừng, bị khoá), khoá khôi phục đã lưu ở đâu, TPM, các lần máy phải nhập khoá; kết luận theo thứ tự nên làm. 6 nút đổi máy có Chạy thử, nhật ký hoàn tác; khoá 48 số không bao giờ vào báo cáo, nhật ký. Chưa chạy trên ổ mã hoá thật, mới thử bằng giả lập. | P1: chạy thật trên máy có BitLocker; sao lưu khoá lên tài khoản Microsoft; lưu gói khoá `.KPG`. |
+| Giờ máy và chữ ký số (USB token) | Mọi người | Kiểm tra chỉ đọc bằng quyền thường: độ lệch giờ (NTP, dự phòng http), múi giờ, dịch vụ giờ, dịch vụ Smart Card, đầu đọc token, chứng thư ký số, phần mềm ký số; trạm hiện từng phát hiện kèm nút sửa. Sửa giờ, sửa dịch vụ token lưu giá trị cũ để trả lại. Không hỏi PIN. Chưa thử với token thật; token chỉ dùng PKCS#11 thì không thấy. | P1: đọc chứng thư trong token (`certutil -scinfo`) khi kho của tài khoản chưa có; kiểm tra tiện ích ký số của trình duyệt. |
+| Bộ ứng dụng văn phòng (winget) | Mọi người | Cài một lượt ứng dụng hay dùng từ nguồn winget, bỏ qua ứng dụng đã có, đọc lại danh sách đã cài để chắc cài xong; Kiểm tra xem ứng dụng nào đã có, Cập nhật cả bộ. Danh sách sửa được. Mới chạy thật Kiểm tra và chạy thử; cài, cập nhật thử bằng giả lập. | P1: báo ứng dụng có bản mới ngay trong Kiểm tra; cài thật trên một máy mới. |
 | Đăng xuất GitHub | Kỹ thuật | Bản 1.1: xoá mọi mục GitHub của Git trong Credential Manager (cả mục kèm tên tài khoản), hỏi trước với mục của ứng dụng khác và GitHub CLI, có Chạy thử. | P2: chọn tài khoản cần xoá thay vì xoá hết. |
 
 ## Vấn đề chung
@@ -174,14 +187,16 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 8. **Kết quả chỉ là chữ.** Trạm không biết công cụ chạy xong hay lỗi, tìm thấy gì. Quy ước: mỗi lần chạy ghi thêm
    một file JSON theo chuẩn `tramtool.ketqua/1` (máy, thời gian, mã thoát, trạng thái, phát hiện, mức độ, cách sửa,
    công cụ chạy tiếp, file liên quan; xem `docs\THEM-CONG-CU.md`). Đã làm cho MyExcelFix, Chuyển dữ liệu khi cài lại
-   Windows, `mdf2sql doctor`, *Thu thập thông tin* của CheckWinFix, Kiểm tra của Tối ưu Windows; Trạm 1.4.0 đọc và
+   Windows, `mdf2sql doctor`, *Thu thập thông tin* của CheckWinFix, Kiểm tra của Tối ưu Windows, Giờ máy và chữ ký
+   số, Bộ ứng dụng văn phòng; Trạm 1.4.0 đọc và
    hiện trong Lịch sử. Còn lại: Sửa lỗi Windows, Máy in LAN, BitLocker, Dọn ổ C, Office, các script chuyên sâu của
    CheckWinFix.
 9. **Bài thử không nằm trong repo.** Các nút đổi máy chủ yếu được thử bằng giả lập, nhưng bài thử chỉ nằm ở thư mục
    tạm của phiên làm việc nên sửa sau không chạy lại được. Đã làm: `tests\` với một trình chạy chung
-   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 36 bài cho 15 bộ (cú pháp, mã hoá file, danh mục và lược đồ
+   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 40 bài cho 17 bộ (cú pháp, mã hoá file, danh mục và lược đồ
    `tool.json`, không commit dữ liệu khách, lan can và kết quả JSON của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
-   Tối ưu Windows, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe, Đăng xuất GitHub, Ghi âm sang Word, `.bat` của mdf2sql) và `tools\mdf2sql\tests` (unittest).
+   Tối ưu Windows, Giờ máy và chữ ký số, Bộ ứng dụng văn phòng, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe,
+   Đăng xuất GitHub, Ghi âm sang Word, `.bat` của mdf2sql) và `tools\mdf2sql\tests` (unittest).
    Chạy bằng quyền thường, thư mục tạm ngoài repo, registry chỉ trong `HKCU\Software\TramToolTest`. Quy ước: chạy
    trước mỗi lần commit; thêm, sửa công cụ thì thêm bài thử. Giả lập không thay được chạy thật trên máy thử.
 
@@ -239,6 +254,8 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 - [ ] Chuyển dữ liệu khi cài lại Windows: thêm `winget export`, thư mục người dùng (xem trước dung lượng), dấu trang, font.
 - [ ] Sửa lỗi Windows thành bước *Sửa* trong CheckWinFix, chỉ đề xuất lệnh hợp với bệnh tìm thấy.
 - [ ] Trạm: nút *Cập nhật công cụ* (git pull), xuất/nhập cài đặt.
+- [x] Công cụ mới: Giờ máy và chữ ký số (1.0), Bộ ứng dụng văn phòng bằng winget (1.0), mục 6, 8 của *Công cụ Windows
+      nên thêm*.
 
 ## Trạm Tool
 
@@ -376,8 +393,9 @@ cụ); loại probe `script` chỉ đọc (BitLocker, SMB); thư viện nhật k
 ## Công cụ Windows nên thêm
 
 Nghiên cứu ngày 04/10/2026, chủ yếu từ tài liệu của Microsoft và trang chính thức của từng phần mềm. Đã làm mục 1
-(`tools\may-in-lan`), mục 2 (`tools\bitlocker`), mục 3 (`tools\don-o-c`) và phần gỡ, cài của mục 5
-(`tools\office`); các mục khác chọn mục nào thì làm mục đó. Không lặp lại những thứ đã có hoặc đã nằm trong lộ trình
+(`tools\may-in-lan`), mục 2 (`tools\bitlocker`), mục 3 (`tools\don-o-c`), phần gỡ, cài của mục 5
+(`tools\office`), mục 6 (`tools\gio-chu-ky-so`) và mục 8 (`tools\bo-ung-dung`); các mục khác chọn mục nào thì làm
+mục đó. Không lặp lại những thứ đã có hoặc đã nằm trong lộ trình
 (SFC, DISM, chkdsk, đặt lại Windows Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-Fi, máy in).
 
 ### Công cụ mới
@@ -466,6 +484,13 @@ Nghiên cứu ngày 04/10/2026, chủ yếu từ tài liệu của Microsoft và
    - Token: dịch vụ SCardSvr đang chạy, `certutil -scinfo` đọc được token, chứng thư có khoá riêng trong
      `Cert:\CurrentUser\My` sắp hết hạn trong 30 ngày, đã cài eSigner chưa.
    - Nguồn: [gỡ lỗi thẻ thông minh](https://learn.microsoft.com/en-us/windows/security/identity-protection/smart-cards/smart-card-debugging-information).
+   - **Đã làm** (`tools\gio-chu-ky-so` 1.0, commit `6a2b7d1`, tên *Giờ máy và chữ ký số*): đo lệch giờ bằng gói NTP
+     tự gửi (time.windows.com, time.google.com, pool.ntp.org) thay vì tách chữ của `w32tm /stripchart`, mạng chặn cổng
+     123 thì đọc giờ của trang http; đầu đọc thẻ qua WinSCard thay cho `certutil -scinfo` (lệnh này có thể hỏi PIN);
+     thêm Certificate Propagation, driver token lỗi, chứng thư chưa tới ngày hiệu lực (giờ chậm), thiếu chứng thư gốc.
+     Sửa giờ lưu cấu hình cũ (dịch vụ, kiểu đồng bộ, máy chủ giờ, múi giờ) để *Trả lại*; máy trong domain chỉ đồng bộ
+     lại, không đổi cấu hình. Đã chạy thật Kiểm tra và chạy thử trên máy phát triển (không có token); chưa thử token
+     thật.
 7. **Hỗ trợ từ xa.** Chỉ cần Admin khi cài. Quick Assist có sẵn trong Windows (người hỗ trợ cần tài khoản Microsoft,
    người được hỗ trợ phải tự bấm UAC); thêm UltraViewer (`DucFabulous.UltraViewer`) và RustDesk (AGPL-3.0, dùng lâu dài
    thì tự dựng máy chủ). Hiện cảnh báo lừa đảo của Microsoft trước khi mở.
@@ -475,6 +500,11 @@ Nghiên cứu ngày 04/10/2026, chủ yếu từ tài liệu của Microsoft và
    nhật). Cài bằng `winget install --id X -e --silent --accept-package-agreements --accept-source-agreements`, giữ mới
    bằng `upgrade` và `pin`. Giao diện tuỳ chọn: [UniGetUI](https://github.com/Devolutions/UniGetUI) (MIT; các trang
    wingetui, unigetui đuôi .com là trang giả).
+   - **Đã làm** (`tools\bo-ung-dung` 1.0, commit `3220163`, tên *Bộ ứng dụng văn phòng*): `DanhSach.json` 14 ứng dụng (6
+     mặc định: Zalo, UniKey, 7-Zip, Foxit, UltraViewer, Chrome; thêm EVKey, Cốc Cốc, Firefox, Adobe Reader, VLC,
+     Notepad++, TeamViewer, Telegram), trạm có ô chọn từng ứng dụng. Đọc ứng dụng đã cài bằng `winget export` (JSON)
+     thay vì tách chữ của `winget list` (đổi theo ngôn ngữ); sau khi cài đọc lại để chắc đã cài. Chưa có `pin`,
+     UniGetUI. Đã chạy thật Kiểm tra và chạy thử; chưa cài thật.
 
 **P2**
 
