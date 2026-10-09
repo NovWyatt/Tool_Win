@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 chcp 65001 >nul 2>&1
-title XUAT HO SO BANG CHUNG - de nop len cong ty (v1.0)
+title XUAT HO SO BANG CHUNG - de nop len cong ty (v1.1)
 
 set "SELF=%~f0"
 set "OUTDIR=%~dp0"
@@ -66,8 +66,9 @@ exit /b 1
 <#
   Xuat ho so bang chung loi phan cung o dia.
   Chi doc nhat ky he thong. Khong xoa/sua nhat ky.
+  -KhongHoi: khong hoi tao Custom View (bo qua buoc 5).
 #>
-param([string]$OutDir = "")
+param([string]$OutDir = "", [switch]$KhongHoi)
 
 $ErrorActionPreference = 'SilentlyContinue'
 $ProgressPreference    = 'SilentlyContinue'
@@ -80,11 +81,58 @@ $SUM = New-Object System.Text.StringBuilder
 function W { param([string]$t = '') [void]$SUM.AppendLine($t) }
 function KV { param($k, $v) W ("  {0,-34}: {1}" -f $k, $v) }
 
+$SCRIPT_VER = '1.1'
+$T0 = Get-Date
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$script:FLAGS = New-Object System.Collections.ArrayList
+function FLAG {
+  # Phat hien cho Tram Tool: ma co dinh (khong doi khi sua chu), muc do (loi | canh-bao | thong-tin | ok), viec nen
+  # chay tiep (<id cong cu>/<id action> trong Tram Tool), chi tiet. Cung cau thi chi ghi mot lan.
+  param([string]$Ma, [string]$t, [string]$Muc = 'canh-bao', [string]$Tiep = '', [string]$ChiTiet = '')
+  foreach ($x in $script:FLAGS) { if ($x.tieuDe -eq $t) { return } }
+  $f = [ordered]@{ ma = $Ma; mucDo = $Muc; tieuDe = $t; chiTiet = $ChiTiet; cachSua = '' }
+  if ($Tiep -match '^([a-z0-9-]+)/([A-Za-z0-9_-]+)$') { $f['chayTiep'] = [ordered]@{ congCu = $Matches[1]; action = $Matches[2] } }
+  [void]$script:FLAGS.Add($f)
+}
+function Save-KetQua {
+  # Ghi KetQua_CheckWinFix_<Ten>_<may>_<gio>.json (chuan tramtool.ketqua/1) canh bao cao: loi len dau. Tra duong dan, '' khi loi.
+  param([string]$CheDo, [string]$Ten, [object[]]$Tep = @(), [string]$Message = '')
+  $rank = @{ loi = 0; 'canh-bao' = 1; 'thong-tin' = 2; ok = 3 }
+  $i = 0
+  $sorted = @($script:FLAGS | ForEach-Object { [pscustomobject]@{ F = $_; L = $rank[[string]$_.mucDo]; I = $i++ } } | Sort-Object L, I | ForEach-Object { $_.F })
+  $n = @{}
+  foreach ($k in 'loi', 'canh-bao', 'thong-tin') { $n[$k] = @($sorted | Where-Object { $_.mucDo -eq $k }).Count }
+  if (-not $Message) {
+    $Message = if ($n['loi'] + $n['canh-bao']) { 'Có {0} lỗi, {1} cảnh báo; xem chi tiết và báo cáo.' -f $n['loi'], $n['canh-bao'] }
+    elseif ($isAdmin) { 'Không thấy dấu hiệu bất thường qua các phép kiểm tự động.' } else { 'Chạy không có quyền Admin nên thiếu dữ liệu; chạy lại bằng quyền Admin.' }
+  }
+  $r = [ordered]@{
+    chuan = 'tramtool.ketqua/1'; congCu = 'checkwinfix'; cheDo = $CheDo; phienBan = $SCRIPT_VER
+    may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
+    batDau = $T0.ToString('s'); ketThuc = (Get-Date).ToString('s')
+    maThoat = 0; trangThai = 'xong'; chayThu = $false
+    ma = $(if ($n['loi']) { 'CO_LOI' } elseif ($n['canh-bao']) { 'CO_CANH_BAO' } else { 'KHONG_CO_LOI' })
+    thongDiep = $Message
+    tomTat = [ordered]@{ loi = $n['loi']; canhBao = $n['canh-bao']; thongTin = $n['thong-tin'] }
+    phatHien = $sorted
+    tep = @($Tep)
+    quyenAdmin = [bool]$isAdmin
+  }
+  $p = Join-Path $OutDir ('KetQua_CheckWinFix_{0}_{1}_{2}.json' -f $Ten, $env:COMPUTERNAME, $T0.ToString('yyyyMMdd_HHmmss'))
+  try {
+    [IO.File]::WriteAllText($p + '.tmp', ($r | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding $false))
+    Move-Item -LiteralPath ($p + '.tmp') -Destination $p -Force -ErrorAction Stop
+    return $p
+  } catch { Write-Host ('  [!] Khong ghi duoc file ket qua JSON: ' + $_.Exception.Message) -ForegroundColor Yellow; return '' }
+}
+
 if ([string]::IsNullOrWhiteSpace($OutDir) -or -not (Test-Path -LiteralPath $OutDir)) { $OutDir = Join-Path $env:USERPROFILE 'Desktop' }
 $stamp = Get-Date -Format 'yyyyMMdd_HHmm'
 $dir = Join-Path $OutDir ("HoSoBangChung_{0}_{1}" -f $env:COMPUTERNAME, $stamp)
 New-Item -ItemType Directory -Path $dir -Force | Out-Null
 if (-not (Test-Path -LiteralPath $dir)) { Say '  [X] Khong tao duoc thu muc ho so.' Red; exit 1 }
+if (-not $isAdmin) { FLAG 'THIEU_QUYEN_ADMIN' 'Chay khong co quyen Admin nen co nhat ky khong xuat duoc. Chuot phai file .bat > Run as administrator roi chay lai.' }
+$failed = @()
 
 Head '1/5  XUAT NHAT KY GOC (.evtx)'
 Say '  File .evtx la nhat ky goc cua Windows, mo bang Event Viewer de kiem chung.' DarkGray
@@ -145,11 +193,14 @@ foreach ($e in $exports) {
     $why = ((($res | Out-String) -replace '\s+', ' ').Trim())
     if ($why.Length -gt 160) { $why = $why.Substring(0, 160) }
     Say ('     -> khong xuat duoc: ' + $why) Yellow
+    $failed += ('{0}: {1}' -f $e.File, $why)
     W ''
     W ("  " + $e.File + "  -> KHONG XUAT DUOC")
     W ("    Ly do         : " + $why)
   }
 }
+
+if ($failed.Count) { FLAG 'EVTX_KHONG_XUAT_DUOC' ("{0}/{1} nhat ky goc (.evtx) khong xuat duoc." -f $failed.Count, $exports.Count) -ChiTiet ($failed -join "`n") }
 
 Head '2/5  BANG TONG HOP SU KIEN (CSV va TXT)'
 $since = (Get-Date).AddDays(-60)
@@ -162,6 +213,11 @@ foreach ($lg in @('System', 'Application')) {
   } catch {}
 }
 Say ("  Tim thay {0} su kien lien quan trong 60 ngay." -f $all.Count) Gray
+$ioEv = @($all | Where-Object { $_.ProviderName -match '^(disk|Disk|storahci|stornvme|storport)$' -and @(7, 11, 51, 129, 153, 154) -contains $_.Id })
+$sqlEv = @($all | Where-Object { $_.ProviderName -eq 'MSSQLSERVER' -and @(823, 824, 825) -contains $_.Id })
+if ($ioEv.Count) { FLAG 'HO_SO_CO_LOI_O_DIA' ("Ho so co {0} su kien loi doc/ghi o dia (60 ngay) lam bang chung." -f $ioEv.Count) -Muc 'thong-tin' }
+else { FLAG 'HO_SO_KHONG_CO_LOI_O_DIA' 'Nhat ky 60 ngay khong co su kien loi doc/ghi o dia: ho so chua chung minh duoc o hong.' -Muc 'thong-tin' -Tiep 'checkwinfix/phan-cung' }
+if ($sqlEv.Count) { FLAG 'HO_SO_CO_LOI_SQL' ("Ho so co {0} loi SQL Server doc/ghi file du lieu (823/824/825)." -f $sqlEv.Count) -Muc 'thong-tin' }
 
 $csv = Join-Path $dir '06_TongHopSuKien.csv'
 $all | Sort-Object TimeCreated -Descending |
@@ -268,7 +324,7 @@ Say '  Buoc nay tao mot "Custom View" trong Event Viewer de mo ra la thay ngay' 
 Say '  cac su kien loi, tien cho viec chup anh man hinh nop kem ho so.' DarkGray
 Say '  No chi THEM mot muc xem, khong sua nhat ky va xoa duoc bat cu luc nao.' DarkGray
 Say ''
-$ans = Read-Host '  Tao Custom View? (Y = tao, Enter = bo qua)'
+$ans = if ($KhongHoi) { '' } else { Read-Host '  Tao Custom View? (Y = tao, Enter = bo qua)' }
 if ($ans -eq 'Y' -or $ans -eq 'y') {
   $viewDir = Join-Path $env:ProgramData 'Microsoft\Event Viewer\Views'
   try {
@@ -299,6 +355,7 @@ if ($ans -eq 'Y' -or $ans -eq 'y') {
     W ''
     W '  Da tao Custom View trong Event Viewer: "CheckWinFix - Bang chung loi o dia"'
     W ('  (' + $viewFile + ' - xoa file nay la go bo)')
+    FLAG 'DA_TAO_CUSTOM_VIEW' 'Da tao Custom View "CheckWinFix - Bang chung loi o dia" trong Event Viewer.' -Muc 'thong-tin' -ChiTiet ('Xoa file ' + $viewFile + ' la go bo.')
   } catch { Say ('  Khong tao duoc Custom View: ' + $_.Exception.Message) Yellow }
 } else { Say '  Da bo qua.' DarkGray }
 
@@ -334,6 +391,9 @@ foreach ($f in (Get-ChildItem -LiteralPath $dir | Sort-Object Name)) {
   [void]$listing.AppendLine(('  {0,-46} {1,10:N0} KB' -f $f.Name, ($f.Length / 1KB)))
 }
 [IO.File]::AppendAllText($sumPath, $listing.ToString(), (New-Object System.Text.UTF8Encoding $false))
+if ($isAdmin -and -not @($script:FLAGS | Where-Object { $_.mucDo -in 'loi', 'canh-bao' }).Count) { FLAG 'DA_XUAT_HO_SO' 'Da xuat du ho so bang chung.' -Muc 'ok' }
+$tep4 = @([ordered]@{ nhan = 'Hồ sơ bằng chứng'; duongDan = $dir }, [ordered]@{ nhan = 'Bản tóm tắt'; duongDan = $sumPath })
+[void](Save-KetQua -CheDo 'bang-chung' -Ten 'BangChung' -Tep $tep4 -Message ('Đã xuất hồ sơ bằng chứng vào thư mục ' + (Split-Path -Leaf $dir) + '.'))
 
 Write-Host ''
 Write-Host ('  ' + ('=' * 70)) -ForegroundColor Green
@@ -344,5 +404,5 @@ Write-Host ''
 Write-Host '   Mo file 00_BAN_TOM_TAT.txt de xem toan bo noi dung ho so.' -ForegroundColor Cyan
 Write-Host '   Nen nen ca thu muc thanh .zip roi dinh kem khi nop.' -ForegroundColor Cyan
 Write-Host ''
-try { Start-Process explorer.exe -ArgumentList ('"' + $dir + '"') } catch {}
+if (-not $env:CWF_KHONG_MO) { try { Start-Process explorer.exe -ArgumentList ('"' + $dir + '"') } catch {} }   # bai thu: khong mo Explorer
 exit 0

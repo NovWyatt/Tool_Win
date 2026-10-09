@@ -21,6 +21,7 @@ PinReport_*.html
 HoSoBangChung_*/
 health_report_*.txt
 KET_QUA_CUU_DU_LIEU.txt
+KetQua_CheckWinFix_*.json
 
 # MyExcelFix
 MyExcelCheck/

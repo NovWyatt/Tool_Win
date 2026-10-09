@@ -91,6 +91,20 @@ Cả hai đọc kết quả có cấu trúc nên đúng trên Windows mọi ngô
 
 `KetQua_CheckWinFix_ThuThap_*.json` theo chuẩn `tramtool.ketqua/1` (xem `docs\THEM-CONG-CU.md`): mỗi cảnh báo là một phát hiện có mã, mức (`loi`, `canh-bao`, `thong-tin`) và gợi ý script chạy tiếp khi có (ổ đĩa, màn hình xanh → *Chẩn đoán phần cứng*; WHEA → *Giải mã WHEA*; tắt đột ngột → *Sụp nguồn*; file hệ thống hỏng → *Sửa lỗi Windows*; ổ C đầy → *Dọn ổ C*). Trạm hiện các mục này ở Lịch sử, bấm là chạy tiếp. Mã thoát 0 khi đã ghi báo cáo, kể cả khi có cảnh báo.
 
+Các script chuyên sâu (bản 1.1) cũng ghi file kết quả cạnh báo cáo, cùng chuẩn:
+
+| Script | File kết quả | Ví dụ mã |
+|---|---|---|
+| 2 Chẩn đoán phần cứng | `KetQua_CheckWinFix_PhanCung_*.json` | `O_DIA_LOI_IO_NHIEU`, `O_VAT_LY_KHONG_KHOE`, `SMART_BAO_HONG`, `LOI_WHEA`, `MAN_HINH_XANH`, `RAM_CO_LOI` |
+| 3 Giải mã WHEA | `KetQua_CheckWinFix_GiaiMaWhea_*.json` | `WHEA_RAM`, `WHEA_CPU`, `WHEA_PCIE`, `WHEA_LUC_KHOI_DONG`, `KHONG_CO_LOI_WHEA` |
+| 4 Xuất bằng chứng | `KetQua_CheckWinFix_BangChung_*.json` | `EVTX_KHONG_XUAT_DUOC`, `HO_SO_CO_LOI_O_DIA`, `DA_TAO_CUSTOM_VIEW` (kèm đường dẫn thư mục hồ sơ) |
+| 5 Sụp nguồn | `KetQua_CheckWinFix_SupNguon_*.json` | `MAT_NGUON_DOT_NGOT`, `MAN_HINH_XANH`, `QUA_NHIET`, `PIN_CHAI`, `KHONG_GHI_DUMP` |
+
+Mỗi kết luận trong báo cáo `.txt` in kèm mã trong ngoặc. Gợi ý chạy tiếp: lỗi ổ đĩa → *Xuất hồ sơ bằng chứng*; WHEA →
+*Giải mã WHEA*; WHEA chỉ ra RAM, chưa từng test RAM → *Kiểm tra RAM* (Sửa lỗi Windows); WHEA chỉ ra CPU, màn hình
+xanh → *Sụp nguồn*. Không có quyền Admin thì có `THIEU_QUYEN_ADMIN` và không kết luận máy ổn. Script 5 ghi file kết
+quả trước khi hỏi bật minidump hay theo dõi. Script 4, 5 nhận `-KhongHoi` để không hỏi gì (bài thử dùng).
+
 ## Kiểm chứng
 
 Đã chạy thử thật trên máy này (Windows 11 25H2, build 26200): chạy hết 24/24 mục trong **85 giây**, không mục nào lỗi, báo cáo 76 KB, tự bắt được 16 cảnh báo.

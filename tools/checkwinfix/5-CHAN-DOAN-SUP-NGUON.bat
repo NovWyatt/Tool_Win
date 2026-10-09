@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 chcp 65001 >nul 2>&1
-title CHAN DOAN MAY SUP NGUON / TU TAT / TU KHOI DONG LAI (v1.0)
+title CHAN DOAN MAY SUP NGUON / TU TAT / TU KHOI DONG LAI (v1.1)
 
 set "SELF=%~f0"
 set "OUTDIR=%~dp0"
@@ -77,8 +77,58 @@ function KV { param($k, $v) W ("  {0,-30}: {1}" -f $k, $v) }
 function Step { param([string]$t) Write-Host ("  >> $t") -ForegroundColor Cyan }
 function Cut { param([string]$t, [int]$n = 110) $t = ("$t" -replace '\s+', ' ').Trim(); if ($t.Length -gt $n) { $t.Substring(0, $n) + '...' } else { $t } }
 
+$SCRIPT_VER = '1.1'
+$T0 = Get-Date
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$script:FLAGS = New-Object System.Collections.ArrayList
+function FLAG {
+  # Phat hien cho Tram Tool: ma co dinh (khong doi khi sua chu), muc do (loi | canh-bao | thong-tin | ok), viec nen
+  # chay tiep (<id cong cu>/<id action> trong Tram Tool), chi tiet. Cung cau thi chi ghi mot lan.
+  param([string]$Ma, [string]$t, [string]$Muc = 'canh-bao', [string]$Tiep = '', [string]$ChiTiet = '')
+  foreach ($x in $script:FLAGS) { if ($x.tieuDe -eq $t) { return } }
+  $f = [ordered]@{ ma = $Ma; mucDo = $Muc; tieuDe = $t; chiTiet = $ChiTiet; cachSua = '' }
+  if ($Tiep -match '^([a-z0-9-]+)/([A-Za-z0-9_-]+)$') { $f['chayTiep'] = [ordered]@{ congCu = $Matches[1]; action = $Matches[2] } }
+  [void]$script:FLAGS.Add($f)
+}
+function Save-KetQua {
+  # Ghi KetQua_CheckWinFix_<Ten>_<may>_<gio>.json (chuan tramtool.ketqua/1) canh bao cao: loi len dau. Tra duong dan, '' khi loi.
+  param([string]$CheDo, [string]$Ten, [object[]]$Tep = @(), [string]$Message = '')
+  $rank = @{ loi = 0; 'canh-bao' = 1; 'thong-tin' = 2; ok = 3 }
+  $i = 0
+  $sorted = @($script:FLAGS | ForEach-Object { [pscustomobject]@{ F = $_; L = $rank[[string]$_.mucDo]; I = $i++ } } | Sort-Object L, I | ForEach-Object { $_.F })
+  $n = @{}
+  foreach ($k in 'loi', 'canh-bao', 'thong-tin') { $n[$k] = @($sorted | Where-Object { $_.mucDo -eq $k }).Count }
+  if (-not $Message) {
+    $Message = if ($n['loi'] + $n['canh-bao']) { 'Có {0} lỗi, {1} cảnh báo; xem chi tiết và báo cáo.' -f $n['loi'], $n['canh-bao'] }
+    elseif ($isAdmin) { 'Không thấy dấu hiệu bất thường qua các phép kiểm tự động.' } else { 'Chạy không có quyền Admin nên thiếu dữ liệu; chạy lại bằng quyền Admin.' }
+  }
+  $r = [ordered]@{
+    chuan = 'tramtool.ketqua/1'; congCu = 'checkwinfix'; cheDo = $CheDo; phienBan = $SCRIPT_VER
+    may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
+    batDau = $T0.ToString('s'); ketThuc = (Get-Date).ToString('s')
+    maThoat = 0; trangThai = 'xong'; chayThu = $false
+    ma = $(if ($n['loi']) { 'CO_LOI' } elseif ($n['canh-bao']) { 'CO_CANH_BAO' } else { 'KHONG_CO_LOI' })
+    thongDiep = $Message
+    tomTat = [ordered]@{ loi = $n['loi']; canhBao = $n['canh-bao']; thongTin = $n['thong-tin'] }
+    phatHien = $sorted
+    tep = @($Tep)
+    quyenAdmin = [bool]$isAdmin
+  }
+  $p = Join-Path $OutDir ('KetQua_CheckWinFix_{0}_{1}_{2}.json' -f $Ten, $env:COMPUTERNAME, $T0.ToString('yyyyMMdd_HHmmss'))
+  try {
+    [IO.File]::WriteAllText($p + '.tmp', ($r | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding $false))
+    Move-Item -LiteralPath ($p + '.tmp') -Destination $p -Force -ErrorAction Stop
+    return $p
+  } catch { Write-Host ('  [!] Khong ghi duoc file ket qua JSON: ' + $_.Exception.Message) -ForegroundColor Yellow; return '' }
+}
+
 $WARN = New-Object System.Collections.ArrayList
-function Warn { param([int]$lvl, [string]$t) [void]$WARN.Add([pscustomobject]@{ L = $lvl; T = $t }) }
+function Warn {
+  # Ket luan tu dong: 3 nghiem trong, 2 dang ngo, 1 luu y. Ma, Tiep: phat hien cho Tram Tool (xem FLAG).
+  param([int]$lvl, [string]$t, [string]$Ma = '', [string]$Tiep = '')
+  [void]$WARN.Add([pscustomobject]@{ L = $lvl; T = $t; M = $Ma })
+  FLAG $Ma $t -Muc (@{ 3 = 'loi'; 2 = 'canh-bao'; 1 = 'thong-tin' }[$lvl]) -Tiep $Tiep
+}
 
 function GetEv { param([hashtable]$f, [int]$max = 5000)
   try { @(Get-WinEvent -FilterHashtable $f -MaxEvents $max -ErrorAction Stop) } catch { @() } }
@@ -132,6 +182,7 @@ $out   = Join-Path $OutDir ("SupNguon_{0}_{1}.txt" -f $env:COMPUTERNAME, $stamp)
 $DAYS  = 60
 $since = (Get-Date).AddDays(-$DAYS)
 $t0    = Get-Date
+if (-not $isAdmin) { Warn 2 -Ma 'THIEU_QUYEN_ADMIN' 'Chay khong co quyen Admin nen thieu mot phan nhat ky va cai dat. Chuot phai file .bat > Run as administrator roi chay lai.' }
 
 # =========================== 1. THONG TIN MAY ================================
 Step 'Thong tin may'
@@ -160,7 +211,7 @@ $oldest = $null
 try { $oldest = (Get-WinEvent -LogName System -MaxEvents 1 -Oldest -ErrorAction Stop).TimeCreated } catch {}
 KV 'Nhat ky System co tu' $(if ($oldest) { '{0:yyyy-MM-dd HH:mm}' -f $oldest } else { '(khong doc duoc)' })
 if ($oldest -and $oldest -gt (Get-Date).AddDays(-7)) {
-  Warn 1 ("Nhat ky System chi luu tu {0:dd/MM} - qua ngan, co the da bi xoa hoac bi phan mem 'don dep' xoa. Ket qua thong ke chi tinh tu ngay do." -f $oldest)
+  Warn 1 -Ma 'NHAT_KY_QUA_NGAN' ("Nhat ky System chi luu tu {0:dd/MM} - qua ngan, co the da bi xoa hoac bi phan mem 'don dep' xoa. Ket qua thong ke chi tinh tu ngay do." -f $oldest)
 }
 
 # =========================== 2. TONG HOP SU KIEN =============================
@@ -469,37 +520,38 @@ $ups = @($crash | Where-Object { $_.Up } | ForEach-Object { $_.Up.TotalMinutes }
 $med = if ($ups.Count) { $ups[[int][Math]::Floor($ups.Count / 2)] } else { $null }
 
 if ($k41.Count -eq 0 -and $e6008.Count -eq 0) {
-  Warn 2 'KHONG THAY lan tat dot ngot nao trong nhat ky. Neu may van "sap": (a) co the chi MAN HINH tat (kiem tra cap man hinh / nguon man hinh), (b) may duoc tat co chu dich - xem muc 3 "User32 1074", (c) nhat ky bi xoa.'
+  Warn 2 -Ma 'KHONG_THAY_TAT_DOT_NGOT' 'KHONG THAY lan tat dot ngot nao trong nhat ky. Neu may van "sap": (a) co the chi MAN HINH tat (kiem tra cap man hinh / nguon man hinh), (b) may duoc tat co chu dich - xem muc 3 "User32 1074", (c) nhat ky bi xoa.'
 }
 if ($nMat -gt 0) {
   $m = "$nMat lan MAT NGUON DOT NGOT: dien bi cat ngang, khong man hinh xanh, khong ai giu nut nguon. Day la loi PHAN CUNG / DIEN, KHONG PHAI loi Windows."
   if ($isLaptop) { $m += ' Laptop: nghi PIN chai/hong, cuc sac, chan sac, hoac qua nhiet.' }
   else { $m += ' May ban: nghi NGUON (PSU) yeu/phong tu, O CAM / O CHIA / UPS, DAY NGUON, QUA NHIET (CPU/VGA ngat bao ve), hoac MAINBOARD.' }
-  Warn 3 $m
+  Warn 3 -Ma 'MAT_NGUON_DOT_NGOT' $m
 }
 if ($nBs -gt 0) {
   $top = @($crash | Where-Object { $_.Bc -ne 0 } | Group-Object { BcText $_.Bc } | Sort-Object Count -Descending | Select-Object -First 3 | ForEach-Object { "$($_.Count)x $($_.Name)" }) -join ' ; '
-  Warn 3 ("$nBs lan MAN HINH XANH roi tu khoi dong lai (nguoi dung tuong la sup nguon). Ma loi: $top")
+  Warn 3 -Ma 'MAN_HINH_XANH' -Tiep 'checkwinfix/phan-cung' ("$nBs lan MAN HINH XANH roi tu khoi dong lai (nguoi dung tuong la sup nguon). Ma loi: $top")
 }
-if ($mdCodes.Count -gt 0 -and $nBs -eq 0) { Warn 2 ("Co {0} file minidump -> may tung bi man hinh xanh. Ma gan nhat: {1}" -f $md.Count, (BcText $mdCodes[0])) }
-if ($nBtn -gt 0) { Warn 2 "$nBtn lan bi GIU NUT NGUON de tat -> may bi TREO truoc do (khong phai sup nguon). Can hoi nguoi dung may treo luc lam gi." }
-if ($nSlp -gt 0) { Warn 2 "$nSlp lan sap KHI NGU / DANH THUC -> thuong do driver (VGA, mang, USB) hoac Fast Startup. Thu tat Fast Startup va che do ngu de kiem chung." }
-if ($whea.Count -gt 0) { Warn 3 ("{0} loi phan cung WHEA -> CPU / RAM / khe PCIe / nguon cap dien ap khong on dinh. Chay 3-GIAI-MA-WHEA.bat de chi dich danh." -f $whea.Count) }
-if ($kpBad.Count -gt 0) { Warn 3 ("{0} canh bao NHIET DO trong nhat ky -> ve sinh, thay keo tan nhiet, kiem tra quat." -f $kpBad.Count) }
-if ($null -ne $tzMax -and $tzCrit -gt 0 -and $tzMax -ge ($tzCrit - 10)) { Warn 3 ("Nhiet do ACPI hien tai {0} C, chi cach nguong ngat {1} C chua toi 10 do -> QUA NHIET." -f $tzMax, $tzCrit) }
-elseif ($null -ne $tzMax -and $tzMax -ge 85) { Warn 3 ("Nhiet do ACPI hien tai {0} C - qua cao." -f $tzMax) }
-if ($thrRun.Count -gt 0) { Warn 2 ("CPU bi firmware bop xung {0} lan trong luc dang chay (nhiet hoac nguon khong du) -> dau hieu tan nhiet kem / nguon yeu." -f $thrRun.Count) }
-if ($gpuE.Count -gt 0) { Warn 2 ("{0} loi card man hinh (driver/TDR). VGA roi ra/ngat khi tai nang cung gay tat may - nghi nguon VGA hoac PSU khong du cong suat." -f $gpuE.Count) }
-if ($null -ne $gpuW -and $gpuLim -gt 150 -and -not $isLaptop) { Warn 1 ("VGA roi co gioi han cong suat {0} W -> PSU can du cong suat that (khong phai nguon 'no name')." -f $gpuLim) }
-if ($dskE.Count -gt 0) { Warn 2 ("{0} loi o dia trong nhat ky - o dia loi co the gay treo/man hinh xanh. Chay 2-CHAN-DOAN-PHAN-CUNG.bat." -f $dskE.Count) }
-if ($null -ne $wear -and $wear -ge 40) { Warn 2 ("Pin chai {0}% - pin yeu co the sut ap lam may tat dot ngot khi rut sac hoac khi tai nang." -f $wear) }
+if ($mdCodes.Count -gt 0 -and $nBs -eq 0) { Warn 2 -Ma 'CO_FILE_MINIDUMP' -Tiep 'checkwinfix/phan-cung' ("Co {0} file minidump -> may tung bi man hinh xanh. Ma gan nhat: {1}" -f $md.Count, (BcText $mdCodes[0])) }
+if ($nBtn -gt 0) { Warn 2 -Ma 'GIU_NUT_NGUON' "$nBtn lan bi GIU NUT NGUON de tat -> may bi TREO truoc do (khong phai sup nguon). Can hoi nguoi dung may treo luc lam gi." }
+if ($nSlp -gt 0) { Warn 2 -Ma 'SAP_KHI_NGU' "$nSlp lan sap KHI NGU / DANH THUC -> thuong do driver (VGA, mang, USB) hoac Fast Startup. Thu tat Fast Startup va che do ngu de kiem chung." }
+if ($whea.Count -gt 0) { Warn 3 -Ma 'LOI_WHEA' -Tiep 'checkwinfix/giai-ma-whea' ("{0} loi phan cung WHEA -> CPU / RAM / khe PCIe / nguon cap dien ap khong on dinh. Chay 3-GIAI-MA-WHEA.bat de chi dich danh." -f $whea.Count) }
+if ($kpBad.Count -gt 0) { Warn 3 -Ma 'CANH_BAO_NHIET_DO' ("{0} canh bao NHIET DO trong nhat ky -> ve sinh, thay keo tan nhiet, kiem tra quat." -f $kpBad.Count) }
+if ($null -ne $tzMax -and $tzCrit -gt 0 -and $tzMax -ge ($tzCrit - 10)) { Warn 3 -Ma 'QUA_NHIET' ("Nhiet do ACPI hien tai {0} C, chi cach nguong ngat {1} C chua toi 10 do -> QUA NHIET." -f $tzMax, $tzCrit) }
+elseif ($null -ne $tzMax -and $tzMax -ge 85) { Warn 3 -Ma 'NHIET_DO_CAO' ("Nhiet do ACPI hien tai {0} C - qua cao." -f $tzMax) }
+if ($thrRun.Count -gt 0) { Warn 2 -Ma 'CPU_BI_BOP_XUNG' ("CPU bi firmware bop xung {0} lan trong luc dang chay (nhiet hoac nguon khong du) -> dau hieu tan nhiet kem / nguon yeu." -f $thrRun.Count) }
+if ($gpuE.Count -gt 0) { Warn 2 -Ma 'LOI_CARD_MAN_HINH' ("{0} loi card man hinh (driver/TDR). VGA roi ra/ngat khi tai nang cung gay tat may - nghi nguon VGA hoac PSU khong du cong suat." -f $gpuE.Count) }
+if ($null -ne $gpuW -and $gpuLim -gt 150 -and -not $isLaptop) { Warn 1 -Ma 'VGA_CONG_SUAT_LON' ("VGA roi co gioi han cong suat {0} W -> PSU can du cong suat that (khong phai nguon 'no name')." -f $gpuLim) }
+if ($dskE.Count -gt 0) { Warn 2 -Ma 'LOI_O_DIA' -Tiep 'checkwinfix/phan-cung' ("{0} loi o dia trong nhat ky - o dia loi co the gay treo/man hinh xanh. Chay 2-CHAN-DOAN-PHAN-CUNG.bat." -f $dskE.Count) }
+if ($null -ne $wear -and $wear -ge 40) { Warn 2 -Ma 'PIN_CHAI' ("Pin chai {0}% - pin yeu co the sut ap lam may tat dot ngot khi rut sac hoac khi tai nang." -f $wear) }
 $nb = @($crash | Where-Object { $_.OnBat }).Count
-if ($nb -gt 0) { Warn 3 "$nb lan sap xay ra khi DANG CHAY PIN -> pin hong / pin bao sai dung luong." }
-if ($null -ne $med -and $ups.Count -ge 3 -and $med -le 30) { Warn 2 ("Trung vi may chi chay duoc {0} phut sau khi bat thi sap -> nghieng ve NHIET hoac NGUON khi len tai (khong phai loi ngau nhien)." -f [int]$med) }
-if ($k41.Count -ge 10) { Warn 2 ("Tan suat cao: {0} lan tat dot ngot / {1} ngay." -f $k41.Count, $DAYS) }
-if ($cc.CrashDumpEnabled -eq 0 -or $pf.Count -eq 0) { Warn 1 'Windows KHONG ghi dump (tat dump hoac khong co pagefile) -> man hinh xanh co the bi ghi nhan nham thanh "mat nguon". Nen bat lai minidump.' }
-if ($cc.AutoReboot -eq 1 -and $crash.Count -gt 0) { Warn 1 'AutoReboot dang bat -> co man hinh xanh cung tu khoi dong ngay, nguoi dung khong kip thay ma loi.' }
-if ($bios.ReleaseDate -and $bios.ReleaseDate -lt (Get-Date).AddYears(-5)) { Warn 1 ("BIOS tu {0:yyyy} - cu, co the can cap nhat neu loi WHEA / man hinh xanh." -f $bios.ReleaseDate) }
+if ($nb -gt 0) { Warn 3 -Ma 'SAP_KHI_CHAY_PIN' "$nb lan sap xay ra khi DANG CHAY PIN -> pin hong / pin bao sai dung luong." }
+if ($null -ne $med -and $ups.Count -ge 3 -and $med -le 30) { Warn 2 -Ma 'SAP_SOM_SAU_KHI_BAT' ("Trung vi may chi chay duoc {0} phut sau khi bat thi sap -> nghieng ve NHIET hoac NGUON khi len tai (khong phai loi ngau nhien)." -f [int]$med) }
+if ($k41.Count -ge 10) { Warn 2 -Ma 'TAT_DOT_NGOT_NHIEU' ("Tan suat cao: {0} lan tat dot ngot / {1} ngay." -f $k41.Count, $DAYS) }
+if ($cc.CrashDumpEnabled -eq 0 -or $pf.Count -eq 0) { Warn 1 -Ma 'KHONG_GHI_DUMP' 'Windows KHONG ghi dump (tat dump hoac khong co pagefile) -> man hinh xanh co the bi ghi nhan nham thanh "mat nguon". Nen bat lai minidump.' }
+if ($cc.AutoReboot -eq 1 -and $crash.Count -gt 0) { Warn 1 -Ma 'AUTO_REBOOT_BAT' 'AutoReboot dang bat -> co man hinh xanh cung tu khoi dong ngay, nguoi dung khong kip thay ma loi.' }
+if ($bios.ReleaseDate -and $bios.ReleaseDate -lt (Get-Date).AddYears(-5)) { Warn 1 -Ma 'BIOS_CU' ("BIOS tu {0:yyyy} - cu, co the can cap nhat neu loi WHEA / man hinh xanh." -f $bios.ReleaseDate) }
+if ($isAdmin -and -not @($script:FLAGS | Where-Object { $_.mucDo -in 'loi', 'canh-bao' }).Count) { FLAG 'KHONG_THAY_BAT_THUONG' 'Khong phat hien dau hieu bat thuong.' -Muc 'ok' }
 
 $H = New-Object System.Text.StringBuilder
 function HH { param([string]$t = '') [void]$H.AppendLine($t) }
@@ -511,8 +563,10 @@ HH ''
 HH ('=' * 88)
 HH '  KET LUAN TU DONG  ([!!!] nghiem trong  [!!] dang ngo  [!] luu y)'
 HH ('=' * 88)
-if ($WARN.Count -eq 0) { HH '  Khong phat hien dau hieu bat thuong.' }
-foreach ($w in ($WARN | Sort-Object L -Descending)) { HH ('  {0,-6}{1}' -f ('[' + ('!' * $w.L) + ']'), $w.T) }
+$okF = @($script:FLAGS | Where-Object { $_.mucDo -eq 'ok' })
+if ($WARN.Count -eq 0 -and -not $okF.Count) { HH '  Khong phat hien dau hieu bat thuong.' }
+foreach ($w in ($WARN | Sort-Object L -Descending)) { HH ('  {0,-6}{1} ({2})' -f ('[' + ('!' * $w.L) + ']'), $w.T, $w.M) }
+foreach ($f in $okF) { HH ('  {0,-6}{1} ({2})' -f '[ok]', $f.tieuDe, $f.ma) }
 HH ''
 HH '  KIEM TRA TAY NEN LAM (script khong do duoc):'
 if ($isLaptop) {
@@ -530,6 +584,8 @@ HH ''
 
 $final = $H.ToString() + $SB.ToString()
 try { [IO.File]::WriteAllText($out, $final, (New-Object Text.UTF8Encoding $true)) } catch { Write-Host ('  [X] Khong ghi duoc bao cao ' + $out + ': ' + $_.Exception.Message) -ForegroundColor Red; exit 1 }
+# Ket qua cho Tram Tool ghi truoc cac cau hoi thay doi may ben duoi.
+[void](Save-KetQua -CheDo 'sup-nguon' -Ten 'SupNguon' -Tep @([ordered]@{ nhan = 'Báo cáo'; duongDan = $out }))
 
 Write-Host ''
 Write-Host '  ==========================================================================' -ForegroundColor Green
@@ -540,7 +596,7 @@ foreach ($w in ($WARN | Sort-Object L -Descending)) {
   $col = @{ 3 = 'Red'; 2 = 'Yellow'; 1 = 'Gray' }[$w.L]
   Write-Host ('  ' + ('!' * $w.L).PadRight(4) + $w.T) -ForegroundColor $col
 }
-if (-not $KhongHoi) { Start-Process notepad.exe -ArgumentList "`"$out`"" }
+if (-not $KhongHoi -and -not $env:CWF_KHONG_MO) { Start-Process notepad.exe -ArgumentList "`"$out`"" }
 if ($KhongHoi) { exit 0 }
 
 # =========================== TUY CHON (co hoi) ===============================

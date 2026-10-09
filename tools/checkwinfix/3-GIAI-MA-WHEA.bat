@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 chcp 65001 >nul 2>&1
-title GIAI MA WHEA - xac dinh bo phan phan cung nao dang loi (v1.0)
+title GIAI MA WHEA - xac dinh bo phan phan cung nao dang loi (v1.1)
 
 set "SELF=%~f0"
 set "OUTDIR=%~dp0"
@@ -79,8 +79,55 @@ function HDR { param([string]$t) W ''; W ('=' * 88); W ("  $t"); W ('=' * 88) }
 function S { param([string]$t) W ''; W ("  --- $t " + ('-' * [Math]::Max(1, 74 - $t.Length))) }
 function KV { param($k, $v) W ("    {0,-26}: {1}" -f $k, $v) }
 
+$SCRIPT_VER = '1.1'
+$T0 = Get-Date
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$script:FLAGS = New-Object System.Collections.ArrayList
+function FLAG {
+  # Phat hien cho Tram Tool: ma co dinh (khong doi khi sua chu), muc do (loi | canh-bao | thong-tin | ok), viec nen
+  # chay tiep (<id cong cu>/<id action> trong Tram Tool), chi tiet. Cung cau thi chi ghi mot lan.
+  param([string]$Ma, [string]$t, [string]$Muc = 'canh-bao', [string]$Tiep = '', [string]$ChiTiet = '')
+  foreach ($x in $script:FLAGS) { if ($x.tieuDe -eq $t) { return } }
+  $f = [ordered]@{ ma = $Ma; mucDo = $Muc; tieuDe = $t; chiTiet = $ChiTiet; cachSua = '' }
+  if ($Tiep -match '^([a-z0-9-]+)/([A-Za-z0-9_-]+)$') { $f['chayTiep'] = [ordered]@{ congCu = $Matches[1]; action = $Matches[2] } }
+  [void]$script:FLAGS.Add($f)
+}
+function Save-KetQua {
+  # Ghi KetQua_CheckWinFix_<Ten>_<may>_<gio>.json (chuan tramtool.ketqua/1) canh bao cao: loi len dau. Tra duong dan, '' khi loi.
+  param([string]$CheDo, [string]$Ten, [object[]]$Tep = @(), [string]$Message = '')
+  $rank = @{ loi = 0; 'canh-bao' = 1; 'thong-tin' = 2; ok = 3 }
+  $i = 0
+  $sorted = @($script:FLAGS | ForEach-Object { [pscustomobject]@{ F = $_; L = $rank[[string]$_.mucDo]; I = $i++ } } | Sort-Object L, I | ForEach-Object { $_.F })
+  $n = @{}
+  foreach ($k in 'loi', 'canh-bao', 'thong-tin') { $n[$k] = @($sorted | Where-Object { $_.mucDo -eq $k }).Count }
+  if (-not $Message) {
+    $Message = if ($n['loi'] + $n['canh-bao']) { 'Có {0} lỗi, {1} cảnh báo; xem chi tiết và báo cáo.' -f $n['loi'], $n['canh-bao'] }
+    elseif ($isAdmin) { 'Không thấy dấu hiệu bất thường qua các phép kiểm tự động.' } else { 'Chạy không có quyền Admin nên thiếu dữ liệu; chạy lại bằng quyền Admin.' }
+  }
+  $r = [ordered]@{
+    chuan = 'tramtool.ketqua/1'; congCu = 'checkwinfix'; cheDo = $CheDo; phienBan = $SCRIPT_VER
+    may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
+    batDau = $T0.ToString('s'); ketThuc = (Get-Date).ToString('s')
+    maThoat = 0; trangThai = 'xong'; chayThu = $false
+    ma = $(if ($n['loi']) { 'CO_LOI' } elseif ($n['canh-bao']) { 'CO_CANH_BAO' } else { 'KHONG_CO_LOI' })
+    thongDiep = $Message
+    tomTat = [ordered]@{ loi = $n['loi']; canhBao = $n['canh-bao']; thongTin = $n['thong-tin'] }
+    phatHien = $sorted
+    tep = @($Tep)
+    quyenAdmin = [bool]$isAdmin
+  }
+  $p = Join-Path $OutDir ('KetQua_CheckWinFix_{0}_{1}_{2}.json' -f $Ten, $env:COMPUTERNAME, $T0.ToString('yyyyMMdd_HHmmss'))
+  try {
+    [IO.File]::WriteAllText($p + '.tmp', ($r | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding $false))
+    Move-Item -LiteralPath ($p + '.tmp') -Destination $p -Force -ErrorAction Stop
+    return $p
+  } catch { Write-Host ('  [!] Khong ghi duoc file ket qua JSON: ' + $_.Exception.Message) -ForegroundColor Yellow; return '' }
+}
+
 if ([string]::IsNullOrWhiteSpace($OutDir) -or -not (Test-Path -LiteralPath $OutDir)) { $OutDir = Join-Path $env:USERPROFILE 'Desktop' }
-$out = Join-Path $OutDir ("WheaDecode_{0}_{1}.txt" -f $env:COMPUTERNAME, (Get-Date -Format 'yyyyMMdd_HHmmss'))
+$out = Join-Path $OutDir ("WheaDecode_{0}_{1}.txt" -f $env:COMPUTERNAME, $T0.ToString('yyyyMMdd_HHmmss'))
+$repTep = @([ordered]@{ nhan = 'Báo cáo'; duongDan = $out })
+if (-not $isAdmin) { FLAG 'THIEU_QUYEN_ADMIN' 'Chay khong co quyen Admin nen co the khong doc duoc het nhat ky WHEA. Chuot phai file .bat > Run as administrator roi chay lai.' }
 
 # --------- Bang tra GUID -------------------------------------------------------
 $NOTIF = @{
@@ -157,7 +204,10 @@ try {
 if ($evs.Count -eq 0) {
   W ''
   W '  Khong tim thay su kien WHEA nao trong 60 ngay (hoac thieu quyen Admin).'
+  if ($isAdmin) { FLAG 'KHONG_CO_LOI_WHEA' 'Khong co loi phan cung WHEA trong 60 ngay.' -Muc 'ok' }
+  foreach ($f in $script:FLAGS) { W ('  [{0}] {1} ({2})' -f $f.mucDo, $f.tieuDe, $f.ma) }
   try { [IO.File]::WriteAllText($out, $SB.ToString(), (New-Object System.Text.UTF8Encoding $true)) } catch { Write-Host ('  [X] Khong ghi duoc bao cao ' + $out + ': ' + $_.Exception.Message) -ForegroundColor Red; exit 1 }
+  [void](Save-KetQua -CheDo 'giai-ma-whea' -Ten 'GiaiMaWhea' -Tep $repTep)
   Write-Host "  Khong co su kien WHEA. Bao cao: $out" -ForegroundColor Yellow
   exit 0
 }
@@ -176,6 +226,8 @@ HDR '2. GIAI MA TUNG BAN GHI (toi da 25 ban ghi moi nhat)'
 
 $tallyNotif = @{}
 $tallySect  = @{}
+$nSerious = 0
+$pciDevs = @()
 $n = 0
 foreach ($e in ($evs | Select-Object -First 25)) {
   $n++
@@ -214,6 +266,7 @@ foreach ($e in ($evs | Select-Object -First 25)) {
 
   $sevTxt = 'khong ro'
   if ($SEV.ContainsKey([int]$severity)) { $sevTxt = $SEV[[int]$severity] }
+  if (@(0, 1) -contains [int]$severity) { $nSerious++ }
   $notifTxt = 'KHONG CO TRONG BANG TRA'
   if ($notifGuid -and $NOTIF.ContainsKey($notifGuid)) { $notifTxt = $NOTIF[$notifGuid] }
 
@@ -275,7 +328,7 @@ foreach ($e in ($evs | Select-Object -First 25)) {
         KV '  PortType' $portType
         $pnp = Get-CimInstance Win32_PnPEntity -ErrorAction SilentlyContinue |
                Where-Object { $_.DeviceID -match ('VEN_{0:X4}&DEV_{1:X4}' -f $ven, $dvc) } | Select-Object -First 1
-        if ($pnp) { W ("        >>> THIET BI: " + $pnp.Name) }
+        if ($pnp) { W ("        >>> THIET BI: " + $pnp.Name); $pciDevs += [string]$pnp.Name }
       }
     }
     elseif ($secType -eq 'a5bc1114-6f64-4ede-b863-3e83ed7c83b1' -or $secType -eq '61ec04fc-48e6-d813-25c9-8daa44750b12') {
@@ -323,6 +376,18 @@ W ''
 KV 'Loi WHEA xay ra LUC KHOI DONG (trong 3 phut)' $nearBoot
 KV 'Loi WHEA xay ra LUC DANG CHAY'                $farBoot
 
+# Ket luan cho Tram Tool. Chi co ban ghi "Corrected" (da tu sua) thi la canh bao, co ban ghi Fatal/Recoverable la loi.
+$sumSect = { param($re) $c = 0; foreach ($k in $tallySect.Keys) { if ($k -cmatch $re) { $c += $tallySect[$k] } }; $c }
+$memN = & $sumSect 'RAM'; $cpuN = & $sumSect 'CPU'; $pciN = & $sumSect 'PCI'
+$lv = if ($nSerious) { 'loi' } else { 'canh-bao' }
+$tal = (@($tallySect.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object { '{0} lan: {1}' -f $_.Value, ($_.Key -replace '\s+', ' ') })) -join "`n"
+if ($memN) { FLAG 'WHEA_RAM' ("{0} ban ghi WHEA chi ra RAM (Platform Memory): test RAM, thay thanh RAM loi." -f $memN) -Muc $lv -Tiep 'fix-win/ram' -ChiTiet $tal }
+if ($cpuN) { FLAG 'WHEA_CPU' ("{0} ban ghi WHEA chi ra CPU (Processor): kiem tra nhiet do, nguon, ep xung." -f $cpuN) -Muc $lv -Tiep 'checkwinfix/sup-nguon' -ChiTiet $tal }
+if ($pciN) { FLAG 'WHEA_PCIE' ("{0} ban ghi WHEA chi ra khe/thiet bi PCIe{1}." -f $pciN, $(if ($pciDevs.Count) { ': ' + ((@($pciDevs | Sort-Object -Unique)) -join ', ') } else { '' })) -Muc $lv -ChiTiet $tal }
+if (-not ($memN + $cpuN + $pciN)) { FLAG 'WHEA_KHONG_RO_BO_PHAN' ("{0} loi WHEA nhung ban ghi khong chi ro bo phan (goi loi chung, firmware)." -f $evs.Count) -Muc $lv -Tiep 'checkwinfix/phan-cung' -ChiTiet $tal }
+if ($nearBoot -gt 0 -and $farBoot -eq 0) { FLAG 'WHEA_LUC_KHOI_DONG' 'Loi WHEA chi xay ra luc bat may: thuong la thiet bi khoi tao that bai (o dia, card mo rong).' -Muc 'thong-tin' -Tiep 'checkwinfix/phan-cung' }
+elseif ($farBoot -gt 0) { FLAG 'WHEA_KHI_DANG_CHAY' ("{0} loi WHEA xay ra khi may dang chay: nghi CPU, RAM hoac nguon dien." -f $farBoot) -Tiep 'checkwinfix/sup-nguon' }
+
 W ''
 W '  --- Doc ket qua ---'
 W '   * Neu thay "Platform Memory"  => RAM loi. Phai thay/test RAM.'
@@ -330,8 +395,12 @@ W '   * Neu thay "Processor ..."    => CPU loi.'
 W '   * Neu thay "PCI Express" hoac "PCI Component" => xem dong ">>> THIET BI:" o tren.'
 W '   * Neu chi thay "WHEA Error Packet (Microsoft)" va loi don vao luc khoi dong,'
 W '     thuong la thiet bi khoi tao that bai - phu hop voi o cung dang hong.'
+W ''
+W '  --- Phat hien tu dong (cung ghi vao KetQua_CheckWinFix_GiaiMaWhea_*.json cho Tram Tool) ---'
+foreach ($f in $script:FLAGS) { W ('   [{0}] {1} ({2})' -f $f.mucDo, $f.tieuDe, $f.ma) }
 
 try { [IO.File]::WriteAllText($out, $SB.ToString(), (New-Object System.Text.UTF8Encoding $true)) } catch { Write-Host ('  [X] Khong ghi duoc bao cao ' + $out + ': ' + $_.Exception.Message) -ForegroundColor Red; exit 1 }
+[void](Save-KetQua -CheDo 'giai-ma-whea' -Ten 'GiaiMaWhea' -Tep $repTep)
 Write-Host ''
 Write-Host ('  ' + ('=' * 72)) -ForegroundColor Green
 Write-Host '   XONG. Bao cao luu tai:' -ForegroundColor Green
@@ -342,5 +411,5 @@ foreach ($k in ($tallySect.GetEnumerator() | Sort-Object Value -Descending)) {
   Write-Host ('    {0,4} lan -> {1}' -f $k.Value, $k.Key) -ForegroundColor Yellow
 }
 Write-Host ''
-try { Start-Process notepad.exe -ArgumentList ('"' + $out + '"') } catch {}
+if (-not $env:CWF_KHONG_MO) { try { Start-Process notepad.exe -ArgumentList ('"' + $out + '"') } catch {} }   # bai thu: khong mo Notepad
 exit 0
