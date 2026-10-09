@@ -1,6 +1,6 @@
 # Phân tích và hướng nâng cấp
 
-Cập nhật 10/10/2026. Đánh giá 17 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
+Cập nhật 10/10/2026. Đánh giá 18 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
 và lộ trình nâng cấp theo mức ưu tiên.
 
 Danh sách lỗi và hướng nâng cấp đầy đủ của từng công cụ nằm trong `issues` và `upgrades` của `tool.json`,
@@ -99,6 +99,25 @@ Mức ưu tiên:
   của ổ USB, ổ đã rút như Thu thập thông tin (bản cũ coi hơn 50 sự kiện ổ đĩa bất kỳ là ổ cứng hỏng, và đã báo nhầm
   như vậy trên máy phát triển). Kiểm tra, chẩn đoán đã chạy thật bằng quyền thường trên máy phát triển; nút sửa vẫn mới
   chạy thử và thử bằng giả lập.
+- **CheckWinFix 2026.10.4 (gói kiểm tra chỉ đọc)**: *Thu thập thông tin* thêm Secure Boot (chứng chỉ 2023, sự kiện
+  TPM-WMI 1795, 1796, 1801, 1808, firmware từ chối ghi), bản quyền Windows (chỉ tên, kênh, trạng thái, máy chủ KMS;
+  không đọc khoá; dấu vết phần mềm kích hoạt lậu), WinRE, chương trình giữ máy thức, kết quả test RAM. Phần dùng chung
+  (`src\Chung.ps1`: kiểm tra Admin, ghi JSON, đọc SMART) dựng vào từng `.bat` bằng `src\build.ps1`; mỗi `.bat` vẫn gửi
+  riêng cho khách được. Đã chạy thật bằng quyền thường trên máy phát triển.
+- **Trạm 1.5.0 (tiến độ, cập nhật công cụ, gợi ý cho ô chọn)**: chuẩn tiến độ `tramtool.tiendo/1`; thanh *Đang chạy*
+  hiện phần trăm, bước, thời gian còn lại của DWG sang PDF, Ghi âm sang Word, Chuyển tài liệu sang Unicode. *Cập nhật
+  công cụ* từ git (chỉ fast-forward, dừng khi có file đang sửa). Ô chọn thư mục có danh sách gợi ý (`goiY`), dùng cho
+  form Hoàn tác của MyExcelFix (liệt kê bản sao lưu của đúng tài khoản). Ghi âm sang Word 2026.10.2 làm tiếp từ khúc
+  đã xong khi bị ngắt; card hết bộ nhớ thì thử lại khúc đó. mdf2sql 1.3.0 cài pyodbc 5.3.0 vào `.venv` riêng.
+- **Công cụ mới: Gói tiếng Việt** (mục 4 của *Công cụ Windows nên thêm*):
+  - *Kiểm tra* (quyền thường): bộ gõ (hai bộ cùng chạy, khởi động trùng, bàn phím tiếng Việt của Windows bật cùng),
+    font VNI và TCVN3, định dạng số và ngày, Excel dùng dấu riêng, chế độ UTF-8 (Beta).
+  - *Đặt định dạng* kiểu Việt Nam hoặc quốc tế cho tài khoản; lưu giá trị cũ để *Trả lại*.
+  - *Chuyển tài liệu sang Unicode*: chép `.docx`, `.xlsx` font VNI, TCVN3 thành bản Unicode; giải mã theo font của
+    từng đoạn chữ; file gốc giữ nguyên.
+  - Đã thử: *Kiểm tra* chạy thật; bản chuyển mở được bằng Word, Excel thật; *Đặt định dạng* chạy thật trên khoá
+    registry thử.
+  - Chưa thử: đổi định dạng thật trên một máy.
 
 ## Đã sửa trong đợt này
 
@@ -148,12 +167,18 @@ Mức ưu tiên:
 | `d434eb4` | Sửa lỗi Windows | 2.1: mọi chế độ ghi `KetQua_SuaLoi_*.json` (44 mã: ảnh Windows hỏng sửa được, SFC còn file hỏng, ổ đĩa có lỗi, IP/DNS đặt tay...), gợi ý chạy tiếp, kèm file sao lưu tường lửa, thiết lập mạng cũ. |
 | `4feccd6` | Gỡ sạch và cài Office theo mẫu | 1.1: Kiểm tra ghi 20 mã cố định; gỡ, cài, kích hoạt, trả lại chưa xong thì tóm các dòng lỗi đã in; JSON qua cùng bộ lọc che khoá như báo cáo. |
 | `a82cec4` | CheckWinFix | Chẩn đoán phần cứng, Giải mã WHEA, Xuất bằng chứng, Sụp nguồn bản 1.1 ghi `KetQua_CheckWinFix_PhanCung_*.json` (và `_GiaiMaWhea_`, `_BangChung_`, `_SupNguon_`), mã in kèm trong báo cáo; Chẩn đoán phần cứng tách lỗi ổ USB, ổ đã rút; `.gitignore` bỏ qua `KetQua_CheckWinFix_*.json` (cả file của Thu thập thông tin, trước đó chưa bỏ qua). |
+| `a8d1fad` | CheckWinFix | 2026.10.4: *Thu thập thông tin* thêm Secure Boot (kiểu firmware, `UEFICA2023Status`, sự kiện TPM-WMI 1795, 1796, 1801, 1808 trong 90 ngày, số ngày tới 19/10/2026), bản quyền Windows qua `SoftwareLicensingProduct` (không đọc khoá, không `slmgr`; KMS lạ, dấu vết KMSpico, KMSAuto, AAct...), WinRE từ `ReAgent.xml`, `powercfg /requests`, `/lastwake`, SleepStudy, kết quả test RAM (MemoryDiagnostics-Results). |
+| `e758fbc` | Trạm, DWG sang PDF, Ghi âm sang Word | Trạm 1.5.0: tiến độ `tramtool.tiendo/1` (action khai `tienDo`), *Cập nhật công cụ* từ git (chỉ fast-forward, rồi submodule). DWG sang PDF 2026.10.1, Ghi âm sang Word 2026.10.2 báo tiến độ; Ghi âm lưu khúc đã xong để làm tiếp, card hết bộ nhớ thì thử lại khúc đó (lần ba beam 1), chuyển sang CPU cũng làm tiếp. |
+| `892eca8` | Trạm, MyExcelFix | Ô chọn file, thư mục có `goiY` (nguồn, đọc JSON trong thư mục, lọc theo tài khoản, mô tả theo mẫu); `GET /api/suggest`. Form Hoàn tác của MyExcelFix liệt kê bản sao lưu của tài khoản đang mở trạm, chọn sẵn bản mới nhất. |
+| `3d9ce5d` (submodule `1a7afff`) | Khôi phục .mdf sang .sql | mdf2sql 1.3.0: hai `.bat` tạo `.venv` riêng và cài pyodbc 5.3.0 vào đó (không còn `pip install --user` vào Python chung); nút *Cài hoặc sửa môi trường chạy*. |
+| `5c4a53f` | CheckWinFix | Phần dùng chung `src\Chung.ps1` (kiểm tra Admin, ghi JSON, đọc và giải mã SMART) dựng vào `ThuThapThongTin.bat` và script 2 đến 5 bằng `src\build.ps1`; bài thử bắt `.bat` sửa tay lệch bản chung. |
+| `4f2e279` | Gói tiếng Việt (mới) | Công cụ mới `tools\tieng-viet`: Kiểm tra bộ gõ, khởi động cùng Windows, bàn phím của Windows, font cũ, định dạng số và ngày, Excel, bảng mã; *Đặt định dạng* (`SetLocaleInfo`, cho tài khoản đang dùng), *Trả lại*; *Chuyển tài liệu sang Unicode* (`chuyen_unicode.py`, chỉ thư viện chuẩn của Python, sửa thẳng XML của `.docx`, `.xlsx`). |
 
 ## Bảng tổng quan
 
 | Công cụ | Dành cho | Đánh giá | Việc nên làm trước |
 |---|---|---|---|
-| CheckWinFix | Mọi người | Bộ chẩn đoán đầy đủ nhất: 24 nhóm thông tin, khoảng 60 cảnh báo tự động có mã cố định (lỗi sự kiện so theo nguồn + mã, cả mức Warning), trạm hiện từng cảnh báo và gợi ý script chạy tiếp; tuỳ chọn kiểm tra sâu (DISM, `chkdsk /scan`); chạy đúng với mọi đường dẫn. Bốn script chuyên sâu (phần cứng, WHEA, bằng chứng, sụp nguồn) cũng ghi kết luận có mã cho trạm. *Cứu dữ liệu* bản 2.0 an toàn hơn (ổ vật lý khác, MD5 khi SQL dừng, luôn bật lại dịch vụ), mới thử bằng giả lập. | P1: lõi dùng chung, đọc EventData ở các mục còn lại. |
+| CheckWinFix | Mọi người | Bộ chẩn đoán đầy đủ nhất: 26 nhóm thông tin (cả Secure Boot 2023, bản quyền, WinRE, giấc ngủ, test RAM), khoảng 60 cảnh báo tự động có mã cố định (lỗi sự kiện so theo nguồn + mã, cả mức Warning), trạm hiện từng cảnh báo và gợi ý script chạy tiếp; tuỳ chọn kiểm tra sâu (DISM, `chkdsk /scan`); chạy đúng với mọi đường dẫn. Bốn script chuyên sâu (phần cứng, WHEA, bằng chứng, sụp nguồn) cũng ghi kết luận có mã cho trạm. *Cứu dữ liệu* bản 2.0 an toàn hơn (ổ vật lý khác, MD5 khi SQL dừng, luôn bật lại dịch vụ), mới thử bằng giả lập. | P1: đọc EventData ở các mục còn lại; gom minidump, WHEA, chọn nơi lưu vào phần dùng chung `src\Chung.ps1`. |
 | Sửa lỗi Windows | Kỹ thuật | Bản 2.0: DISM rồi SFC, đặt lại mạng (ghi lại IP/DNS đặt tay trước), đặt lại tường lửa (sao lưu `.wfw`, hỏi lại, khôi phục được), quét và sửa ổ đĩa (xem sức khoẻ ổ trước), kiểm tra RAM, đặt lại Windows Update (đổi tên có thời gian); mỗi lệnh kiểm tra kết quả thật. Bản 2.1: trạm hiện kết quả từng việc có mã, gợi ý chạy tiếp. Mới thử bằng giả lập. | P1: nhật ký tóm tắt CBS/DISM; DISM dùng ISO khi Windows Update không tải được. |
 | Kiểm tra và sửa lỗi Wi-Fi | Mọi người | Bản 1.1 thêm `KET_NOI_WIFI.bat`: gọi thẳng API Wi-Fi (không phụ thuộc ngôn ngữ Windows), sửa lỗi *Can't connect to this network* khi vào mạng mới sau khi máy thức dậy, chẩn đoán từ nhật ký WLAN theo mã lý do. Phần kết nối mới chạy thử, chưa chạy thật. Menu cũ `fixwf.bat` vẫn tìm card bằng chữ. | P1: tự sửa sau khi máy thức dậy; gộp menu cũ vào `KetNoiWifi.ps1`. |
 | Máy in mạng LAN và thư mục chia sẻ | Mọi người | Chẩn đoán 11 nhóm, chỉ nút sửa theo mã lỗi; 8 nút sửa in việc sẽ làm, hỏi trước, có Chạy thử, ghi nhật ký hoàn tác; nới bảo mật tách riêng, hỏi 2 lần; không bật SMB1. Mới kiểm chứng trên máy phát triển. | P1: chạy các nút sửa ở văn phòng thật; Local Port `\\MÁY\máy-in` thay cho nới RPC; dò máy in trong mạng. |
@@ -161,14 +186,15 @@ Mức ưu tiên:
 | Gỡ sạch và cài Office theo mẫu | Kỹ thuật | Kiểm tra Office, giấy phép, bộ cài mẫu (ODT) trước; gỡ mọi bản Office rồi cài theo mẫu, mẫu hỏng thì không gỡ gì; sao lưu mẫu Word, macro, chữ ký; khoá trong mẫu không bao giờ in ra, kích hoạt chỉ theo cách của Microsoft. Kiểm tra và Chạy thử đã chạy thật; gỡ, cài, kích hoạt mới thử bằng giả lập. | P1: gỡ, cài thật trên một máy thử; tạo mẫu mới (LTSC 2024, Microsoft 365) ngay trong công cụ; Quick Repair trước khi phải gỡ. |
 | Dọn ổ C an toàn | Mọi người | Xem ổ C đầy vì đâu (rác dọn được và thứ chiếm chỗ bạn tự quyết: thùng rác, Windows.old, file ngủ đông, Zalo, Downloads); dọn file tạm cũ hơn N ngày, bộ nhớ đệm trình duyệt khi đã tắt, file tải về của Windows Update, Delivery Optimization, WinSxS. Xem trước, gõ C mới xoá; danh sách thư mục được phép. Xem và Chạy thử đã chạy thật; phần xoá mới thử trong thư mục cát. | P1: dọn thật trên một máy; dọn Teams, bộ cài cập nhật Zalo; liệt kê thư mục lớn nhất. |
 | File thẻ xe .nt | Mọi người | Chuyển danh sách Excel sang .nt, kiểm tra file .nt như phần mềm giữ xe đọc và so từng thẻ với danh sách Excel, chuyển .nt sang Excel kèm kết quả từng thẻ, sửa CardID mất số 0; bản sửa lô 3257-3426 khớp từng thẻ với bản sửa tay. Không cần Excel. | P1: nạp thử file do công cụ ghi vào phần mềm thật; so với danh sách thẻ đang có trong phần mềm trước khi nạp. |
-| MyExcelFix | Mọi người | Chẩn đoán kỹ theo từng tài khoản Windows, có sao lưu và hoàn tác an toàn (giữ bản đã sửa tiếp), mã thoát và JSON kết quả có mã phát hiện cố định; sao lưu, báo cáo nằm trong thư mục riêng của tài khoản, bản gửi đi đã che số và tên; mã nguồn chia module và build ra một file `.bat`. Trạm hiện từng phát hiện, gợi ý chạy *Sửa lỗi* khi bản Sửa xử lý được. | P1: Trạm liệt kê bản sao lưu trong form Hoàn tác; `common\` dùng chung cho hai bản build. |
-| DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5-35 phút). | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
-| Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn; tên kết quả giữ đuôi file gốc, chọn được thư mục kết quả. | P1: lưu tiến độ để chạy tiếp, chỉ chạy lại bằng CPU khi đúng là lỗi card. |
-| Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. Có `doctor` kiểm tra môi trường; giao diện giữ cổng riêng, tự lùi khi cổng bận; hộp thoại chọn file chạy trong tiến trình riêng; Trạm mở lại, tắt giao diện đang chạy và hiện kết quả `doctor`. | P1: `.venv` riêng khoá phiên bản pyodbc; dọn database tạm, thư mục làm việc bị bỏ lại. |
+| MyExcelFix | Mọi người | Chẩn đoán kỹ theo từng tài khoản Windows, có sao lưu và hoàn tác an toàn (giữ bản đã sửa tiếp), mã thoát và JSON kết quả có mã phát hiện cố định; sao lưu, báo cáo nằm trong thư mục riêng của tài khoản, bản gửi đi đã che số và tên; mã nguồn chia module và build ra một file `.bat`. Trạm hiện từng phát hiện, gợi ý chạy *Sửa lỗi* khi bản Sửa xử lý được; form Hoàn tác liệt kê bản sao lưu của tài khoản. | P1: `common\` dùng chung cho hai bản build. |
+| DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5-35 phút); trạm hiện phần trăm, tờ đang vẽ. | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
+| Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn; tên kết quả giữ đuôi file gốc, chọn được thư mục kết quả; trạm hiện phần trăm, thời gian còn lại; bị ngắt thì làm tiếp từ khúc đã xong, card hết bộ nhớ thì thử lại khúc đó. | P1: mã thoát riêng cho lỗi card; chỉ chạy lại bằng CPU các file chưa xong. |
+| Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. Có `doctor` kiểm tra môi trường; giao diện giữ cổng riêng, tự lùi khi cổng bận; hộp thoại chọn file chạy trong tiến trình riêng; Trạm mở lại, tắt giao diện đang chạy và hiện kết quả `doctor`; pyodbc ghim bản trong `.venv` riêng. | P1: dọn database tạm, thư mục làm việc bị bỏ lại. |
 | Chuyển dữ liệu khi cài lại Windows | Kỹ thuật | Bản 2.0: sao lưu Wi-Fi kèm mật khẩu, máy in kèm driver, dữ liệu Claude, khoá BitLocker, driver mạng ra nơi chọn (USB trước), tuỳ chọn mã hoá phần bí mật; manifest đánh dấu đã xong, bước nhập không dùng bản dở; có Chạy thử. Mới thử bằng giả lập. | P1: kiểm đếm file và SHA-256; hỏi bật tự mở khoá ổ BitLocker sau khi mở. |
 | BitLocker và khoá khôi phục | Mọi người | Kiểm tra từng ổ (mã hoá, tạm dừng, bị khoá), khoá khôi phục đã lưu ở đâu, TPM, các lần máy phải nhập khoá; kết luận theo thứ tự nên làm. 6 nút đổi máy có Chạy thử, nhật ký hoàn tác; khoá 48 số không bao giờ vào báo cáo, nhật ký. Chưa chạy trên ổ mã hoá thật, mới thử bằng giả lập. | P1: chạy thật trên máy có BitLocker; sao lưu khoá lên tài khoản Microsoft; lưu gói khoá `.KPG`. |
 | Giờ máy và chữ ký số (USB token) | Mọi người | Kiểm tra chỉ đọc bằng quyền thường: độ lệch giờ (NTP, dự phòng http), múi giờ, dịch vụ giờ, dịch vụ Smart Card, đầu đọc token, chứng thư ký số, phần mềm ký số; trạm hiện từng phát hiện kèm nút sửa. Sửa giờ, sửa dịch vụ token lưu giá trị cũ để trả lại. Không hỏi PIN. Chưa thử với token thật; token chỉ dùng PKCS#11 thì không thấy. | P1: đọc chứng thư trong token (`certutil -scinfo`) khi kho của tài khoản chưa có; kiểm tra tiện ích ký số của trình duyệt. |
 | Bộ ứng dụng văn phòng (winget) | Mọi người | Cài một lượt ứng dụng hay dùng từ nguồn winget, bỏ qua ứng dụng đã có, đọc lại danh sách đã cài để chắc cài xong; Kiểm tra xem ứng dụng nào đã có, Cập nhật cả bộ. Danh sách sửa được. Mới chạy thật Kiểm tra và chạy thử; cài, cập nhật thử bằng giả lập. | P1: báo ứng dụng có bản mới ngay trong Kiểm tra; cài thật trên một máy mới. |
+| Gói tiếng Việt | Mọi người | Kiểm tra chỉ đọc bằng quyền thường: bộ gõ (hai bộ cùng chạy, chạy hai bản, khởi động trùng, bàn phím tiếng Việt của Windows bật cùng), font VNI, TCVN3, định dạng số và ngày, Excel dùng dấu riêng, chế độ UTF-8 (Beta); trạm hiện từng phát hiện kèm nút sửa. *Đặt định dạng* cho tài khoản, không cần Admin, lưu giá trị cũ để trả lại. *Chuyển tài liệu sang Unicode* tạo bản sao `.docx`, `.xlsx`, giải mã theo font của từng đoạn chữ. Chưa đổi định dạng thật của máy nào. | P1: chuyển cả `.doc`, `.xls` cũ qua Word, Excel; đổi chữ trong hình, biểu đồ, SmartArt; đổi định dạng thật trên máy ảo. |
 | Đăng xuất GitHub | Kỹ thuật | Bản 1.1: xoá mọi mục GitHub của Git trong Credential Manager (cả mục kèm tên tài khoản), hỏi trước với mục của ứng dụng khác và GitHub CLI, có Chạy thử. | P2: chọn tài khoản cần xoá thay vì xoá hết. |
 
 ## Vấn đề chung
@@ -195,21 +221,22 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
    card mạng đã đổi tên là hụt. Quy ước: đọc trường `EventData`, dùng cmdlet (`Get-NetAdapter`) thay vì tách chữ.
 6. **Mã hoá file.** `.ps1` cần UTF-8 có BOM, `.bat` cần không BOM, cả hai CRLF. Đã có `.editorconfig`, `.gitattributes`
    và `hub\dev\Normalize-Encoding.ps1` để giữ đúng.
-7. **Môi trường Python tự phát.** Mỗi công cụ một kiểu cài. Quy ước (đã áp dụng cho DWG sang PDF, Ghi âm sang Word):
-   `.venv` riêng, `requirements-lock.txt` khoá phiên bản, `CAI_DAT.ps1` tự cài lại được trên máy mới.
+7. **Môi trường Python tự phát.** Mỗi công cụ một kiểu cài. Quy ước (đã áp dụng cho DWG sang PDF, Ghi âm sang Word, Khôi phục .mdf 1.3.0):
+   `.venv` riêng, `requirements-lock.txt` khoá phiên bản, `CAI_DAT.ps1` tự cài lại được trên máy mới. Công cụ chỉ dùng
+   thư viện chuẩn (Gói tiếng Việt) thì chạy bằng Python của máy, không cần `.venv`.
 8. **Kết quả chỉ là chữ.** Trạm không biết công cụ chạy xong hay lỗi, tìm thấy gì. Quy ước: mỗi lần chạy ghi thêm
    một file JSON theo chuẩn `tramtool.ketqua/1` (máy, thời gian, mã thoát, trạng thái, phát hiện, mức độ, cách sửa,
    công cụ chạy tiếp, file liên quan; xem `docs\THEM-CONG-CU.md`). Đã làm cho mọi công cụ chẩn đoán, sửa: MyExcelFix,
    Chuyển dữ liệu khi cài lại Windows, `mdf2sql doctor`, CheckWinFix (Thu thập thông tin và bốn script chuyên sâu), Tối
-   ưu Windows, Giờ máy và chữ ký số, Bộ ứng dụng văn phòng, Sửa lỗi Windows, Máy in LAN, BitLocker, Dọn ổ C, Office;
+   ưu Windows, Giờ máy và chữ ký số, Bộ ứng dụng văn phòng, Sửa lỗi Windows, Máy in LAN, BitLocker, Dọn ổ C, Office, Gói tiếng Việt;
    Trạm 1.4.0 đọc và hiện trong Lịch sử. Chưa ghi: Wi-Fi, DWG sang PDF, Ghi âm sang Word, File thẻ xe .nt, Đăng xuất
    GitHub (kết quả là file đầu ra hoặc thao tác một lần, mã thoát đã đủ cho Lịch sử).
 9. **Bài thử không nằm trong repo.** Các nút đổi máy chủ yếu được thử bằng giả lập, nhưng bài thử chỉ nằm ở thư mục
    tạm của phiên làm việc nên sửa sau không chạy lại được. Đã làm: `tests\` với một trình chạy chung
-   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 47 bài cho 17 bộ (cú pháp, mã hoá file, danh mục và lược đồ
+   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 55 bài cho 19 bộ (cú pháp, mã hoá file, danh mục và lược đồ
    `tool.json`, không commit dữ liệu khách, lan can và kết quả JSON của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
    Tối ưu Windows, Giờ máy và chữ ký số, Bộ ứng dụng văn phòng, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe,
-   Đăng xuất GitHub, Ghi âm sang Word, `.bat` của mdf2sql) và `tools\mdf2sql\tests` (unittest).
+   Đăng xuất GitHub, Ghi âm sang Word, DWG sang PDF, Gói tiếng Việt, `.bat` của mdf2sql) và `tools\mdf2sql\tests` (unittest).
    Chạy bằng quyền thường, thư mục tạm ngoài repo, registry chỉ trong `HKCU\Software\TramToolTest`. Quy ước: chạy
    trước mỗi lần commit; thêm, sửa công cụ thì thêm bài thử. Giả lập không thay được chạy thật trên máy thử.
 
@@ -242,19 +269,21 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 - [x] Trạm đợi tiến trình xong trong nền, ghi mã thoát và thời gian chạy vào Lịch sử (Trạm 1.1.0). Công cụ tự nâng
       quyền: cửa sổ đầu đợi cửa sổ Admin và trả mã của nó (bài thử tĩnh kiểm), trạm theo dõi cả khi mở bằng quyền
       thường (Trạm 1.4.0).
-- [ ] Lõi PowerShell dùng chung (kiểm tra Admin, ghi log, đọc SMART, minidump, WHEA, chọn nơi lưu), build ra từng `.bat`
-      một file như MyExcelFix để vẫn gửi khách được một file.
+- [x] Lõi PowerShell dùng chung cho CheckWinFix: `src\Chung.ps1` (kiểm tra Admin, ghi JSON, đọc và giải mã SMART),
+      `src\build.ps1` dựng vào từng `.bat` nên vẫn gửi khách được một file (commit `5c4a53f`).
+- [ ] Gom thêm vào phần dùng chung của CheckWinFix: minidump, WHEA, chọn nơi lưu.
 - [x] Gộp: Báo cáo sức khoẻ thành *Kiểm tra sâu* của CheckWinFix (2026.10.3); Tắt/bật dịch vụ + Tối ưu đồng hồ thành
       *Tối ưu Windows* có một nút Kiểm tra chung (1.0).
-- [ ] Khôi phục .mdf: `.venv` riêng có pyodbc khoá phiên bản; dọn database tạm, thư mục làm việc bị bỏ lại.
+- [x] Khôi phục .mdf: `.venv` riêng có pyodbc ghim bản 5.3.0 (mdf2sql 1.3.0).
+- [ ] Khôi phục .mdf: dọn database tạm, thư mục làm việc bị bỏ lại.
 - [x] Khôi phục .mdf: hộp thoại chọn file trong tiến trình riêng; `Chay_tool.bat` chạy thử Python thật (mdf2sql 1.1.1).
 - [x] Khôi phục .mdf: trạm đọc `server.json` để mở lại, tắt giao diện; `doctor --ket-qua` (mdf2sql 1.2.0, Trạm 1.4.0).
 - [x] Ghi âm sang Word: tên kết quả giữ đuôi file gốc, `--ra` (2026.10.1).
-- [ ] Ghi âm sang Word: lưu tiến độ từng khúc; hết bộ nhớ card thì thử lại khúc đó với beam nhỏ.
+- [x] Ghi âm sang Word: lưu tiến độ từng khúc; hết bộ nhớ card thì thử lại khúc đó với beam nhỏ (2026.10.2).
 - [x] MyExcelFix: sao lưu, báo cáo theo tài khoản (`%LOCALAPPDATA%`) thay vì Desktop, Public Documents; che tên chủ
       tài khoản; `HOAN_TAC.bat` liệt kê bản sao lưu (2026.10.2).
 - [x] MyExcelFix: Trạm hiện phát hiện từ `KetQua_MyExcel_*.json`, gợi ý *Sửa lỗi* (2026.10.3, Trạm 1.4.0).
-- [ ] MyExcelFix: Trạm liệt kê bản sao lưu trong form Hoàn tác.
+- [x] MyExcelFix: Trạm liệt kê bản sao lưu trong form Hoàn tác (`goiY`, commit `892eca8`).
 - [x] Đăng xuất GitHub: lọc `cmdkey /list` theo `github` (bản 1.1).
 - [x] Báo cáo sức khoẻ: không có sự kiện thì [OK]; nâng quyền bằng `fltmc`, đường dẫn qua biến môi trường (bản 1.1).
 - [x] DWG sang PDF: giải mã TCVN3 (`.VnTime`, `.VnArial`...) giống cách đã làm với VNI.
@@ -262,13 +291,19 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 
 ### Giai đoạn 3: mở rộng (P2)
 
-- [ ] Tiến độ phần trăm (in dòng JSON) cho DWG sang PDF và Ghi âm sang Word, Trạm hiện thanh tiến độ.
+- [x] Tiến độ phần trăm cho DWG sang PDF và Ghi âm sang Word, Trạm hiện thanh tiến độ (file `tramtool.tiendo/1`,
+      Trạm 1.5.0).
 - [ ] DWG sang PDF: chọn khổ giấy, bảng nét in `.ctb`, in màu trên form chạy.
 - [ ] Chuyển dữ liệu khi cài lại Windows: thêm `winget export`, thư mục người dùng (xem trước dung lượng), dấu trang, font.
 - [ ] Sửa lỗi Windows thành bước *Sửa* trong CheckWinFix, chỉ đề xuất lệnh hợp với bệnh tìm thấy.
-- [ ] Trạm: nút *Cập nhật công cụ* (git pull), xuất/nhập cài đặt.
+- [x] Trạm: nút *Cập nhật công cụ* (chỉ fast-forward, Trạm 1.5.0).
+- [ ] Trạm: xuất/nhập cài đặt.
 - [x] Công cụ mới: Giờ máy và chữ ký số (1.0), Bộ ứng dụng văn phòng bằng winget (1.0), mục 6, 8 của *Công cụ Windows
       nên thêm*.
+- [x] Công cụ mới: Gói tiếng Việt (1.0), mục 4 của *Công cụ Windows nên thêm*.
+- [ ] Máy ảo Windows 11 (VirtualBox, ổ D) để chạy thật các nút sửa trước khi đưa cho khách: `hub\dev\TaoMayAoThu.ps1`
+      tạo máy ảo (EFI, TPM 2.0, Secure Boot, NAT, repo chia sẻ chỉ đọc, cài tự động), chụp nhanh và trả về bản sạch;
+      còn chờ cài VirtualBox (cần quyền Admin).
 
 ## Trạm Tool
 
@@ -400,13 +435,29 @@ PowerToys Command Palette, Raycast, Linear (ô Ctrl+K), UniGetUI (bảng tác v�
   `--no-browser`). Lần thử đó tìm ra lỗi: trạm gửi thân `{}` kèm lệnh tắt, máy chủ tắt ngay nên Windows cắt kết nối
   giữa lúc trạm đang ghi (trạm báo lỗi dù đã tắt); nay gửi POST rỗng, bài thử kiểm độ dài thân bằng 0.
 
-**Hướng tiếp**: các mục *Trạm* trong lộ trình ở trên (tiến độ, cập nhật công cụ); loại probe `script` chỉ đọc (BitLocker, SMB); thư viện nhật ký hoàn tác chung.
+**Bản 1.5.0 (10/10/2026): tiến độ, cập nhật công cụ, gợi ý cho ô chọn**
+
+- **Tiến độ** `tramtool.tiendo/1`: action khai `"tienDo": {"flag": "--tien-do"}` thì trạm thêm đường dẫn file tiến
+  độ (`hub\data\tien-do\<guid>.json`), công cụ ghi đè file đó; thanh *Đang chạy* hiện phần trăm, bước đang làm, thời
+  gian còn lại. File xoá khi cửa sổ đóng, file sót quá 2 ngày dọn lúc mở trạm; cờ tiến độ không vào Lịch sử. Đang
+  dùng: DWG sang PDF, Ghi âm sang Word, Chuyển tài liệu sang Unicode.
+- **Cập nhật công cụ** (*Cài đặt > Công cụ*): xem kho git có commit mới, file đang sửa; nút *Cập nhật* chạy
+  `hub\fixes\CapNhat-TramTool.ps1` trong cửa sổ riêng: chỉ fast-forward rồi cập nhật submodule; dừng khi có file đang
+  sửa, nhánh lệch, không ở nhánh nào; file không theo dõi giữ nguyên. Xong thì đọc lại danh mục, báo khi phần máy chủ
+  đổi (cần mở lại trạm) hoặc công cụ đổi thư viện.
+- **Gợi ý cho ô chọn** (`goiY` trong `tool.json`): ô file, thư mục hiện danh sách chọn từ các nguồn khai báo (nhận
+  `%BIEN%`, `{Desktop}`), đọc file JSON trong từng thư mục để lọc (vd theo tài khoản) và viết dòng mô tả; chưa có giá
+  trị thì chọn sẵn mục mới nhất. Máy chủ chỉ trả đường dẫn, tên, nhãn, mô tả. Dùng cho form Hoàn tác của MyExcelFix.
+- Đã thử: `tram/6_TienDoCapNhat` (kho git giả: mới nhất, có bản mới, file đang sửa, nhánh lệch, submodule),
+  `tram/7_GoiY`; trạm thử với form Hoàn tác của MyExcelFix (bản sao lưu giả).
+
+**Hướng tiếp**: xuất/nhập cài đặt; loại probe `script` chỉ đọc (BitLocker, SMB); thư viện nhật ký hoàn tác chung.
 
 ## Công cụ Windows nên thêm
 
 Nghiên cứu ngày 04/10/2026, chủ yếu từ tài liệu của Microsoft và trang chính thức của từng phần mềm. Đã làm mục 1
 (`tools\may-in-lan`), mục 2 (`tools\bitlocker`), mục 3 (`tools\don-o-c`), phần gỡ, cài của mục 5
-(`tools\office`), mục 6 (`tools\gio-chu-ky-so`) và mục 8 (`tools\bo-ung-dung`); các mục khác chọn mục nào thì làm
+(`tools\office`), mục 4 (`tools\tieng-viet`), mục 6 (`tools\gio-chu-ky-so`) và mục 8 (`tools\bo-ung-dung`); các mục khác chọn mục nào thì làm
 mục đó. Không lặp lại những thứ đã có hoặc đã nằm trong lộ trình
 (SFC, DISM, chkdsk, đặt lại Windows Update, Winsock, SMART, minidump, Defender, báo cáo pin, sao lưu Wi-Fi, máy in).
 
@@ -479,6 +530,15 @@ mục đó. Không lặp lại những thứ đã có hoặc đã nằm trong l�
    - Định dạng số, ngày: mẫu cài sẵn cho `HKCU\Control Panel\International` (dấu thập phân, dấu nghìn, dấu phân cách
      danh sách, ngày ngắn), hoặc chỉ trong Excel bằng
      [Use system separators](https://support.microsoft.com/office/c093b545-71cb-4903-b205-aebb9837bd1e).
+   - **Đã làm** (`tools\tieng-viet` 1.0, commit `4f2e279`, tên *Gói tiếng Việt*):
+     - Bộ gõ: không dùng lại phần dò của MyExcelFix (chỉ dò tên tiến trình). Đọc thêm khởi động cùng Windows (khoá
+       Run, thư mục Startup, Task Scheduler; bỏ mục đã tắt trong Task Manager), quyền chạy của bộ gõ, bàn phím tiếng
+       Việt của Windows (`0000042A`, bộ gõ Telex của Windows 11).
+     - Định dạng: đổi qua `SetLocaleInfo` như Control Panel, rồi báo `WM_SETTINGCHANGE`. Excel dùng dấu riêng thì bật
+       lại *Use system separators*, chỉ khi Excel đang tắt.
+     - Chuyển tài liệu: giải mã theo font của từng đoạn chữ (đúng thứ tự Word tìm font, Excel theo font của ô) thay vì
+       đoán theo nội dung. Chưa đổi biểu đồ, hình vẽ, SmartArt.
+     - Đã chạy thật Kiểm tra. Chưa đổi định dạng thật.
 5. **Sửa Office.** Cần Admin; Quick Repair rủi ro thấp, Online Repair rủi ro vừa (cài lại cả bộ).
    - Gỡ sạch, cài theo bộ cài mẫu, kích hoạt bằng khoá của người dùng: đã làm (`tools\office`). Còn các mục dưới.
    - Đọc Platform, ClientCulture trong `ClickToRun\Configuration`; Quick Repair bằng
@@ -552,6 +612,11 @@ mục đó. Không lặp lại những thứ đã có hoặc đã nằm trong l�
   - Kích hoạt Windows qua CIM `SoftwareLicensingProduct`, đánh dấu máy chủ KMS lạ và dấu vết phần mềm kích hoạt lậu.
     Không dùng `slmgr.vbs`: Microsoft định tắt VBScript mặc định khoảng năm 2027.
   - Thêm `reagentc /info`, `powercfg /requests`, `powercfg /sleepstudy`, sự kiện MemoryDiagnostics-Results 1201, 1202.
+  - **Đã làm** (CheckWinFix 2026.10.4, commit `a8d1fad`): cả bốn mục trong *Thu thập thông tin*, thêm sự kiện 1795,
+    1796 (firmware từ chối ghi) và `powercfg /lastwake`; bản quyền chỉ đọc tên, kênh, trạng thái, máy chủ KMS. Nguồn
+    đọc sự kiện Secure Boot: [KB5016061](https://support.microsoft.com/kb/5016061),
+    [Dell: sự kiện 1801](https://www.dell.com/support/kbdoc/en-us/000429711/windows-server-tpm-wmi-event-id-1801-secure-boot-certificates),
+    [Microsoft Q&A: UEFICA2023Status đứng ở InProgress](https://learn.microsoft.com/en-us/answers/questions/5876964/uefica2023status-stuck-at-inprogress-and-secure-bo).
 - **P1 Sửa lỗi Windows**: `wsreset.exe -i`; dựng lại bộ nhớ đệm biểu tượng, ảnh thu nhỏ; dựng lại chỉ mục tìm kiếm
   (`SetupCompletedSuccessfully=0` rồi khởi động lại WSearch); `Repair-Volume -Scan`, `-SpotFix` trước `chkdsk /r`;
   bước cuối là [Fix problems using Windows Update](https://support.microsoft.com/windows/fix-issues-by-reinstalling-the-current-version-of-windows)
@@ -568,9 +633,11 @@ mục đó. Không lặp lại những thứ đã có hoặc đã nằm trong l�
 3. ~~**Lan can an toàn của trạm**: điểm khôi phục, nhật ký hoàn tác, kiểm tra winget~~: đã làm (Trạm 1.2.0, commit
    `fba9675`); còn tạo điểm khôi phục, trả lại dịch vụ thật trên một máy có bật Bảo vệ hệ thống.
 4. ~~**Dọn ổ C an toàn**~~: đã làm (`tools\don-o-c`, commit `92da98a`); còn dọn thật trên một máy.
-5. **Gói kiểm tra chỉ đọc cho CheckWinFix**: rẻ, nhanh (Secure Boot, kích hoạt, môi trường khôi phục, giấc ngủ).
+5. ~~**Gói kiểm tra chỉ đọc cho CheckWinFix**~~: đã làm (CheckWinFix 2026.10.4, commit `a8d1fad`).
+6. ~~**Gói tiếng Việt**~~: đã làm (`tools\tieng-viet`, commit `4f2e279`); còn đổi định dạng thật trên máy ảo.
 
-Sau đó là **Gói tiếng Việt**.
+Tiếp theo: máy ảo Windows 11 (VirtualBox, ổ D, có TPM 2.0 và Secure Boot) để chạy thật các nút sửa đang chỉ thử bằng
+giả lập; sau đó Sửa Office (mục 5) hoặc Hỗ trợ từ xa (mục 7).
 
 ### Chưa kiểm chứng
 
@@ -590,8 +657,14 @@ Mới có nguồn cộng đồng hoặc chưa thử; kiểm tra trên máy thậ
 - UltraViewer bản miễn phí có cho dùng thương mại không.
 - Yêu cầu eSigner của thuế điện tử.
 - Giấy phép các font .Vn (TCVN3).
-- Mã sự kiện MemoryDiagnostics-Results: Chẩn đoán phần cứng coi 1102, 1202 là test RAM báo lỗi (1101, 1201 là không
-  lỗi); chưa có máy RAM lỗi để đối chiếu.
+- Test RAM báo lỗi thật: mã sự kiện MemoryDiagnostics-Results đã đối chiếu (1101, 1201 không lỗi; 1102, 1202 có lỗi),
+  Chẩn đoán phần cứng và *Thu thập thông tin* đọc theo đó; chưa có máy RAM lỗi để thử.
+- Byte đầu của giá trị `StartupApproved` lẻ là mục khởi động đã tắt trong Task Manager (tài liệu cộng đồng; Microsoft
+  không công bố). Gói tiếng Việt dựa vào đó để không báo trùng mục đã tắt.
+- `SetLocaleInfo` với `LOCALE_SSHORTDATE` tự cập nhật `sDate`, `iDate` cũ; chương trình đang mở nhận định dạng mới sau
+  `WM_SETTINGCHANGE`. Gói tiếng Việt chưa đổi định dạng thật.
+- `UseSystemSeparators` = 0 trong `HKCU\Software\Microsoft\Office\<bản>\Excel\Options` là Excel dùng dấu riêng (theo
+  mẫu chính sách nhóm của Office; chưa đối chiếu bằng cách bỏ dấu trong Excel).
 
 ## Thư viện bên thứ ba
 
@@ -610,7 +683,7 @@ thư viện của công cụ được script cài đặt tải về, không đư
 | PyMuPDF | DWG sang PDF: vẽ PDF | AGPL-3.0 |
 | faster-whisper, CTranslate2 | Ghi âm sang Word: nhận dạng giọng nói | MIT |
 | Whisper large-v3 (bản CTranslate2 của Systran) | Ghi âm sang Word: mô hình | MIT |
-| pyodbc | Khôi phục .mdf: kết nối SQL Server | MIT |
+| pyodbc | Khôi phục .mdf: kết nối SQL Server (bản 5.3.0, cài vào `.venv` của công cụ) | MIT |
 | SQL Server Express LocalDB, ODBC Driver 18 | Khôi phục .mdf | Miễn phí của Microsoft |
 | Ajv, ajv-formats | Bài thử: kiểm `tool.json` theo lược đồ (`tests\package.json`, chỉ cài trên máy dev) | MIT |
 

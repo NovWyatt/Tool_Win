@@ -24,7 +24,7 @@ powershell -ExecutionPolicy Bypass -File tests\ChayTatCa.ps1 -DanhSach
 
 Mã thoát: 0 đạt hết, 1 có bài hỏng, 2 không có bài nào khớp `-Chi`, 99 đang có quyền Admin (từ chối chạy).
 
-Cả lượt mất khoảng 6 phút. Bộ chậm nhất: `new-windows/4_TienTrinh` (gọi tiến trình thật ở chế độ chạy thử), `the-xe-nt`
+Cả lượt mất khoảng 10 phút. Bộ chậm nhất: `checkwinfix/3_ThuThap` (chạy thật Thu thập thông tin), `new-windows/4_TienTrinh` (gọi tiến trình thật ở chế độ chạy thử), `the-xe-nt`
 (dùng Excel tạo file mẫu), `tram/2_KichBanAnToan`.
 
 ## Cần gì
@@ -78,7 +78,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | Bộ | Thử gì |
 |---|---|
 | `tinh` | cú pháp mọi `.ps1` (cả PowerShell nhúng trong `.bat`), BOM/CRLF, danh mục `tool.json`, lược đồ, không commit dữ liệu khách; action tự nâng quyền đợi cửa sổ Admin và trả mã của nó; công cụ khai `ketQua` có mã ghi theo chuẩn `tramtool.ketqua/1` |
-| `tram` | lan can an toàn (điểm khôi phục, trả lại trạng thái, sửa winget), mã thoát qua Launcher, tham số từ `tool.json`, CaiDat; `5_KetQua`: đọc file kết quả (chuẩn và cách ghi cũ), gắn vào lần chạy, mã 2/3 trong Lịch sử, theo dõi công cụ tự nâng quyền, máy chủ giao diện web giả (`server.json`, mở lại, tắt, đang bận); `6_TienDoCapNhat`: đọc file tiến độ (`tramtool.tiendo/1`, kẹp số, cắt chữ), dọn file cũ, `tienDo` trong danh mục, cờ tiến độ chỉ đi vào lệnh chạy (không vào Lịch sử); cập nhật từ git trên kho giả (mới nhất, có bản mới, file đang sửa, nhánh lệch, không phải kho git, submodule); `7_GoiY`: danh sách gợi ý cho ô chọn file/thư mục (`goiY`: nguồn, đọc JSON trong thư mục, lọc theo tài khoản, mô tả theo mẫu, sắp xếp, khai sai) |
+| `tram` | lan can an toàn (điểm khôi phục, trả lại trạng thái, sửa winget), mã thoát qua Launcher, tham số từ `tool.json`, CaiDat; `5_KetQua`: đọc file kết quả (chuẩn và cách ghi cũ), gắn vào lần chạy, mã 2/3 trong Lịch sử, theo dõi công cụ tự nâng quyền, máy chủ giao diện web giả (`server.json`, mở lại, tắt, đang bận); `6_TienDoCapNhat`: đọc file tiến độ (`tramtool.tiendo/1`, kẹp số, cắt chữ), dọn file cũ, `tienDo` trong danh mục, cờ tiến độ chỉ đi vào lệnh chạy (không vào Lịch sử); cập nhật từ git trên kho giả (mới nhất, có bản mới, file đang sửa, nhánh lệch, không phải kho git, submodule); `7_GoiY`: danh sách gợi ý cho ô chọn file/thư mục (`goiY`: nguồn, đọc JSON trong thư mục, lọc theo tài khoản, mô tả theo mẫu, sắp xếp, khai sai); `8_MayAoThu`: `hub\dev\TaoMayAoThu.ps1` chạy thử in đủ lệnh, `VBoxManage.exe` giả (chọn Windows 11 Pro trong ISO, mật khẩu chỉ trong file của máy ảo, máy ảo đã có, chụp nhanh, trả về bản sạch) |
 | `new-windows` | mã hoá AES/HMAC, zip, xuất/nhập giữa hai "máy" giả, không lộ mật khẩu ra đĩa, chạy thử, hết đầu vào, hai `.bat` |
 | `myexcelfix` | sửa rồi hoàn tác trên bộ MyExcel giả, hết đầu vào giữa chừng, manifest cũ, kiểm tra chỉ đọc; JSON kết quả theo chuẩn của trạm (gợi ý chạy tiếp, trạm đọc lại khớp); nơi lưu riêng của tài khoản (sao lưu, báo cáo, chuyển file cũ khỏi Public Documents), che số và tên chủ tài khoản, `HOAN_TAC.bat` không tham số liệt kê bản sao lưu; trạm liệt kê đúng các bản đó trong form Hoàn tác (đọc `manifest.json` bản sửa vừa ghi, không trả số tài khoản) |
 | `office` | che khoá sản phẩm, đọc mẫu, gỡ, cài, kích hoạt (ODT, giấy phép, tiến trình đều giả); mọi chỗ ghi phát hiện của Kiểm tra có mã, JSON kết quả (thứ tự, nút chạy tiếp, chạy thử, thiếu quyền Admin, huỷ thì không ghi, lỗi lạ, khoá bị che) |
