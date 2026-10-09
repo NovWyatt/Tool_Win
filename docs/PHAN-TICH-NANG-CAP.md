@@ -1,6 +1,6 @@
 # Phân tích và hướng nâng cấp
 
-Cập nhật 09/10/2026. Đánh giá 17 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
+Cập nhật 09/10/2026. Đánh giá 15 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
 và lộ trình nâng cấp theo mức ưu tiên.
 
 Danh sách lỗi và hướng nâng cấp đầy đủ của từng công cụ nằm trong `issues` và `upgrades` của `tool.json`,
@@ -74,6 +74,15 @@ Mức ưu tiên:
   hiện kèm cách sửa và nút chạy tiếp; mã 2 hiện *Chưa làm*, 3 hiện *Làm được một phần*; mở lại, tắt giao diện web của
   mdf2sql qua `server.json`. Đã thử trên trạm thử với công cụ giả, máy chủ giả và máy chủ mdf2sql thật; chưa xem kết
   quả MyExcelFix của một máy có MyExcel thật trong trạm.
+- **Gộp công cụ trùng (CheckWinFix 2026.10.3, Tối ưu Windows 1.0)**: *Báo cáo sức khoẻ máy* gộp vào *Thu thập thông
+  tin* của CheckWinFix: ô *Kiểm tra sâu* chạy `Repair-WindowsImage -ScanHealth` và `Repair-Volume -Scan` (đọc kết quả
+  có cấu trúc thay cho chữ của `sfc /verifyonly`, đúng trên Windows mọi ngôn ngữ). Thu thập thông tin ghi JSON theo
+  chuẩn của trạm: khoảng 60 cảnh báo, mỗi cảnh báo một mã cố định và một mức, gợi ý script chuyên sâu chạy tiếp; hai
+  câu hỏi nằm trong form của trạm; lỗi ổ USB hoặc ổ đã rút chỉ là cảnh báo. *Tắt/bật dịch vụ nền* và *Tối ưu đồng hồ
+  hệ thống* thành *Tối ưu Windows* (`tools\toi-uu`): một nút Kiểm tra xem cả hai, gợi ý nút sửa (bật lại Tối ưu ổ đĩa
+  khi máy có SSD, trả đồng hồ về mặc định khi đang ép HPET); hai script đã thử kỹ giữ nguyên và chạy riêng được; file
+  trạng thái gốc ở chỗ cũ tự chuyển sang. Thu thập thông tin đã chạy thật bằng quyền thường trên máy phát triển; Kiểm
+  tra dịch vụ chạy thật, phần đồng hồ cần quyền Admin nên mới thử bằng giả lập.
 
 ## Đã sửa trong đợt này
 
@@ -112,19 +121,19 @@ Mức ưu tiên:
 | `2bfd956`, `d0e8d92` (submodule) | Khôi phục .mdf sang .sql | mdf2sql 1.1.1: hộp thoại chọn file (Tk) chạy trong tiến trình riêng thay vì trên luồng HTTP (có thể làm sập máy chủ); `Chay_tool.bat` chạy thử Python thay cho `where python` (lối tắt Microsoft Store không còn qua được); pyodbc 5.x theo `requirements.txt`. |
 | `ac49ded` | Trạm, MyExcelFix, Chuyển dữ liệu khi cài lại Windows | Trạm 1.4.0: chuẩn JSON kết quả `tramtool.ketqua/1` (`hub\lib\KetQua.ps1`), Lịch sử gắn kết quả từng lần chạy, hộp thoại *Xem chi tiết* có nút chạy tiếp; mã 2/3 có nhãn riêng; theo dõi công cụ tự nâng quyền khi mở bằng quyền thường; `webServer` trong `tool.json` để mở lại, tắt giao diện web. MyExcelFix 2026.10.3, Chuyển dữ liệu 2.1 ghi theo chuẩn. |
 | `31fe2b4` (submodule) | Khôi phục .mdf sang .sql | mdf2sql 1.2.0: `doctor --ket-qua` theo chuẩn của trạm; `tool.json` khai `webServer`; máy chủ đọc hết thân yêu cầu rồi mới trả 403 (trước đó Windows cắt kết nối, bài thử chập chờn WinError 10053); `Chay_tool.bat` tự đóng khi tắt bình thường. |
+| `389c4e1` | CheckWinFix | 2026.10.3: *Thu thập thông tin* ghi `KetQua_CheckWinFix_ThuThap_*.json` theo chuẩn của trạm (mỗi cảnh báo một mã cố định, một mức, gợi ý script chạy tiếp), cảnh báo nghiêm trọng lên đầu báo cáo; hai câu hỏi lấy từ form của trạm; lỗi nguồn `disk` trên ổ USB hoặc ổ đã rút chỉ là cảnh báo; *Kiểm tra sâu* (DISM ScanHealth, `Repair-Volume -Scan`) thay *Báo cáo sức khoẻ máy* (đã xoá). |
+| `389c4e1` | Tối ưu Windows | Gộp *Tắt/bật dịch vụ nền* và *Tối ưu đồng hồ hệ thống* vào `tools\toi-uu` (giữ lịch sử file): Kiểm tra chung ghi JSON kèm nút sửa, menu chung có hai menu con; *Bật lại dịch vụ* chọn được từng dịch vụ; file trạng thái gốc ở chỗ cũ tự chuyển sang. |
 | `a5ef3e4` | MyExcelFix | 2026.10.2: sao lưu, báo cáo, JSON kết quả vào `%LOCALAPPDATA%\MyExcelFix` (riêng từng tài khoản, không đồng bộ OneDrive); Public Documents chỉ còn snapshot cấu hình, báo cáo cũ của tài khoản đang chạy tự chuyển sang; che tên chủ tài khoản; `ThongTinKhaiBao.txt` chỉ khi đặt lại; `HOAN_TAC.bat` không tham số liệt kê bản sao lưu. |
 
 ## Bảng tổng quan
 
 | Công cụ | Dành cho | Đánh giá | Việc nên làm trước |
 |---|---|---|---|
-| CheckWinFix | Mọi người | Bộ chẩn đoán đầy đủ nhất: 24 nhóm thông tin, khoảng 45 cảnh báo tự động (lỗi sự kiện so theo nguồn + mã, cả mức Warning), chạy đúng với mọi đường dẫn. *Cứu dữ liệu* bản 2.0 an toàn hơn (ổ vật lý khác, MD5 khi SQL dừng, luôn bật lại dịch vụ), mới thử bằng giả lập. | P1: lõi dùng chung, JSON kết quả theo chuẩn của trạm, đọc EventData ở các mục còn lại. |
-| Báo cáo sức khoẻ | Mọi người | Bản 1.1 chạy được, không có sự kiện thì báo [OK]; nhưng trùng phần lớn với *Thu thập thông tin* của CheckWinFix. | P1: gộp vào CheckWinFix thành chế độ nhanh. |
+| CheckWinFix | Mọi người | Bộ chẩn đoán đầy đủ nhất: 24 nhóm thông tin, khoảng 60 cảnh báo tự động có mã cố định (lỗi sự kiện so theo nguồn + mã, cả mức Warning), trạm hiện từng cảnh báo và gợi ý script chạy tiếp; tuỳ chọn kiểm tra sâu (DISM, `chkdsk /scan`); chạy đúng với mọi đường dẫn. *Cứu dữ liệu* bản 2.0 an toàn hơn (ổ vật lý khác, MD5 khi SQL dừng, luôn bật lại dịch vụ), mới thử bằng giả lập. | P1: lõi dùng chung, JSON kết quả cho các script chuyên sâu, đọc EventData ở các mục còn lại. |
 | Sửa lỗi Windows | Kỹ thuật | Bản 2.0: DISM rồi SFC, đặt lại mạng (ghi lại IP/DNS đặt tay trước), đặt lại tường lửa (sao lưu `.wfw`, hỏi lại, khôi phục được), quét và sửa ổ đĩa (xem sức khoẻ ổ trước), kiểm tra RAM, đặt lại Windows Update (đổi tên có thời gian); mỗi lệnh kiểm tra kết quả thật. Mới thử bằng giả lập. | P1: nhật ký tóm tắt CBS/DISM; DISM dùng ISO khi Windows Update không tải được. |
 | Kiểm tra và sửa lỗi Wi-Fi | Mọi người | Bản 1.1 thêm `KET_NOI_WIFI.bat`: gọi thẳng API Wi-Fi (không phụ thuộc ngôn ngữ Windows), sửa lỗi *Can't connect to this network* khi vào mạng mới sau khi máy thức dậy, chẩn đoán từ nhật ký WLAN theo mã lý do. Phần kết nối mới chạy thử, chưa chạy thật. Menu cũ `fixwf.bat` vẫn tìm card bằng chữ. | P1: tự sửa sau khi máy thức dậy; gộp menu cũ vào `KetNoiWifi.ps1`. |
 | Máy in mạng LAN và thư mục chia sẻ | Mọi người | Chẩn đoán 11 nhóm, chỉ nút sửa theo mã lỗi; 8 nút sửa in việc sẽ làm, hỏi trước, có Chạy thử, ghi nhật ký hoàn tác; nới bảo mật tách riêng, hỏi 2 lần; không bật SMB1. Mới kiểm chứng trên máy phát triển. | P1: chạy các nút sửa ở văn phòng thật; Local Port `\\MÁY\máy-in` thay cho nới RPC; dò máy in trong mạng. |
-| Tắt/bật dịch vụ nền | Kỹ thuật | Bản 2.0: xét kiểu khởi động thật, lưu kiểu khởi động gốc ra file trước khi tắt, *Bật lại* trả đúng giá trị cũ (kể cả Tự động trễ), đọc lại sau mỗi lần đổi; Tối ưu ổ đĩa (TRIM cho SSD) và wisvc trên máy Insider phải đồng ý riêng. Mới thử bằng giả lập. | P1: kiểm tra TRIM thật thay vì chỉ cảnh báo. |
-| Tối ưu đồng hồ hệ thống | Kỹ thuật | Bản 2.0: đổi Dynamic Tick, ép HPET thẳng trong BCD và đọc lại sau khi đổi; *Trả về mặc định* xoá sạch cả ba thiết lập; hỏi rồi tạm dừng BitLocker 1 lần khởi động khi cần; dọn giá trị registry bản cũ. Mới thử bằng giả lập. | P1: đo trước/sau (LatencyMon) rồi mới khuyên dùng. |
+| Tối ưu Windows | Kỹ thuật | Gộp *Tắt/bật dịch vụ nền* và *Tối ưu đồng hồ hệ thống* (bản 2.0 của cả hai giữ nguyên). Một nút Kiểm tra xem cả dịch vụ lẫn đồng hồ, trạm hiện phát hiện kèm nút sửa. Dịch vụ: xét kiểu khởi động thật, lưu kiểu khởi động gốc trước khi tắt, *Bật lại* trả đúng giá trị cũ (kể cả Tự động trễ); Tối ưu ổ đĩa (TRIM cho SSD) và wisvc trên máy Insider phải đồng ý riêng. Đồng hồ: đổi thẳng trong BCD, đọc lại sau khi đổi, *Trả về mặc định* xoá sạch cả ba thiết lập, tạm dừng BitLocker 1 lần khởi động khi cần. Phần đổi máy mới thử bằng giả lập. | P1: kiểm tra TRIM thật thay vì chỉ cảnh báo; đo trước/sau (LatencyMon) rồi mới khuyên tối ưu đồng hồ. |
 | Gỡ sạch và cài Office theo mẫu | Kỹ thuật | Kiểm tra Office, giấy phép, bộ cài mẫu (ODT) trước; gỡ mọi bản Office rồi cài theo mẫu, mẫu hỏng thì không gỡ gì; sao lưu mẫu Word, macro, chữ ký; khoá trong mẫu không bao giờ in ra, kích hoạt chỉ theo cách của Microsoft. Kiểm tra và Chạy thử đã chạy thật; gỡ, cài, kích hoạt mới thử bằng giả lập. | P1: gỡ, cài thật trên một máy thử; tạo mẫu mới (LTSC 2024, Microsoft 365) ngay trong công cụ; Quick Repair trước khi phải gỡ. |
 | Dọn ổ C an toàn | Mọi người | Xem ổ C đầy vì đâu (rác dọn được và thứ chiếm chỗ bạn tự quyết: thùng rác, Windows.old, file ngủ đông, Zalo, Downloads); dọn file tạm cũ hơn N ngày, bộ nhớ đệm trình duyệt khi đã tắt, file tải về của Windows Update, Delivery Optimization, WinSxS. Xem trước, gõ C mới xoá; danh sách thư mục được phép. Xem và Chạy thử đã chạy thật; phần xoá mới thử trong thư mục cát. | P1: dọn thật trên một máy; dọn Teams, bộ cài cập nhật Zalo; liệt kê thư mục lớn nhất. |
 | File thẻ xe .nt | Mọi người | Chuyển danh sách Excel sang .nt, kiểm tra file .nt như phần mềm giữ xe đọc và so từng thẻ với danh sách Excel, chuyển .nt sang Excel kèm kết quả từng thẻ, sửa CardID mất số 0; bản sửa lô 3257-3426 khớp từng thẻ với bản sửa tay. Không cần Excel. | P1: nạp thử file do công cụ ghi vào phần mềm thật; so với danh sách thẻ đang có trong phần mềm trước khi nạp. |
@@ -153,8 +162,9 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
    (đã làm ở Chuyển dữ liệu khi cài lại Windows 2.0: chọn nơi lưu, mã hoá `BiMat.aes`). Dữ liệu của một tài khoản
    Windows để trong `%LOCALAPPDATA%\<công cụ>`, không để Desktop hay Public Documents; bản để gửi đi thì che số, tên
    (đã làm ở MyExcelFix 2026.10.2).
-4. **Trùng lặp.** Báo cáo sức khoẻ trùng CheckWinFix; Tắt/bật dịch vụ và Tối ưu đồng hồ cùng là *tối ưu*;
-   Sửa lỗi Windows nên là bước *Sửa* sau khi CheckWinFix chẩn đoán ra bệnh.
+4. **Trùng lặp.** Đã gộp: Báo cáo sức khoẻ vào CheckWinFix (*Kiểm tra sâu*), Tắt/bật dịch vụ và Tối ưu đồng hồ thành
+   *Tối ưu Windows*. Còn: Sửa lỗi Windows là bước *Sửa* sau khi CheckWinFix chẩn đoán ra bệnh; nay cảnh báo của
+   CheckWinFix đã gợi ý thẳng nút của Sửa lỗi Windows (`chayTiep`).
 5. **Phụ thuộc ngôn ngữ Windows.** Đọc chữ trong thông điệp sự kiện, output `netsh` tiếng Anh. Windows tiếng Việt hoặc
    card mạng đã đổi tên là hụt. Quy ước: đọc trường `EventData`, dùng cmdlet (`Get-NetAdapter`) thay vì tách chữ.
 6. **Mã hoá file.** `.ps1` cần UTF-8 có BOM, `.bat` cần không BOM, cả hai CRLF. Đã có `.editorconfig`, `.gitattributes`
@@ -164,14 +174,14 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 8. **Kết quả chỉ là chữ.** Trạm không biết công cụ chạy xong hay lỗi, tìm thấy gì. Quy ước: mỗi lần chạy ghi thêm
    một file JSON theo chuẩn `tramtool.ketqua/1` (máy, thời gian, mã thoát, trạng thái, phát hiện, mức độ, cách sửa,
    công cụ chạy tiếp, file liên quan; xem `docs\THEM-CONG-CU.md`). Đã làm cho MyExcelFix, Chuyển dữ liệu khi cài lại
-   Windows, `mdf2sql doctor`; Trạm 1.4.0 đọc và hiện trong Lịch sử. Còn lại: CheckWinFix, Sửa lỗi Windows, Máy in LAN,
-   BitLocker, Dọn ổ C, Office.
+   Windows, `mdf2sql doctor`, *Thu thập thông tin* của CheckWinFix, Kiểm tra của Tối ưu Windows; Trạm 1.4.0 đọc và
+   hiện trong Lịch sử. Còn lại: Sửa lỗi Windows, Máy in LAN, BitLocker, Dọn ổ C, Office, các script chuyên sâu của
+   CheckWinFix.
 9. **Bài thử không nằm trong repo.** Các nút đổi máy chủ yếu được thử bằng giả lập, nhưng bài thử chỉ nằm ở thư mục
    tạm của phiên làm việc nên sửa sau không chạy lại được. Đã làm: `tests\` với một trình chạy chung
-   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 35 bài cho 17 bộ (cú pháp, mã hoá file, danh mục và lược đồ
+   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 36 bài cho 15 bộ (cú pháp, mã hoá file, danh mục và lược đồ
    `tool.json`, không commit dữ liệu khách, lan can và kết quả JSON của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
-   dịch vụ, đồng hồ, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe, Đăng xuất GitHub, Báo cáo sức khoẻ, Ghi âm
-   sang Word, `.bat` của mdf2sql) và `tools\mdf2sql\tests` (unittest).
+   Tối ưu Windows, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe, Đăng xuất GitHub, Ghi âm sang Word, `.bat` của mdf2sql) và `tools\mdf2sql\tests` (unittest).
    Chạy bằng quyền thường, thư mục tạm ngoài repo, registry chỉ trong `HKCU\Software\TramToolTest`. Quy ước: chạy
    trước mỗi lần commit; thêm, sửa công cụ thì thêm bài thử. Giả lập không thay được chạy thật trên máy thử.
 
@@ -198,14 +208,16 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 
 - [x] Chuẩn JSON kết quả chung; Trạm đọc để hiện *tìm thấy gì* và gợi ý công cụ chạy tiếp (Trạm 1.4.0; MyExcelFix,
       Chuyển dữ liệu khi cài lại Windows, `mdf2sql doctor` đã ghi theo chuẩn).
-- [ ] JSON kết quả theo chuẩn cho CheckWinFix, Sửa lỗi Windows, Máy in LAN, BitLocker, Dọn ổ C, Office.
+- [x] JSON kết quả theo chuẩn cho *Thu thập thông tin* của CheckWinFix (2026.10.3) và Kiểm tra của Tối ưu Windows.
+- [ ] JSON kết quả theo chuẩn cho Sửa lỗi Windows, Máy in LAN, BitLocker, Dọn ổ C, Office, các script chuyên sâu của
+      CheckWinFix.
 - [x] Trạm đợi tiến trình xong trong nền, ghi mã thoát và thời gian chạy vào Lịch sử (Trạm 1.1.0). Công cụ tự nâng
       quyền: cửa sổ đầu đợi cửa sổ Admin và trả mã của nó (bài thử tĩnh kiểm), trạm theo dõi cả khi mở bằng quyền
       thường (Trạm 1.4.0).
 - [ ] Lõi PowerShell dùng chung (kiểm tra Admin, ghi log, đọc SMART, minidump, WHEA, chọn nơi lưu), build ra từng `.bat`
       một file như MyExcelFix để vẫn gửi khách được một file.
-- [ ] Gộp: Báo cáo sức khoẻ thành chế độ nhanh của CheckWinFix; Tắt/bật dịch vụ + Tối ưu đồng hồ thành một công cụ
-      *Tối ưu* có trang trạng thái.
+- [x] Gộp: Báo cáo sức khoẻ thành *Kiểm tra sâu* của CheckWinFix (2026.10.3); Tắt/bật dịch vụ + Tối ưu đồng hồ thành
+      *Tối ưu Windows* có một nút Kiểm tra chung (1.0).
 - [ ] Khôi phục .mdf: `.venv` riêng có pyodbc khoá phiên bản; dọn database tạm, thư mục làm việc bị bỏ lại.
 - [x] Khôi phục .mdf: hộp thoại chọn file trong tiến trình riêng; `Chay_tool.bat` chạy thử Python thật (mdf2sql 1.1.1).
 - [x] Khôi phục .mdf: trạm đọc `server.json` để mở lại, tắt giao diện; `doctor --ket-qua` (mdf2sql 1.2.0, Trạm 1.4.0).
