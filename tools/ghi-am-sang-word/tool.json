@@ -18,7 +18,7 @@
       "type": "console",
       "risk": "read-only",
       "primary": true,
-      "duration": "Khoảng 12–15 phút cho mỗi giờ ghi âm (card đồ hoạ); bằng CPU chậm hơn nhiều lần",
+      "duration": "Khoảng 12-15 phút cho mỗi giờ ghi âm (card đồ hoạ); bằng CPU chậm hơn nhiều lần",
       "description": "Nhận dạng các file đã chọn; không chọn thì xử lý mọi file ghi âm mới trong thư mục công cụ. File gốc giữ nguyên. Card đồ hoạ lỗi thì tự chạy lại bằng CPU.",
       "args": [
         { "id": "files", "type": "file", "multiple": true, "label": "File ghi âm hoặc video", "filter": "Ghi âm, video|*.mp3;*.m4a;*.wav;*.aac;*.ogg;*.opus;*.flac;*.wma;*.amr;*.3gp;*.mp4;*.mov;*.mkv;*.webm|Tất cả|*.*", "startIn": "tool", "help": "Bỏ trống: xử lý mọi file ghi âm mới đặt trong thư mục công cụ." },
@@ -50,7 +50,7 @@
       "type": "console",
       "risk": "modifies-system",
       "keepOpen": true,
-      "duration": "Vài giây nếu đã đủ; lần đầu 20–60 phút (tải khoảng 5 GB)",
+      "duration": "Vài giây nếu đã đủ; lần đầu 20-60 phút (tải khoảng 5 GB)",
       "description": "Kiểm tra .venv và mô hình; thiếu hoặc hỏng thì dựng lại đúng phiên bản thư viện. Không cần quyền Admin.",
       "changes": [
         "Cài Python 3.12 cho riêng tài khoản này nếu máy chưa có (winget)",
@@ -85,10 +85,10 @@
     "Mục lục trong file Word hoàn chỉnh chưa tự cập nhật khi mở (phải bấm F9)."
   ],
   "upgrades": [
-    "P1 – Mã thoát riêng (vd 3) cho 'card đồ hoạ lỗi'; chỉ chạy lại bằng CPU các file chưa xong.",
-    "P1 – Lưu tiến độ theo từng khúc để chạy tiếp được; hết bộ nhớ card thì thử lại khúc đó với beam 1–2.",
-    "P1 – Tên kết quả giữ cả đuôi file gốc; thêm --ra để chọn thư mục kết quả.",
-    "P2 – In tiến độ dạng JSON để Trạm Tool hiện phần trăm; bật updateFields cho mục lục Word.",
-    "P2 – Bỏ nvidia-cudnn-cu12 (khoảng 1 GB) nếu chạy thật trên GPU xác nhận ctranslate2 4.8 đã kèm cuDNN."
+    "P1: Mã thoát riêng (vd 3) cho 'card đồ hoạ lỗi'; chỉ chạy lại bằng CPU các file chưa xong.",
+    "P1: Lưu tiến độ theo từng khúc để chạy tiếp được; hết bộ nhớ card thì thử lại khúc đó với beam 1-2.",
+    "P1: Tên kết quả giữ cả đuôi file gốc; thêm --ra để chọn thư mục kết quả.",
+    "P2: In tiến độ dạng JSON để Trạm Tool hiện phần trăm; bật updateFields cho mục lục Word.",
+    "P2: Bỏ nvidia-cudnn-cu12 (khoảng 1 GB) nếu chạy thật trên GPU xác nhận ctranslate2 4.8 đã kèm cuDNN."
   ]
 }

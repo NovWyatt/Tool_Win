@@ -31,7 +31,7 @@
     "Luôn in 'Đã chạy lệnh xoá' kể cả khi không có mục nào để xoá."
   ],
   "upgrades": [
-    "P1 – Lọc 'cmdkey /list' theo 'github' để xoá đúng mọi mục, hoặc dùng 'git credential-manager github logout' của GCM.",
-    "P2 – Cho chọn tài khoản cần xoá thay vì xoá hết."
+    "P1: Lọc 'cmdkey /list' theo 'github' để xoá đúng mọi mục, hoặc dùng 'git credential-manager github logout' của GCM.",
+    "P2: Cho chọn tài khoản cần xoá thay vì xoá hết."
   ]
 }

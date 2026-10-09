@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "tool.schema.json",
-  "title": "Trạm Tool – tool.json",
+  "title": "Trạm Tool: tool.json",
   "description": "Khai báo một công cụ trong tools\\<thư-mục>\\tool.json. Trạm đọc file này để hiện tên, nút chạy, form tham số, yêu cầu cài đặt, trạng thái máy và kết quả. Xem docs\\THEM-CONG-CU.md.",
   "type": "object",
   "required": ["id", "name", "summary", "actions"],
@@ -63,9 +63,9 @@
     "notes": { "description": "Ghi chú tự do, trạm chưa hiển thị.", "type": "array", "items": { "type": "string" } },
     "issues": { "description": "Lỗi, rủi ro đã biết. Hiện ở mục 'Lỗi đã biết và hướng nâng cấp'.", "type": "array", "items": { "type": "string" } },
     "upgrades": {
-      "description": "Hướng nâng cấp, mở đầu bằng mức ưu tiên: 'P0 – ...' (nên làm ngay), 'P1 – ...', 'P2 – ...'.",
+      "description": "Hướng nâng cấp, mở đầu bằng mức ưu tiên: 'P0: ...' (nên làm ngay), 'P1: ...', 'P2: ...'.",
       "type": "array",
-      "items": { "type": "string", "pattern": "^P[0-2] – " }
+      "items": { "type": "string", "pattern": "^P[0-2]: " }
     }
   },
   "definitions": {

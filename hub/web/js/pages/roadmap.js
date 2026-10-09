@@ -12,7 +12,7 @@ export function roadmapPage() {
   const r = S.roadmap;
   return html`<div class="page">
     ${pageHead('Phân tích và nâng cấp', 'Đánh giá từng công cụ, lỗi đã biết và lộ trình nâng cấp. Nguồn: docs\\PHAN-TICH-NANG-CAP.md')}
-    <div class="card doc">${!r ? html`<div class="skeleton" style="height:160px;border:0"></div>`
-      : r.error ? html`<p class="muted">${r.error}</p>` : unsafeHTML(renderMarkdown(r.text))}</div>
+    <article class="doc">${!r ? html`<div class="skeleton" style="height:160px"></div>`
+      : r.error ? html`<p class="muted">${r.error}</p>` : unsafeHTML(renderMarkdown(r.text))}</article>
   </div>`;
 }

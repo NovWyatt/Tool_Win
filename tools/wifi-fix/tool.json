@@ -107,9 +107,9 @@
     "Menu cũ mục 2 không nhắc phải khởi động lại sau khi đặt lại Winsock/TCP-IP; ipconfig /release ngắt mạng mọi card, không chỉ Wi-Fi."
   ],
   "upgrades": [
-    "P1 – Tự sửa sau khi máy thức dậy: tác vụ theo sự kiện Kernel-Power 507, thấy tự kết nối treo quá 20 giây thì khởi động lại card.",
-    "P1 – Chuyển các mục của menu cũ (đặt lại IP, DNS, Winsock) vào KetNoiWifi.ps1 với Get-NetAdapter, nhắc khởi động lại.",
-    "P2 – Đặt lại proxy và hosts (netsh winhttp reset proxy) khi có mạng mà trình duyệt không vào được.",
-    "P2 – Gắn 'netsh wlan show wlanreport' (cần quyền Admin) vào báo cáo chẩn đoán."
+    "P1: Tự sửa sau khi máy thức dậy: tác vụ theo sự kiện Kernel-Power 507, thấy tự kết nối treo quá 20 giây thì khởi động lại card.",
+    "P1: Chuyển các mục của menu cũ (đặt lại IP, DNS, Winsock) vào KetNoiWifi.ps1 với Get-NetAdapter, nhắc khởi động lại.",
+    "P2: Đặt lại proxy và hosts (netsh winhttp reset proxy) khi có mạng mà trình duyệt không vào được.",
+    "P2: Gắn 'netsh wlan show wlanreport' (cần quyền Admin) vào báo cáo chẩn đoán."
   ]
 }

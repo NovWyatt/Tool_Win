@@ -80,16 +80,16 @@ function jobItem(j) {
   const live = j.state === 'running';
   return html`<div class="job ${live ? 'live' : `end ${st.color}`}">
     <button class="job-main" title="Mở trang công cụ" @click=${() => go(`#/tool/${enc(j.toolId)}`)}>
-      ${live ? html`<fluent-spinner size="tiny" aria-label="Đang chạy"></fluent-spinner>` : html`<span class="job-ic">${icon(st.icon, 'ic-16')}</span>`}
+      ${live ? html`<span class="live-mark" role="img" aria-label="Đang chạy"></span>` : html`<span class="job-ic">${icon(st.icon, 'ic-16')}</span>`}
       <span class="job-text">
         <span class="job-name">${t ? t.name : j.toolName}</span>
         <span class="job-sub">${j.actionLabel}</span>
       </span>
       <span class="job-time">${live ? fmtElapsed(elapsed(j)) : `${st.label}${st.dur != null ? ` sau ${fmtDuration(st.dur)}` : ''}`}</span>
     </button>
-    ${live && !j.elevated ? html`<button class="icon-btn" title="Hiện cửa sổ công cụ" aria-label="Hiện cửa sổ" @click=${() => focusJob(j)}>${icon('open', 'ic-16')}</button>` : nothing}
+    ${live && !j.elevated ? html`<button class="icon-btn sm" title="Hiện cửa sổ công cụ" aria-label="Hiện cửa sổ" @click=${() => focusJob(j)}>${icon('open', 'ic-16')}</button>` : nothing}
     ${live && j.elevated ? html`<span class="job-shield" title="Chạy với quyền Admin">${icon('shield', 'ic-16')}</span>` : nothing}
-    ${!live ? html`<button class="icon-btn" title="Ẩn khỏi thanh này" aria-label="Ẩn" @click=${() => dismiss([j.id])}>${icon('dismiss', 'ic-16')}</button>` : nothing}
+    ${!live ? html`<button class="icon-btn sm" title="Ẩn khỏi thanh này" aria-label="Ẩn" @click=${() => dismiss([j.id])}>${icon('dismiss', 'ic-16')}</button>` : nothing}
   </div>`;
 }
 

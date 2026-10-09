@@ -18,7 +18,7 @@
       "type": "console",
       "risk": "read-only",
       "primary": true,
-      "duration": "1–2 phút mỗi bản vẽ nhỏ, 5–35 phút mỗi bản vẽ lớn",
+      "duration": "1-2 phút mỗi bản vẽ nhỏ, 5-35 phút mỗi bản vẽ lớn",
       "description": "Chuyển mọi file .dwg trong thư mục đã chọn (không gồm thư mục con). Bản vẽ đã có PDF mới hơn thì bỏ qua.",
       "args": [
         { "id": "thu-muc", "type": "folder", "label": "Thư mục chứa bản vẽ .dwg", "required": true },
@@ -32,7 +32,7 @@
       "file": "CHUYEN_DWG_SANG_PDF.bat",
       "type": "console",
       "risk": "read-only",
-      "duration": "1–35 phút mỗi bản vẽ",
+      "duration": "1-35 phút mỗi bản vẽ",
       "description": "Chọn một hoặc nhiều file .dwg (giữ Ctrl để chọn nhiều).",
       "args": [
         { "id": "files", "type": "file", "multiple": true, "required": true, "label": "File bản vẽ .dwg", "filter": "Bản vẽ AutoCAD|*.dwg" },
@@ -46,7 +46,7 @@
       "type": "console",
       "risk": "modifies-system",
       "keepOpen": true,
-      "duration": "2–5 phút lần đầu (tải khoảng 100 MB)",
+      "duration": "2-5 phút lần đầu (tải khoảng 100 MB)",
       "description": "Tìm Python 3.12 (thiếu thì cài cho riêng tài khoản này), dựng .venv đúng phiên bản thư viện, tải LibreDWG 0.14 có kiểm mã SHA256. Không cần quyền Admin.",
       "changes": [
         "Cài Python 3.12 cho riêng tài khoản này nếu máy chưa có (winget)",
@@ -69,11 +69,11 @@
     "Chữ TCVN3 trong MULTILEADER, bảng (TABLE) chưa được đổi bảng mã; TEXT, MTEXT, thuộc tính khối thì đã xử lý (cả VNI và TCVN3).",
     "convert.py vá thẳng vào bên trong ezdxf 1.4.4 và PyMuPDF 1.28.2; nâng phiên bản thư viện có thể làm hỏng kết quả.",
     "LibreDWG từ chối nhầm một số file AutoCAD 2007 ('Invalid System Section'); đang lách bằng cách đệm 2 MB vào bản sao.",
-    "Bản vẽ lớn tốn 5–35 phút và vài GB RAM; chưa có tiến độ theo phần trăm."
+    "Bản vẽ lớn tốn 5-35 phút và vài GB RAM; chưa có tiến độ theo phần trăm."
   ],
   "upgrades": [
-    "P1 – Bộ bản vẽ mẫu + so sánh ảnh từng trang PDF để kiểm tra mỗi khi nâng ezdxf, PyMuPDF hoặc LibreDWG.",
-    "P2 – Chọn khổ giấy, bảng nét in (.ctb) và in màu ngay trên form chạy.",
-    "P2 – In tiến độ dạng JSON để Trạm Tool hiển thị phần trăm và thời gian còn lại."
+    "P1: Bộ bản vẽ mẫu + so sánh ảnh từng trang PDF để kiểm tra mỗi khi nâng ezdxf, PyMuPDF hoặc LibreDWG.",
+    "P2: Chọn khổ giấy, bảng nét in (.ctb) và in màu ngay trên form chạy.",
+    "P2: In tiến độ dạng JSON để Trạm Tool hiển thị phần trăm và thời gian còn lại."
   ]
 }

@@ -1,5 +1,6 @@
 // Trạm Tool - giao diện (ES module, không cần build). Máy chủ: hub/TramTool.ps1
-// Mã giao diện chia theo trang trong js/ và js/pages/; vẽ bằng lit-html (vendor/lit-html), thành phần Fluent UI.
+// Mã giao diện chia theo trang trong js/ và js/pages/; vẽ bằng lit-html (vendor/lit-html) trên phần tử HTML gốc,
+// màu và hình dạng ở app.css; chữ Be Vietnam Pro, JetBrains Mono và biểu tượng Phosphor đều nằm sẵn trong trạm.
 import { html, render } from './vendor/lit-html/lit-html.js';
 import { keyed } from './vendor/lit-html/directives/keyed.js';
 import { $, api, hasToken, local, loadIcons } from './js/core.js';
@@ -63,11 +64,11 @@ function onRoute() {
 }
 
 // ------------------------------------------------------------------ phím tắt
-const dialogOpen = () => !!($('#dlg').dialog && $('#dlg').dialog.open) || $('#palette').open;
+const dialogOpen = () => $('#dlg').open || $('#palette').open;
 document.addEventListener('keydown', (e) => {
   if (dialogOpen()) return;
   const el = document.activeElement;
-  const typing = !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable || el.tagName === 'FLUENT-TEXT-INPUT');
+  const typing = !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); return; }
   if (e.key === '/' && !typing) { e.preventDefault(); openPalette(); }
 });

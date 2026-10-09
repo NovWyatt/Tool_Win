@@ -36,9 +36,9 @@
     "'Bật lại tất cả' không trả về đúng trạng thái trước khi tắt (không lưu trạng thái ban đầu)."
   ],
   "upgrades": [
-    "P0 – Tự nâng quyền và kiểm tra kết quả 'sc config' trước khi báo thành công.",
-    "P0 – Xét kiểu khởi động thay vì trạng thái chạy; lưu trạng thái ban đầu ra file để khôi phục đúng giá trị cũ.",
-    "P1 – Bỏ tắt defragsvc hoặc cảnh báo rõ về TRIM; kiểm tra bằng 'Optimize-Volume -ReTrim'.",
-    "P2 – Gộp với tối ưu đồng hồ thành một công cụ 'Tối ưu' có trang trạng thái trong Trạm Tool."
+    "P0: Tự nâng quyền và kiểm tra kết quả 'sc config' trước khi báo thành công.",
+    "P0: Xét kiểu khởi động thay vì trạng thái chạy; lưu trạng thái ban đầu ra file để khôi phục đúng giá trị cũ.",
+    "P1: Bỏ tắt defragsvc hoặc cảnh báo rõ về TRIM; kiểm tra bằng 'Optimize-Volume -ReTrim'.",
+    "P2: Gộp với tối ưu đồng hồ thành một công cụ 'Tối ưu' có trang trạng thái trong Trạm Tool."
   ]
 }

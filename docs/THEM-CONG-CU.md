@@ -60,7 +60,7 @@ Lỗi trạm phát hiện khi đọc (thiếu file, sai mức rủi ro, flag sai
 | `status`, `statusNote` | | `ok` / `warning` / `broken` và câu giải thích hiện ở đầu trang. |
 | `tags` | | Từ khoá phụ cho ô tìm kiếm (gõ không dấu vẫn tìm ra). |
 | `docs` | | File hướng dẫn `.md` hoặc `.txt` trong thư mục công cụ; trạm hiển thị ngay trong trang. |
-| `issues`, `upgrades` | | Lỗi đã biết và hướng nâng cấp. `upgrades` mở đầu bằng `P0 – `, `P1 – ` hoặc `P2 – `. |
+| `issues`, `upgrades` | | Lỗi đã biết và hướng nâng cấp. `upgrades` mở đầu bằng `P0: `, `P1: ` hoặc `P2: `. |
 
 ## Nút chạy (`actions`)
 

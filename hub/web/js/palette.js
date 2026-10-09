@@ -106,7 +106,7 @@ function draw() {
     lastGroup = it.group;
     return html`${head}<li class="pal-item" role="option" id="pal-${i}" aria-selected=${i === active}
       @mousemove=${() => { if (active !== i) { active = i; draw(); } }} @click=${(e) => choose(i, e.ctrlKey)}>
-      <span class="tile sm">${icon(it.icon)}</span>
+      ${icon(it.icon)}
       <span class="pal-text"><span class="pal-title">${it.title}</span>${it.sub ? html`<span class="pal-sub">${it.sub}</span>` : nothing}</span>
       ${i === active && it.hint ? html`<span class="pal-hint">${it.hint}</span>` : nothing}
     </li>`;

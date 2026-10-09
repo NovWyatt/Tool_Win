@@ -13,7 +13,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$HubVersion = '1.2.0'
+$HubVersion = '1.3.0'
 $HubDir = $PSScriptRoot
 $RootDir = Split-Path $HubDir -Parent
 if (-not $ToolsDir) { $ToolsDir = Join-Path $RootDir 'tools' }
@@ -247,21 +247,6 @@ function Get-RepoDoc {
     }
     if (-not (Test-Path -LiteralPath $path)) { throw "Chưa có tài liệu '$Name'." }
     return [IO.File]::ReadAllText($path, [Text.Encoding]::UTF8)
-}
-
-function New-DesktopShortcut {
-    $desktop = [Environment]::GetFolderPath('Desktop')
-    $lnk = Join-Path $desktop 'Trạm Tool.lnk'
-    $shell = New-Object -ComObject WScript.Shell
-    $s = $shell.CreateShortcut($lnk)
-    $s.TargetPath = Join-Path $RootDir 'TramTool.bat'
-    $s.WorkingDirectory = $RootDir
-    $s.WindowStyle = 7
-    $ico = Join-Path $HubDir 'web\tramtool.ico'
-    $s.IconLocation = if (Test-Path -LiteralPath $ico) { $ico } else { "$env:SystemRoot\System32\imageres.dll,109" }
-    $s.Description = 'Trạm Tool - chọn và chạy công cụ của Wyatt'
-    $s.Save()
-    return $lnk
 }
 
 # ------------------------------------------------------------------ định tuyến API
@@ -523,7 +508,7 @@ function Invoke-Api {
             Write-JsonFile -Path $SettingsFile -InputObject $s
             return $s
         }
-        'POST /api/shortcut' { return @{ ok = $true; path = (New-DesktopShortcut) } }
+        'POST /api/shortcut' { return @{ ok = $true; path = (New-DesktopShortcut -RootDir $RootDir -HubDir $HubDir) } }
         'POST /api/open-root' { Open-HubPath -Path $RootDir -Reveal; return @{ ok = $true } }
         'POST /api/shutdown' { $State.Stop = $true; return @{ ok = $true } }
         default { throw [System.Collections.Generic.KeyNotFoundException]::new("Không có API $Method $Path") }

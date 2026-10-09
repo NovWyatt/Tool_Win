@@ -1,11 +1,17 @@
 // Trạm Tool - các khối giao diện dùng chung giữa các trang.
 import { html, nothing } from '../vendor/lit-html/lit-html.js';
-import { icon, enc, timeAgo, fmtDuration } from './core.js';
+import { icon, enc, timeAgo, clock, dayKey, fmtDuration } from './core.js';
 import { S, go, isPinned, togglePin, depsStatus, missingDeps, primaryAction, runState, RISK } from './state.js';
 import { runAction } from './run.js';
 import { toast } from './ui.js';
 
 export const stop = (fn) => (e) => { e.stopPropagation(); e.preventDefault(); fn(e); };
+
+// Nút: kind = primary (một nút chính mỗi vùng) | secondary | ghost | danger.
+export function btn(label, onClick, { kind = 'secondary', ic = '', sm = false, title = '', disabled = false, pressed = null } = {}) {
+  return html`<button class="btn ${kind}${sm ? ' sm' : ''}" title=${title || nothing} ?disabled=${disabled}
+    aria-pressed=${pressed == null ? nothing : String(pressed)} @click=${onClick}>${ic ? icon(ic) : nothing}${label}</button>`;
+}
 
 export function section(title, desc, body, { tools = nothing, id = nothing } = {}) {
   return html`<section class="section" id=${id}>
@@ -25,13 +31,15 @@ export function pageHead(title, desc, actions = nothing) {
 }
 
 export function emptyState(ic, title, text, action = nothing) {
-  return html`<div class="card empty">${icon(ic)}<strong>${title}</strong>${text ? html`<span>${text}</span>` : nothing}${action}</div>`;
+  return html`<div class="empty">${icon(ic)}<strong>${title}</strong>${text ? html`<span>${text}</span>` : nothing}${action}</div>`;
 }
 
-export const skeleton = (n = 3, h = 72) => html`${Array.from({ length: n }, () => html`<div class="skeleton" style="height:${h}px"></div>`)}`;
+export const skeleton = (n = 3, h = 64) => html`<div class="stack">${Array.from({ length: n }, () => html`<div class="skeleton" style="height:${h}px"></div>`)}</div>`;
 
+// Nhãn trạng thái. color theo cách gọi cũ (danger, warning, success, brand, informative, subtle).
+const TAG = { danger: 'danger', warning: 'warn', success: 'ok', brand: 'accent', informative: 'accent' };
 export function badge(color, text, ic = '') {
-  return html`<fluent-badge appearance="tint" color=${color} size="medium">${ic ? icon(ic) : nothing}${text}</fluent-badge>`;
+  return html`<span class="tag ${TAG[color] || ''}">${ic ? icon(ic) : nothing}${text}</span>`;
 }
 
 // Mỗi công cụ chỉ hiện một dấu hiệu, và chỉ khi có điều bất thường; "Chỉ đọc" là mặc định nên không ghi.
@@ -45,19 +53,30 @@ export function statusBadge(t) {
   return nothing;
 }
 
-export function runStateBadge(h) {
+// Kết quả một lần chạy: chữ kèm biểu tượng, không đóng khung.
+export function runStateText(h, { withDur = true } = {}) {
   const st = runState(h);
-  const dur = st.dur != null ? ` sau ${fmtDuration(st.dur)}` : '';
-  return badge(st.color, `${st.label}${dur}`);
+  const dur = withDur && st.dur != null ? ` sau ${fmtDuration(st.dur)}` : '';
+  return html`<span class="state ${st.color}">${h.state === 'running' ? html`<span class="live-mark" aria-hidden="true"></span>` : icon(st.icon)}${st.label}${dur}</span>`;
+}
+
+// Giờ ngắn cho cột thời gian: hôm nay "14:05", hôm qua, còn lại "07/10".
+export function shortWhen(iso) {
+  const k = dayKey(iso);
+  const now = new Date();
+  if (k === dayKey(now.toISOString())) return clock(iso);
+  if (k === dayKey(new Date(now.getTime() - 86400000).toISOString())) return 'Hôm qua';
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 // Nút Chạy: action cần Admin có biểu tượng khiên (Windows sẽ hỏi UAC).
-export function runButton(t, a, { appearance = '', label = 'Chạy', size = '' } = {}) {
+export function runButton(t, a, { kind = 'secondary', label = 'Chạy', sm = false } = {}) {
   if (!a) return nothing;
-  const app = appearance || (a.risk === 'modifies-system' ? 'outline' : 'primary');
-  return html`<fluent-button appearance=${app} size=${size || nothing} ?disabled=${!a.exists}
-    title=${a.admin ? `${a.label}. Cần quyền Admin, Windows sẽ hỏi.` : a.label}
-    @click=${stop(() => runAction(t.id, a.id))}>${icon(a.admin ? 'shield' : 'play', 'ic-16')}${label}</fluent-button>`;
+  return btn(label, stop(() => runAction(t.id, a.id)), {
+    kind, sm, ic: a.admin ? 'shield' : 'play', disabled: !a.exists,
+    title: a.admin ? `${a.label}. Cần quyền Admin, Windows sẽ hỏi.` : a.label,
+  });
 }
 
 export function pinButton(t) {
@@ -66,32 +85,31 @@ export function pinButton(t) {
     title=${on ? 'Bỏ ghim' : 'Ghim lên Tổng quan'} @click=${stop(() => togglePin(t.id).catch((e) => toast('error', e.message)))}>${icon(on ? 'star-filled' : 'star')}</button>`;
 }
 
-const onRowKey = (hash) => (e) => {
+export const onRowKey = (hash) => (e) => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); go(hash); }
 };
 
+// Một dòng trong danh mục: cả dòng bấm được để mở trang công cụ; nút Chạy và Ghim hiện rõ khi rê chuột.
 export function toolRow(t) {
   const hash = `#/tool/${enc(t.id)}`;
-  return html`<div class="row clickable" role="link" tabindex="0" @click=${() => go(hash)} @keydown=${onRowKey(hash)}>
-    <div class="tile${t.auto ? ' muted' : ''}">${icon(t.icon || 'toolbox')}</div>
-    <div class="row-main">
-      <div class="row-title"><span class="name">${t.name}</span>${statusBadge(t)}</div>
-      <div class="row-sub">${t.summary}</div>
+  return html`<div class="trow" role="link" tabindex="0" aria-label=${t.name} @click=${() => go(hash)} @keydown=${onRowKey(hash)}>
+    ${icon(t.icon || 'toolbox')}
+    <div>
+      <div class="trow-title"><span class="name">${t.name}</span>${statusBadge(t)}</div>
+      <div class="trow-sub">${t.summary}</div>
     </div>
-    <div class="row-side">${runButton(t, primaryAction(t))}${pinButton(t)}${icon('chevron-right', 'chev')}</div>
+    <div class="trow-side">${runButton(t, primaryAction(t), { sm: true })}${pinButton(t)}</div>
   </div>`;
 }
 
-// Thẻ nhỏ cho công cụ đã ghim.
-export function toolTile(t) {
-  const a = primaryAction(t);
+// Công cụ đã ghim: tên, lần chạy gần nhất, nút Chạy.
+export function pinRow(t) {
   const hash = `#/tool/${enc(t.id)}`;
   const last = (S.history || []).find((h) => h.toolId === t.id);
-  return html`<div class="card tile-card clickable" role="link" tabindex="0" @click=${() => go(hash)} @keydown=${onRowKey(hash)}>
-    <div class="tile-card-top"><div class="tile">${icon(t.icon || 'toolbox')}</div>${pinButton(t)}</div>
-    <div class="tile-card-name">${t.name}</div>
-    <div class="tile-card-sub">${last ? `Chạy ${timeAgo(last.time)}` : t.summary}</div>
-    <div class="tile-card-bar">${runButton(t, a, { size: 'small' })}${statusBadge(t)}</div>
+  return html`<div class="pin" role="link" tabindex="0" aria-label=${t.name} @click=${() => go(hash)} @keydown=${onRowKey(hash)}>
+    ${icon(t.icon || 'toolbox')}
+    <div class="what"><span class="name">${t.name}</span><span class="sub">${last ? `Chạy ${timeAgo(last.time)}` : t.summary}</span></div>
+    <div class="side">${runButton(t, primaryAction(t), { sm: true })}</div>
   </div>`;
 }
 

@@ -50,8 +50,8 @@
     "Tên file ServiceOptimizer.bat dễ nhầm với công cụ tối ưu dịch vụ."
   ],
   "upgrades": [
-    "P0 – Hoặc bỏ công cụ, hoặc viết lại bằng 'bcdedit /set {current} disabledynamictick yes' và 'bcdedit /deletevalue {current} useplatformclock' (trả về mặc định), có tự nâng quyền và đọc trạng thái thật từ 'bcdedit /enum {current}'.",
-    "P1 – Đo trước/sau (độ trễ DPC bằng LatencyMon) rồi mới khuyên dùng: hai tinh chỉnh này thường không cải thiện trên Windows 10/11 hiện đại và có thể tăng điện năng tiêu thụ.",
-    "P2 – Đổi tên file thành ClockOptimizer.bat; gộp với tối ưu dịch vụ thành một công cụ 'Tối ưu' có trang trạng thái."
+    "P0: Hoặc bỏ công cụ, hoặc viết lại bằng 'bcdedit /set {current} disabledynamictick yes' và 'bcdedit /deletevalue {current} useplatformclock' (trả về mặc định), có tự nâng quyền và đọc trạng thái thật từ 'bcdedit /enum {current}'.",
+    "P1: Đo trước/sau (độ trễ DPC bằng LatencyMon) rồi mới khuyên dùng: hai tinh chỉnh này thường không cải thiện trên Windows 10/11 hiện đại và có thể tăng điện năng tiêu thụ.",
+    "P2: Đổi tên file thành ClockOptimizer.bat; gộp với tối ưu dịch vụ thành một công cụ 'Tối ưu' có trang trạng thái."
   ]
 }

@@ -15,14 +15,14 @@ export function navTemplate() {
   return html`
     <div class="brand">
       <span class="brand-mark">${icon('toolbox')}</span>
-      <span>Trạm Tool<small>Công cụ Windows của Wyatt</small></span>
+      <span class="brand-text"><strong>Trạm Tool</strong><small>Bộ công cụ Windows</small></span>
     </div>
     <button class="nav-search" @click=${() => openPalette()} aria-label="Tìm hoặc chạy (Ctrl+K)">
       ${icon('search', 'ic-16')}<span>Tìm hoặc chạy</span><span class="keys"><kbd>Ctrl</kbd><kbd>K</kbd></span>
     </button>
     <div class="nav-scroll">
-      ${item('#/', 'home', 'Tổng quan', r.name === 'home', running ? null : tools.length)}
-      ${running ? html`<div class="nav-running" title="Số công cụ đang chạy">${icon('window-console', 'ic-16')} Đang chạy ${running}</div>` : nothing}
+      ${item('#/', 'home', 'Tổng quan', r.name === 'home', tools.length)}
+      ${running ? html`<div class="nav-running" title="Số công cụ đang chạy"><span class="live-mark" aria-hidden="true"></span>Đang chạy ${running}</div>` : nothing}
       <div class="nav-group-title">Nhóm công cụ</div>
       ${S.categories.map((c) => {
         const n = tools.filter((t) => t.category === c.id).length;
@@ -37,12 +37,12 @@ export function navTemplate() {
       <span title=${S.hub && S.hub.isAdmin ? 'Trạm đang chạy với quyền Admin' : 'Máy đang dùng trạm'}>${S.hub ? S.hub.computer : ''}${S.hub && S.hub.isAdmin ? ' (Admin)' : ''}</span>
       <label class="simple-toggle" title="Chế độ đơn giản: ẩn công cụ kỹ thuật">
         <span>Đơn giản</span>
-        <fluent-switch .checked=${S.settings.simple} @change=${(e) => {
+        <input type="checkbox" role="switch" class="switch" .checked=${S.settings.simple} @change=${(e) => {
           const on = !!e.target.checked;
           if (on === S.settings.simple) return;
           saveSettings({ simple: on }).then(() => toast('info', on ? 'Đã bật chế độ đơn giản: ẩn công cụ kỹ thuật.' : 'Đã tắt chế độ đơn giản.', { ms: 2500 }))
             .catch((err) => toast('error', err.message));
-        }}></fluent-switch>
+        }}>
       </label>
     </div>`;
 }

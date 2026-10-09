@@ -2,7 +2,7 @@
 import { html, nothing } from '../../vendor/lit-html/lit-html.js';
 import { api, icon, enc, clock, groupByDay } from '../core.js';
 import { S, go, update } from '../state.js';
-import { section, pageHead, emptyState, skeleton, runStateBadge, badge } from '../parts.js';
+import { pageHead, emptyState, skeleton, runStateText, badge, btn } from '../parts.js';
 import { runAction } from '../run.js';
 import { toast, confirmDialog, openDialog } from '../ui.js';
 import { loadHistory } from '../data.js';
@@ -103,7 +103,7 @@ async function showChanges(h) {
   const changed = items.filter((x) => x.changed);
   const restorable = changed.filter((x) => x.restorable);
   const body = html`<p>So trạng thái lúc ${clock(h.time)}, ngay trước khi chạy "${r.actionLabel}", với bây giờ.</p>
-    <div class="card diff">${items.map((x) => html`<div class="kv">
+    <div class="panel diff">${items.map((x) => html`<div class="kv">
       <span class="k">${x.label}<small class="mono">${breakPath(x.target)}</small></span>
       <span class="v">${x.changed ? html`${x.before} → ${x.after}` : html`<span class="muted">${x.after}</span>`}${x.note ? html`<small>${x.note}</small>` : nothing}</span>
       <span>${x.changed ? badge('warning', 'Đã đổi') : badge('subtle', 'Như cũ')}</span></div>`)}</div>
@@ -113,7 +113,7 @@ async function showChanges(h) {
     body,
     wide: true,
     buttons: restorable.length
-      ? [{ label: `Trả lại ${restorable.length} mục như trước`, appearance: 'primary', icon: 'arrow-repeat', value: 'restore' }, { label: 'Đóng', value: false }]
+      ? [{ label: 'Đóng', value: false }, { label: `Trả lại ${restorable.length} mục như trước`, appearance: 'primary', icon: 'arrow-repeat', value: 'restore' }]
       : [{ label: 'Đóng', appearance: 'primary', value: false }],
   });
   if (v !== 'restore') return;
@@ -133,20 +133,20 @@ function historyRow(h) {
   const a = t && (t.actions || []).find((x) => x.id === h.actionId);
   const vals = valuesText(a, h);
   const args = (h.args || []).filter((x) => !/^--?[A-Za-z]/.test(x));
-  return html`<div class="row hist-row">
-    <div class="tile muted">${icon(t ? t.icon || 'toolbox' : 'toolbox')}</div>
-    <div class="row-main">
-      <div class="row-title"><span class="name">${t ? t.name : h.toolName}</span>${runStateBadge(h)}${h.elevated ? badge('brand', 'Admin', 'shield') : nothing}</div>
-      <div class="row-sub">${clock(h.time)} · ${h.actionLabel}</div>
+  return html`<div class="hrow">
+    <span class="when">${clock(h.time)}</span>
+    <div>
+      <div class="hrow-title"><span class="name">${t ? t.name : h.toolName}</span>${runStateText(h)}${h.elevated ? badge('brand', 'Admin', 'shield') : nothing}</div>
+      <div class="sub">${h.actionLabel}</div>
       ${vals ? html`<div class="row-args" title=${vals}>${vals}</div>`
         : args.length ? html`<div class="row-args mono" title=${args.join('\n')}>${args.join('   ')}</div>` : nothing}
       ${h.state === 'error' && h.message ? html`<div class="row-args">${h.message}</div>` : nothing}
       ${rpLine(h)}${snapLine(h)}
     </div>
-    <div class="row-side">
-      ${a && a.exists && h.state !== 'running' ? html`<fluent-button appearance="outline" title=${h.values ? 'Chạy lại với tham số của lần này' : 'Chạy lại'}
-        @click=${() => runAction(t.id, a.id, { values: h.values || null })}>${icon('arrow-repeat', 'ic-16')}Chạy lại</fluent-button>` : nothing}
-      ${t ? html`<fluent-button appearance="subtle" @click=${() => go(`#/tool/${enc(t.id)}`)}>Mở</fluent-button>` : nothing}
+    <div class="side">
+      ${a && a.exists && h.state !== 'running' ? btn('Chạy lại', () => runAction(t.id, a.id, { values: h.values || null }),
+        { sm: true, ic: 'arrow-repeat', title: h.values ? 'Chạy lại với tham số của lần này' : 'Chạy lại' }) : nothing}
+      ${t ? btn('Mở', () => go(`#/tool/${enc(t.id)}`), { kind: 'ghost', sm: true }) : nothing}
       ${h.state !== 'running' ? html`<button class="icon-btn del" title="Xoá dòng này khỏi lịch sử" aria-label="Xoá khỏi lịch sử"
         @click=${() => removeRuns([h.time])}>${icon('dismiss')}</button>` : html`<span class="icon-gap"></span>`}
     </div>
@@ -155,23 +155,23 @@ function historyRow(h) {
 
 export function historyPage() {
   const all = S.history;
-  const actions = all && all.length ? html`<fluent-button appearance="subtle" @click=${clearAll}>${icon('delete', 'ic-16')}Xoá lịch sử</fluent-button>` : nothing;
+  const actions = all && all.length ? btn('Xoá lịch sử', clearAll, { kind: 'ghost', ic: 'delete' }) : nothing;
   const head = pageHead('Lịch sử chạy', 'Mỗi lần mở công cụ từ trạm trên máy này, kết quả khi cửa sổ đóng và thời gian chạy.', actions);
-  if (!all) return html`<div class="page">${head}<div class="stack">${skeleton(4, 64)}</div></div>`;
+  if (!all) return html`<div class="page">${head}${skeleton(4, 52)}</div>`;
   if (!all.length) {
     return html`<div class="page">${head}${emptyState('history', 'Chưa chạy công cụ nào', 'Mỗi lần bấm Chạy, trạm ghi lại ở đây để bạn xem kết quả và chạy lại nhanh.',
-      html`<fluent-button @click=${() => go('#/')}>Về Tổng quan</fluent-button>`)}</div>`;
+      btn('Về Tổng quan', () => go('#/')))}</div>`;
   }
   const problems = all.filter(isProblem).length;
   const list = filter === 'problems' ? all.filter(isProblem) : all;
   const setFilter = (f) => { filter = f; update(); };
   return html`<div class="page">
     ${head}
-    <div class="filters" role="group" aria-label="Lọc">
-      <button class="filter" aria-pressed=${filter === 'all'} @click=${() => setFilter('all')}>Tất cả<span class="count">${all.length}</span></button>
-      <button class="filter" aria-pressed=${filter === 'problems'} ?disabled=${!problems} @click=${() => setFilter('problems')}>Có lỗi<span class="count">${problems}</span></button>
+    <div class="tabs" role="group" aria-label="Lọc">
+      <button class="tab" aria-pressed=${filter === 'all'} @click=${() => setFilter('all')}>Tất cả<span class="count">${all.length}</span></button>
+      <button class="tab" aria-pressed=${filter === 'problems'} ?disabled=${!problems} @click=${() => setFilter('problems')}>Có lỗi<span class="count">${problems}</span></button>
     </div>
-    ${list.length ? groupByDay(list, (h) => h.time).map((g) => section(g.label, '', html`<div class="stack">${g.items.map(historyRow)}</div>`))
+    ${list.length ? groupByDay(list, (h) => h.time).map((g) => html`<div class="day"><h2>${g.label}</h2><div class="stack">${g.items.map(historyRow)}</div></div>`)
       : emptyState('check-circle', 'Không có lần chạy nào báo lỗi', '')}
   </div>`;
 }

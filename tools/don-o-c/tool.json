@@ -120,9 +120,9 @@
     "Thư mục nằm quá sâu (đường dẫn dài hơn 260 ký tự) không đọc được: bỏ qua, không xoá."
   ],
   "upgrades": [
-    "P1 – Dọn bộ nhớ đệm Microsoft Teams, bộ cài cập nhật Zalo khi ứng dụng đã tắt (hiện chỉ báo dung lượng).",
-    "P1 – Liệt kê các thư mục lớn nhất trong hồ sơ người dùng để biết ổ đầy vì đâu.",
-    "P2 – Dọn cho mọi tài khoản trên máy trong một lần chạy (cần quyền Admin).",
-    "P2 – Hẹn giờ dọn định kỳ bằng Task Scheduler cho máy không bật được Storage Sense."
+    "P1: Dọn bộ nhớ đệm Microsoft Teams, bộ cài cập nhật Zalo khi ứng dụng đã tắt (hiện chỉ báo dung lượng).",
+    "P1: Liệt kê các thư mục lớn nhất trong hồ sơ người dùng để biết ổ đầy vì đâu.",
+    "P2: Dọn cho mọi tài khoản trên máy trong một lần chạy (cần quyền Admin).",
+    "P2: Hẹn giờ dọn định kỳ bằng Task Scheduler cho máy không bật được Storage Sense."
   ]
 }

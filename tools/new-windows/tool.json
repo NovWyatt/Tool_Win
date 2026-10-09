@@ -19,7 +19,7 @@
       "selfElevates": true,
       "risk": "asks-before-change",
       "primary": true,
-      "duration": "2–15 phút, tuỳ dung lượng ~\\.claude",
+      "duration": "2-15 phút, tuỳ dung lượng ~\\.claude",
       "description": "Tạo thư mục DuLieu_SaoLuu cạnh file .bat: hồ sơ Wi-Fi, máy in (driver, cổng TCP/IP, cấu hình in, máy in mặc định), ~\\.claude, ~\\.claude.json, dữ liệu Claude Desktop, bản HTML đọc được của các hội thoại Claude Code, khoá khôi phục BitLocker của các ổ đang mã hoá và driver mạng (hỏi trước; chọn được mọi driver của hãng hoặc không lưu).",
       "confirm": "Bản sao lưu chứa mật khẩu Wi-Fi, khoá khôi phục BitLocker dạng chữ thường và toàn bộ hội thoại Claude, nằm trong thư mục công cụ (git đã bỏ qua). Chép ra USB, không để trên ổ đang mã hoá BitLocker, rồi xoá khỏi máy khi xong.",
       "changes": [
@@ -36,7 +36,7 @@
       "admin": true,
       "selfElevates": true,
       "risk": "modifies-system",
-      "duration": "3–15 phút",
+      "duration": "3-15 phút",
       "description": "Đọc DuLieu_SaoLuu cạnh file .bat rồi cho chọn: [1] tất cả, [2] Wi-Fi, [3] máy in, [4] Claude, [5] mở khoá ổ BitLocker, [6] cài driver đã sao lưu. Wi-Fi và máy in đã có thì bỏ qua.",
       "confirm": "Chỉ chạy trên máy VỪA cài lại Windows. Phần Claude chép cấu hình từ bản sao lưu đè lên ~\\.claude, .claude.json và Claude Desktop (cấu hình cũ được lưu bản .truoc-khoi-phuc-*); hội thoại và file Cowork trên máy mới hơn bản sao lưu được giữ nguyên.",
       "changes": [
@@ -72,12 +72,12 @@
     "Driver sao lưu là bản đang cài trên máy cũ (vd. Intel AX201 23.60), có thể cũ hơn bản trên Windows Update; chọn [T] có thể vài GB và nạp cả driver của thiết bị không còn dùng."
   ],
   "upgrades": [
-    "P0 – Chọn nơi lưu (mặc định ổ không phải ổ hệ thống hoặc USB), không cho lưu trong thư mục công cụ; tuỳ chọn nén có mật khẩu cho Wi-Fi và cấu hình Claude.",
-    "P0 – manifest.json ghi 'đang làm' lúc bắt đầu và 'xong'/'một phần' lúc kết thúc; bước nhập từ chối bản chưa xong và hỏi trước khi dùng bản _cu_.",
-    "P0 – Tham số -Mode, -Target, -DryRun, -Yes, -NoPause; mã thoát 0/1/2/3 để Trạm Tool biết kết quả.",
-    "P1 – Kiểm đếm số file, dung lượng, SHA-256 file nhỏ; chạy thử (robocopy /L) xuất plan.json để xem trước.",
-    "P1 – Cài driver có sẵn của Windows bằng Add-PrinterDriver -Name; hỏi trước khi đổi kiểu khởi động dịch vụ và trả lại sau.",
-    "P1 – Sau khi mở khoá ổ BitLocker, hỏi bật tự mở khoá ngay (như công cụ BitLocker, chế độ mo-khoa) để khỏi bị khoá lại sau khi khởi động lại.",
-    "P2 – Thêm phần tuỳ chọn: winget export, thư mục người dùng (xem trước dung lượng), dấu trang trình duyệt, font."
+    "P0: Chọn nơi lưu (mặc định ổ không phải ổ hệ thống hoặc USB), không cho lưu trong thư mục công cụ; tuỳ chọn nén có mật khẩu cho Wi-Fi và cấu hình Claude.",
+    "P0: manifest.json ghi 'đang làm' lúc bắt đầu và 'xong'/'một phần' lúc kết thúc; bước nhập từ chối bản chưa xong và hỏi trước khi dùng bản _cu_.",
+    "P0: Tham số -Mode, -Target, -DryRun, -Yes, -NoPause; mã thoát 0/1/2/3 để Trạm Tool biết kết quả.",
+    "P1: Kiểm đếm số file, dung lượng, SHA-256 file nhỏ; chạy thử (robocopy /L) xuất plan.json để xem trước.",
+    "P1: Cài driver có sẵn của Windows bằng Add-PrinterDriver -Name; hỏi trước khi đổi kiểu khởi động dịch vụ và trả lại sau.",
+    "P1: Sau khi mở khoá ổ BitLocker, hỏi bật tự mở khoá ngay (như công cụ BitLocker, chế độ mo-khoa) để khỏi bị khoá lại sau khi khởi động lại.",
+    "P2: Thêm phần tuỳ chọn: winget export, thư mục người dùng (xem trước dung lượng), dấu trang trình duyệt, font."
   ]
 }

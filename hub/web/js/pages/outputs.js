@@ -4,7 +4,7 @@ import { html, nothing } from '../../vendor/lit-html/lit-html.js';
 import { live } from '../../vendor/lit-html/directives/live.js';
 import { api, icon, enc, timeAgo, fmtSize, groupByDay } from '../core.js';
 import { S, go, update } from '../state.js';
-import { section, pageHead, emptyState, skeleton, fileIcon } from '../parts.js';
+import { pageHead, emptyState, skeleton, fileIcon, btn } from '../parts.js';
 import { toast, confirmDialog } from '../ui.js';
 import { loadOutputs, loadToolOutputs } from '../data.js';
 
@@ -29,19 +29,19 @@ function toggleSel(f, on) {
 
 export function fileRow(f, { selectable = false, showTool = true } = {}) {
   const sel = S.outSel.has(keyOf(f));
-  return html`<div class="row file-row${selectable ? ' selectable' : ''}${sel ? ' selected' : ''}">
+  return html`<div class="frow${selectable ? ' selectable' : ''}${sel ? ' selected' : ''}">
     ${selectable ? html`<input type="checkbox" class="sel" .checked=${live(sel)} ?disabled=${!f.deletable}
       aria-label="Chọn ${f.name}" title=${f.deletable ? 'Chọn để xoá' : 'Kết quả này không xoá từ trạm được'}
       @change=${(e) => toggleSel(f, e.target.checked)}>` : nothing}
-    <div class="tile muted">${icon(fileIcon(f))}</div>
-    <div class="row-main">
+    ${icon(fileIcon(f))}
+    <div>
       <div class="name">${f.name}</div>
-      <div class="meta">${showTool ? `${f.label} · ${f.toolName}` : f.label}</div>
+      <div class="meta">${showTool ? `${f.label}, ${f.toolName}` : f.label}</div>
     </div>
     <div class="facts"><span>${f.isFolder ? 'Thư mục' : f.sizeText}</span><span>${timeAgo(f.modified)}</span></div>
-    <div class="row-side">
-      <fluent-button appearance="subtle" @click=${() => openOut(f, false)}>${icon('open', 'ic-16')}Mở</fluent-button>
-      <fluent-button appearance="subtle" title="Mở thư mục chứa và chọn sẵn file" @click=${() => openOut(f, true)}>${icon('folder', 'ic-16')}Thư mục</fluent-button>
+    <div class="side">
+      ${btn('Mở', () => openOut(f, false), { kind: 'ghost', sm: true, ic: 'open' })}
+      ${btn('Thư mục', () => openOut(f, true), { kind: 'ghost', sm: true, ic: 'folder', title: 'Mở thư mục chứa và chọn sẵn file' })}
       ${f.deletable ? html`<button class="icon-btn del" title="Xoá (chuyển vào Thùng rác)" aria-label="Xoá ${f.name}"
         @click=${() => deleteOutputs([f])}>${icon('delete')}</button>` : html`<span class="icon-gap"></span>`}
     </div>
@@ -58,12 +58,12 @@ export async function deleteOutputs(files) {
   const ok = await confirmDialog({
     title: one ? `Xoá "${one.name}"?` : `Xoá ${del.length} kết quả?`,
     body: html`
-      ${one ? html`<p>${one.label} · ${one.toolName}${one.isFolder ? html`<br><span class="muted">Cả thư mục và mọi thứ bên trong.</span>` : html`, ${one.sizeText}`}</p>`
+      ${one ? html`<p>${one.label}, ${one.toolName}${one.isFolder ? html`<br><span class="muted">Cả thư mục và mọi thứ bên trong.</span>` : html`, ${one.sizeText}`}</p>`
         : html`<ul class="del-list">${del.slice(0, 8).map((f) => html`<li><span class="del-name">${icon(fileIcon(f), 'ic-16')}${f.name}</span><span class="muted">${f.toolName}</span></li>`)}
           ${del.length > 8 ? html`<li class="muted">và ${del.length - 8} mục khác</li>` : nothing}</ul>
           <p class="muted small">Tổng ${size ? fmtSize(size) : ''}${size && folders ? ' và ' : ''}${folders ? `${folders} thư mục` : ''}.</p>`}
       ${notes.map((n) => html`<div class="warnbox">${icon('warning', 'ic-16')}<span>${n}</span></div>`)}
-      <p class="muted note">${icon('delete', 'ic-16')} Chuyển vào Thùng rác, khôi phục lại được. Ổ USB hoặc ổ mạng không có Thùng rác: Windows sẽ hỏi trước khi xoá hẳn.</p>`,
+      <p class="muted note">${icon('delete', 'ic-16')}<span>Chuyển vào Thùng rác, khôi phục lại được. Ổ USB hoặc ổ mạng không có Thùng rác: Windows sẽ hỏi trước khi xoá hẳn.</span></p>`,
     confirmLabel: one ? 'Chuyển vào Thùng rác' : `Xoá ${del.length} mục`,
     confirmIcon: 'delete',
     danger: true,
@@ -98,25 +98,25 @@ export function outputsPage(toolId = '') {
   const list = t ? (S.toolData[t.id] || {}).outs : S.outputs;
   const head = pageHead(t ? `Kết quả của ${t.name}` : 'Kết quả gần đây',
     t ? 'Các file, thư mục công cụ này đã tạo trên máy, mới nhất ở trên.' : 'File báo cáo và kết quả do các công cụ tạo ra trên máy này, mới nhất ở trên.',
-    html`<fluent-button appearance="subtle" @click=${() => { if (t) (S.toolData[t.id] = S.toolData[t.id] || {}).outs = null; else S.outputs = null; update(); outputsLoad(toolId); }}>${icon('refresh', 'ic-16')}Làm mới</fluent-button>`);
-  if (list == null) return html`<div class="page">${head}<div class="stack">${skeleton(4, 64)}</div></div>`;
+    btn('Làm mới', () => { if (t) (S.toolData[t.id] = S.toolData[t.id] || {}).outs = null; else S.outputs = null; update(); outputsLoad(toolId); }, { kind: 'ghost', ic: 'refresh' }));
+  if (list == null) return html`<div class="page">${head}${skeleton(4, 52)}</div>`;
 
   // Lọc theo công cụ: danh sách chung lấy tối đa 15 file mỗi công cụ, bấm lọc thì tải đủ của công cụ đó.
   const all = S.outputs || [];
   const counts = new Map();
   for (const f of all) counts.set(f.toolId, (counts.get(f.toolId) || 0) + 1);
-  const filters = html`<div class="filters" role="group" aria-label="Lọc theo công cụ">
-    <button class="filter" aria-pressed=${!t} @click=${() => go('#/outputs')}>Tất cả${S.outputs ? html`<span class="count">${all.length}</span>` : nothing}</button>
-    ${[...counts.keys()].map((id) => S.byId.get(id)).filter(Boolean).map((x) => html`<button class="filter" aria-pressed=${t && t.id === x.id}
+  const tabs = html`<div class="tabs" role="group" aria-label="Lọc theo công cụ">
+    <button class="tab" aria-pressed=${!t} @click=${() => go('#/outputs')}>Tất cả${S.outputs ? html`<span class="count">${all.length}</span>` : nothing}</button>
+    ${[...counts.keys()].map((id) => S.byId.get(id)).filter(Boolean).map((x) => html`<button class="tab" aria-pressed=${!!t && t.id === x.id}
       @click=${() => go(`#/outputs/${enc(x.id)}`)}>${x.name}<span class="count">${counts.get(x.id)}</span></button>`)}
-    ${t && !counts.has(t.id) ? html`<button class="filter" aria-pressed="true">${t.name}</button>` : nothing}
+    ${t && !counts.has(t.id) ? html`<button class="tab" aria-pressed="true">${t.name}</button>` : nothing}
   </div>`;
 
   if (!list.length) {
-    return html`<div class="page">${head}${all.length || t ? filters : nothing}
+    return html`<div class="page">${head}${all.length || t ? tabs : nothing}
       ${emptyState('document-search', t ? 'Công cụ này chưa có kết quả' : 'Chưa có kết quả nào',
         'Chạy một công cụ chẩn đoán hoặc chuyển đổi, kết quả sẽ hiện ở đây.',
-        t ? html`<fluent-button @click=${() => go(`#/tool/${enc(t.id)}`)}>Mở ${t.name}</fluent-button>` : nothing)}</div>`;
+        t ? btn(`Mở ${t.name}`, () => go(`#/tool/${enc(t.id)}`)) : nothing)}</div>`;
   }
 
   const deletable = list.filter((f) => f.deletable);
@@ -128,15 +128,15 @@ export function outputsPage(toolId = '') {
 
   return html`<div class="page">
     ${head}
-    ${filters}
+    ${tabs}
     <div class="selbar${chosen.length ? ' active' : ''}">
       <label class="check"><input type="checkbox" .checked=${live(allOn)} .indeterminate=${someOn} ?disabled=${!deletable.length}
         @change=${(e) => toggleAll(e.target.checked)}><span>Chọn tất cả</span></label>
       <span class="selbar-info">${chosen.length ? `Đã chọn ${chosen.length} mục${size ? `, ${fmtSize(size)}` : ''}` : `${list.length} mục`}</span>
-      ${chosen.length ? html`<fluent-button appearance="subtle" @click=${() => { for (const f of chosen) S.outSel.delete(keyOf(f)); update(); }}>Bỏ chọn</fluent-button>` : nothing}
-      <fluent-button appearance="primary" class="danger" ?disabled=${!chosen.length} @click=${() => deleteOutputs(chosen)}>
-        ${icon('delete', 'ic-16')}${chosen.length ? `Xoá ${chosen.length} mục` : 'Xoá mục đã chọn'}</fluent-button>
+      ${chosen.length ? btn('Bỏ chọn', () => { for (const f of chosen) S.outSel.delete(keyOf(f)); update(); }, { kind: 'ghost', sm: true }) : nothing}
+      ${btn(chosen.length ? `Xoá ${chosen.length} mục` : 'Xoá mục đã chọn', () => deleteOutputs(chosen), { kind: 'danger', sm: true, ic: 'delete', disabled: !chosen.length })}
     </div>
-    ${groupByDay(list, (f) => f.modified).map((g) => section(g.label, '', html`<div class="stack">${g.items.map((f) => fileRow(f, { selectable: true, showTool: !t }))}</div>`))}
+    ${groupByDay(list, (f) => f.modified).map((g) => html`<div class="day"><h2>${g.label}</h2>
+      <div class="stack">${g.items.map((f) => fileRow(f, { selectable: true, showTool: !t }))}</div></div>`)}
   </div>`;
 }

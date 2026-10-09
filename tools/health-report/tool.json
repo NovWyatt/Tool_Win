@@ -18,7 +18,7 @@
       "selfElevates": true,
       "risk": "read-only",
       "primary": true,
-      "duration": "5–20 phút (sfc /verifyonly và chkdsk /scan lâu nhất)",
+      "duration": "5-20 phút (sfc /verifyonly và chkdsk /scan lâu nhất)",
       "description": "12 mục kiểm tra, chỉ đọc. Kết quả: health_report_<máy>_<giờ>.txt trên Desktop của tài khoản chạy."
     }
   ],
@@ -31,7 +31,7 @@
     "Tự nâng quyền bằng đường dẫn đặt trong dấu nháy đơn: thư mục có dấu ' làm hỏng lệnh."
   ],
   "upgrades": [
-    "P1 – Gộp vào CheckWinFix (Thu thập thông tin đã có các mục này), hoặc giữ làm bản 'nhanh' dùng chung lõi.",
-    "P2 – Bỏ chkdsk /scan khỏi lần chạy mặc định (chậm), chỉ chạy khi chọn."
+    "P1: Gộp vào CheckWinFix (Thu thập thông tin đã có các mục này), hoặc giữ làm bản 'nhanh' dùng chung lõi.",
+    "P2: Bỏ chkdsk /scan khỏi lần chạy mặc định (chậm), chỉ chạy khi chọn."
   ]
 }

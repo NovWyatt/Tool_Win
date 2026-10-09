@@ -1,7 +1,7 @@
 {
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "myexcelfix",
-  "name": "MyExcel VietQR – kiểm tra và sửa lỗi",
+  "name": "MyExcel VietQR: kiểm tra và sửa lỗi",
   "version": "2026.10",
   "category": "van-phong",
   "icon": "table",
@@ -19,7 +19,7 @@
       "admin": false,
       "risk": "read-only",
       "primary": true,
-      "duration": "5–60 giây",
+      "duration": "5-60 giây",
       "description": "Kiểm tra 12 nhóm nguyên nhân (Excel, add-in, Trust Center, Trusted Locations, file bị chặn, dữ liệu MyExcel, TEMP, Defender, mạng). Ghi báo cáo .txt và snapshot .json rồi mở bằng Notepad. Chạy thêm ở một tài khoản tạo được VietQR để so sánh."
     },
     {
@@ -29,7 +29,7 @@
       "type": "console",
       "admin": false,
       "risk": "modifies-system",
-      "duration": "2–10 phút, có hỏi từng bước",
+      "duration": "2-10 phút, có hỏi từng bước",
       "description": "Sao lưu ra Desktop, nạp lại add-in, thêm Trusted Location, bật lại add-in bị vô hiệu hoá, sửa đường dẫn MyExcel tự lưu, xoá cache .exd, bỏ chặn file. Hỏi trước khi đổi tên bộ cài thừa, sửa liên kết trong file Excel và đặt lại dữ liệu MyExcel.",
       "confirm": "Lưu và đóng Excel trước khi chạy. Chạy bằng đúng tài khoản Windows đang bị lỗi.",
       "changes": [
@@ -74,11 +74,11 @@
     "Mã thoát luôn 0 nên không phân biệt được thành công hay thất bại."
   ],
   "upgrades": [
-    "P0 – Hết đầu vào thì dừng có thông báo; mã thoát: Kiểm tra 0/1/2, Sửa 0/1/2/3.",
-    "P0 – Hoàn tác an toàn: lưu hash file sau khi sửa, file đã đổi thì giữ bản hiện tại (*.truoc_hoantac); lưu trạng thái trước khi hoàn tác; đường dẫn tương đối.",
-    "P0 – Xuất JSON kết quả (mã lỗi ổn định, mức độ, cách sửa) để Trạm Tool hiển thị; build.ps1 đóng dấu phiên bản.",
-    "P1 – FixMyExcel_VietQR.bat /undo \"<thư mục>\" và /list để Trạm Tool liệt kê bản sao lưu.",
-    "P1 – Thư mục common\\ dùng chung cho hai bản build; lưu nguồn UTF-8 có BOM.",
-    "P2 – Lưu báo cáo, sao lưu theo từng tài khoản ở %LOCALAPPDATA%\\MyExcelFix thay vì Public Documents và Desktop."
+    "P0: Hết đầu vào thì dừng có thông báo; mã thoát: Kiểm tra 0/1/2, Sửa 0/1/2/3.",
+    "P0: Hoàn tác an toàn: lưu hash file sau khi sửa, file đã đổi thì giữ bản hiện tại (*.truoc_hoantac); lưu trạng thái trước khi hoàn tác; đường dẫn tương đối.",
+    "P0: Xuất JSON kết quả (mã lỗi ổn định, mức độ, cách sửa) để Trạm Tool hiển thị; build.ps1 đóng dấu phiên bản.",
+    "P1: FixMyExcel_VietQR.bat /undo \"<thư mục>\" và /list để Trạm Tool liệt kê bản sao lưu.",
+    "P1: Thư mục common\\ dùng chung cho hai bản build; lưu nguồn UTF-8 có BOM.",
+    "P2: Lưu báo cáo, sao lưu theo từng tài khoản ở %LOCALAPPDATA%\\MyExcelFix thay vì Public Documents và Desktop."
   ]
 }

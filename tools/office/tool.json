@@ -204,9 +204,9 @@
     "Khi UAC hỏi mật khẩu một Admin khác, công cụ bỏ qua phần của từng người dùng (sao lưu mẫu, giấy phép tài khoản, thiết lập) vì không phải tài khoản đang dùng máy."
   ],
   "upgrades": [
-    "P1 – Tạo, cập nhật mẫu ngay trong công cụ: tải ODT mới, chọn Office LTSC 2024 hoặc Microsoft 365, tải bộ cài về mẫu (setup.exe /download).",
-    "P1 – Sửa Office (Quick Repair, Online Repair) trước khi phải gỡ hẳn.",
-    "P2 – Đổi kênh, bật tắt cập nhật Office.",
-    "P2 – Gói ngôn ngữ, bộ soát chính tả tiếng Việt."
+    "P1: Tạo, cập nhật mẫu ngay trong công cụ: tải ODT mới, chọn Office LTSC 2024 hoặc Microsoft 365, tải bộ cài về mẫu (setup.exe /download).",
+    "P1: Sửa Office (Quick Repair, Online Repair) trước khi phải gỡ hẳn.",
+    "P2: Đổi kênh, bật tắt cập nhật Office.",
+    "P2: Gói ngôn ngữ, bộ soát chính tả tiếng Việt."
   ]
 }

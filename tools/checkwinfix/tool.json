@@ -1,7 +1,7 @@
 {
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "checkwinfix",
-  "name": "CheckWinFix – chẩn đoán máy Windows",
+  "name": "CheckWinFix: chẩn đoán máy Windows",
   "version": "2026.10",
   "category": "chan-doan",
   "icon": "stethoscope",
@@ -20,7 +20,7 @@
       "selfElevates": true,
       "risk": "read-only",
       "primary": true,
-      "duration": "1,5–3 phút",
+      "duration": "1,5-3 phút",
       "description": "Đọc 24 nhóm thông tin (ổ đĩa, SMART, CPU, RAM, khởi động, dịch vụ, nhật ký lỗi, dòng thời gian 90 ngày...) và tự chấm khoảng 45 cảnh báo. Hỏi 2 câu, Enter để bỏ qua. Xuất LagReport_<máy>_<giờ>.txt cạnh file .bat, mở Notepad và chép đường dẫn báo cáo vào clipboard."
     },
     {
@@ -42,7 +42,7 @@
       "admin": true,
       "selfElevates": true,
       "risk": "read-only",
-      "duration": "10–30 giây",
+      "duration": "10-30 giây",
       "description": "Giải mã bản ghi CPER của WHEA-Logger để chỉ ra lỗi nằm ở CPU, RAM hay thiết bị PCIe. Không hỏi gì. Xuất WheaDecode_<máy>_<giờ>.txt."
     },
     {
@@ -53,7 +53,7 @@
       "admin": true,
       "selfElevates": true,
       "risk": "asks-before-change",
-      "duration": "1–2 phút; chế độ theo dõi chạy đến khi đóng cửa sổ",
+      "duration": "1-2 phút; chế độ theo dõi chạy đến khi đóng cửa sổ",
       "description": "Phân loại từng lần tắt đột ngột trong 60 ngày (mất điện thật, màn hình xanh ẩn, giữ nút nguồn, lỗi khi ngủ), nhiệt độ, pin và nguồn. Xuất SupNguon_<máy>_<giờ>.txt rồi mới hỏi các thay đổi bên dưới (C/K, Enter = không).",
       "changes": [
         "Nếu đồng ý: bật ghi minidump và tắt tự khởi động lại khi màn hình xanh (HKLM\\SYSTEM\\CurrentControlSet\\Control\\CrashControl)",
@@ -68,7 +68,7 @@
       "admin": true,
       "selfElevates": true,
       "risk": "asks-before-change",
-      "duration": "1–3 phút",
+      "duration": "1-3 phút",
       "description": "Xuất nhật ký gốc .evtx, bảng CSV 60 ngày, SMART và gom các báo cáo vào thư mục HoSoBangChung_<máy>_<giờ> để nộp cho công ty hoặc nơi bảo hành.",
       "changes": ["Nếu đồng ý: tạo Custom View 'CheckWinFix_BangChung' trong Event Viewer"]
     },
@@ -117,11 +117,11 @@
     "Đọc chữ trong thông điệp sự kiện tiếng Anh: Windows ngôn ngữ khác bị bỏ sót; CSV theo dõi sụp nguồn lệch cột khi số thập phân dùng dấu phẩy."
   ],
   "upgrades": [
-    "P0 – Cứu dữ liệu: đối chiếu khi SQL còn dừng, so ổ vật lý nguồn/đích, tự dò mọi instance MSSQL*, try/finally bật lại dịch vụ, luôn ghi vào thư mục mới.",
-    "P0 – Cảnh báo: so theo nguồn sự kiện + mã, thêm disk 154, WHEA 1/18, đọc cả mức Warning.",
-    "P0 – Thay 'net session' bằng 'fltmc', chỉ tự nâng quyền một lần; báo lỗi rõ và trả mã thoát khác 0 khi thất bại.",
-    "P1 – Gom phần dùng chung (khởi chạy, đọc SMART, minidump, WHEA) vào một lõi, build ra từng .bat như MyExcelFix.",
-    "P1 – Xuất thêm JSON kết quả (máy, thời gian, phát hiện, mức độ) để Trạm Tool hiển thị và gợi ý script tiếp theo.",
-    "P1 – Đọc trường sự kiện từ EventData thay vì chữ trong thông điệp để chạy đúng trên Windows mọi ngôn ngữ."
+    "P0: Cứu dữ liệu: đối chiếu khi SQL còn dừng, so ổ vật lý nguồn/đích, tự dò mọi instance MSSQL*, try/finally bật lại dịch vụ, luôn ghi vào thư mục mới.",
+    "P0: Cảnh báo: so theo nguồn sự kiện + mã, thêm disk 154, WHEA 1/18, đọc cả mức Warning.",
+    "P0: Thay 'net session' bằng 'fltmc', chỉ tự nâng quyền một lần; báo lỗi rõ và trả mã thoát khác 0 khi thất bại.",
+    "P1: Gom phần dùng chung (khởi chạy, đọc SMART, minidump, WHEA) vào một lõi, build ra từng .bat như MyExcelFix.",
+    "P1: Xuất thêm JSON kết quả (máy, thời gian, phát hiện, mức độ) để Trạm Tool hiển thị và gợi ý script tiếp theo.",
+    "P1: Đọc trường sự kiện từ EventData thay vì chữ trong thông điệp để chạy đúng trên Windows mọi ngôn ngữ."
   ]
 }

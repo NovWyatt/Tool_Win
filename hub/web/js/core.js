@@ -73,6 +73,11 @@ export function groupByDay(items, timeOf) {
   return groups;
 }
 
+// Máy chủ ghi "0 ngày 22 giờ": bỏ phần 0 ngày.
+export const uptimeText = (s) => String(s || '').replace(/^0 ngày /, '');
+// Ổ "C:" -> "C"
+export const driveName = (d) => String(d || '').replace(/:$/, '');
+
 // "45 giây", "12 phút", "1 giờ 5 phút"
 export function fmtDuration(sec) {
   if (sec == null || Number.isNaN(Number(sec))) return '';

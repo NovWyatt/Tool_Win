@@ -33,8 +33,8 @@ Mức ưu tiên:
   phần *Cứu dữ liệu* của CheckWinFix.
 - **Không có tác dụng**: Tối ưu đồng hồ hệ thống ghi thiết lập vào registry trong khi Windows đọc từ BCD (`bcdedit`).
   Trạm đánh dấu *Cần xem lại* và cảnh báo trước khi chạy.
-- **Máy này chưa chạy được**: Khôi phục .mdf sang .sql (thiếu ODBC Driver 17/18 và SQL Server LocalDB). Trang công cụ
-  có nút *Cài* cho từng thứ; cả hai cần quyền Admin.
+- **Khôi phục .mdf sang .sql**: máy phát triển nay đã có ODBC Driver 17 và SQL Server Express (09/10/2026), trạm báo
+  đủ yêu cầu; máy mới thì `CAI_DAT.bat` cài ODBC Driver 18 và LocalDB (cần quyền Admin).
 
 ## Đã sửa trong đợt này
 
@@ -74,7 +74,7 @@ Mức ưu tiên:
 | Dọn ổ C an toàn | Mọi người | Xem ổ C đầy vì đâu (rác dọn được và thứ chiếm chỗ bạn tự quyết: thùng rác, Windows.old, file ngủ đông, Zalo, Downloads); dọn file tạm cũ hơn N ngày, bộ nhớ đệm trình duyệt khi đã tắt, file tải về của Windows Update, Delivery Optimization, WinSxS. Xem trước, gõ C mới xoá; danh sách thư mục được phép. Xem và Chạy thử đã chạy thật; phần xoá mới thử trong thư mục cát. | P1: dọn thật trên một máy; dọn Teams, bộ cài cập nhật Zalo; liệt kê thư mục lớn nhất. |
 | File thẻ xe .nt | Mọi người | Chuyển danh sách Excel sang .nt, kiểm tra file .nt như phần mềm giữ xe đọc và so từng thẻ với danh sách Excel, chuyển .nt sang Excel kèm kết quả từng thẻ, sửa CardID mất số 0; bản sửa lô 3257-3426 khớp từng thẻ với bản sửa tay. Không cần Excel. | P1: nạp thử file do công cụ ghi vào phần mềm thật; so với danh sách thẻ đang có trong phần mềm trước khi nạp. |
 | MyExcelFix | Mọi người | Chẩn đoán kỹ theo từng tài khoản Windows, có sao lưu và hoàn tác, mã nguồn chia module và build ra một file `.bat`. | P0: không treo khi thiếu cửa sổ dòng lệnh, hoàn tác không đè file đã sửa sau đó, mã thoát. |
-| DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5–35 phút). | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
+| DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5-35 phút). | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
 | Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn. | P1: tên kết quả giữ đuôi file gốc, lưu tiến độ để chạy tiếp, chỉ chạy lại bằng CPU khi đúng là lỗi card. |
 | Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. | P0: lệnh `doctor` kiểm tra môi trường, không dùng chung cổng 8760. |
 | Chuyển dữ liệu khi cài lại Windows | Kỹ thuật | Sao lưu Wi-Fi kèm mật khẩu, máy in kèm driver, dữ liệu Claude, khoá BitLocker, driver mạng; bước nhập mở khoá ổ BitLocker, cài lại driver. Bản sao lưu nằm cạnh script, chứa bí mật dạng chữ thường. | P0: chọn nơi lưu ngoài thư mục công cụ, đánh dấu sao lưu đã xong, chạy thử trước. |
@@ -221,9 +221,32 @@ Ghi chú:
   giữ: hai bản đã thử kỹ và ghi được thứ trạm chưa ghi (tường lửa, SMB, máy in, khoá bảo vệ BitLocker). Gộp thành thư
   viện chung để sau, khi có công cụ thứ ba cần.
 
-Hướng thiết kế: giao diện kiểu *Cài đặt* của Windows 11 (Fluent 2), trầm, rõ, một màu nhấn, sáng tối như nhau. Áp dụng
-các quy tắc của [taste-skill](https://github.com/Leonxlnx/taste-skill) (MIT) hợp với ứng dụng công cụ: đủ trạng thái
-đang tải, trống, lỗi; một hệ bo góc; chữ số thẳng cột; không gạch dài trong chữ giao diện. Tham khảo cách làm của
+**Bản 1.3.0 (09/10/2026): giao diện mới, cài một lần bằng `CAI_DAT.bat`**
+
+- **Giao diện** làm lại, bỏ Fluent UI (308 KB). *Tổng quan*: dòng thông tin máy (tên, Windows, ổ C còn trống, thời gian
+  đã bật), ô tìm, *Cần chú ý* có vạch màu theo mức, *Đã ghim* và *Dùng gần đây* hai cột, rồi danh mục dạng mục lục:
+  bấm cả dòng để mở công cụ, nút *Chạy* và ghim hiện rõ khi rê chuột. Trang công cụ: một nút chính, dòng sẵn sàng, các
+  việc trong một khung kẻ dòng; công cụ chỉ có một việc thì không lặp nút *Chạy*. *Máy này* chia nhóm Máy, Ổ đĩa (thanh
+  dung lượng), An toàn và cài đặt. *Lịch sử*, *Kết quả gần đây*: cột giờ, lọc dạng tab. Hộp thoại dùng `<dialog>` gốc:
+  *Huỷ* bên trái, nút chính bên phải, mở ra thì con trỏ ở ô nhập đầu tiên, không có ô nhập thì ở *Huỷ*.
+- Chữ trong `tool.json` bỏ gạch dài: hướng nâng cấp viết `P1: ...` (schema đổi theo), khoảng thời gian `1-2 phút`.
+- **`CAI_DAT.bat`** (`hub\CaiDat.ps1`) cho máy mới: dùng đúng các kiểm tra của mục *Yêu cầu để chạy*, gom phần còn
+  thiếu theo cách cài (hai yêu cầu cùng một script chỉ chạy một lần), in cách cài, thời gian, quyền Admin, mục tải vài GB;
+  cài gói winget, script cài của công cụ, script của trạm (cửa sổ Admin riêng); kiểm tra lại, tạo lối tắt, mở trạm. Bỏ
+  dấu tải từ Internet của file trong thư mục trạm (trừ `.venv`, mô hình, kết quả), lấy `tools\mdf2sql` khi trống (git
+  nếu có, không thì .zip của repo công khai). winget hỏng thì hỏi chạy *Sửa winget* trước. `-ChayThu`, `-TatCa`,
+  `-KhongMo`, `-KhongLoiTat`. Chọn `.bat` thay vì `.exe`: `.exe` đóng gói từ PowerShell không có chữ ký số hay bị diệt
+  virus, SmartScreen chặn.
+- Đã thử: ảnh chụp mọi trang ở sáng, tối, màn hình hẹp; form chạy báo lỗi đúng ô mà không chạy; bộ cài chạy thử trên
+  máy phát triển (đủ hết), với công cụ giả (gom yêu cầu, mục cài tay, mục không bắt buộc; cài thật tạo đúng file), thư
+  mục `mdf2sql` trống và file có dấu tải từ Internet bằng giả lập. Chưa chạy bộ cài trên máy mới thật.
+
+Hướng thiết kế (Trạm 1.3.0): bỏ bộ thành phần Fluent UI vì để mặc định trông như mọi ứng dụng mẫu của Microsoft (thẻ
+trắng giống hệt nhau, nút xanh khắp nơi). Nay là phần tử HTML gốc với hệ biến màu riêng: nền xám lạnh, một màu nhấn
+xanh dầu, chữ Be Vietnam Pro (dựng riêng cho tiếng Việt) và JetBrains Mono cho tên file, giờ, số; biểu tượng Phosphor.
+Danh mục là bảng mục lục (tên nhóm bên trái, dòng công cụ có đường kẻ mảnh) thay cho lưới thẻ; mỗi vùng một nút chính.
+Áp dụng các quy tắc của [taste-skill](https://github.com/Leonxlnx/taste-skill) (MIT) hợp với ứng dụng công cụ: đủ
+trạng thái đang tải, trống, lỗi; một hệ bo góc; chữ số thẳng cột; không gạch dài trong chữ giao diện. Tham khảo cách làm của
 PowerToys Command Palette, Raycast, Linear (ô Ctrl+K), UniGetUI (bảng tác vụ đang chạy, lịch sử), GitHub Desktop
 (trạng thái trống có việc tiếp theo), hướng dẫn UAC và InfoBar của Microsoft.
 
@@ -413,8 +436,8 @@ thư viện của công cụ được script cài đặt tải về, không đư
 
 | Thư viện | Dùng cho | Giấy phép |
 |---|---|---|
-| Fluent UI Web Components | Giao diện trạm | MIT |
-| Fluent UI System Icons | Biểu tượng của giao diện trạm (`hub\web\icons.svg`) | MIT |
+| Phosphor Icons | Biểu tượng của giao diện trạm (`hub\web\icons.svg`) | MIT |
+| Be Vietnam Pro, JetBrains Mono | Chữ của giao diện trạm (`hub\web\vendor\fonts\`, bản dựng của Fontsource) | SIL OFL 1.1 |
 | lit-html | Giao diện trạm: vẽ và cập nhật trang | BSD-3-Clause |
 | marked | Hiển thị tài liệu Markdown trong trạm | MIT |
 | DOMPurify | Lọc HTML trước khi hiển thị | Apache-2.0 hoặc MPL-2.0 |

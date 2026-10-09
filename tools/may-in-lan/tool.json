@@ -254,11 +254,11 @@
     "Khi UAC hỏi mật khẩu một Admin khác, Chẩn đoán đọc ổ mạng, mật khẩu đã lưu của tài khoản Admin đó, không phải của người đang dùng máy (báo cáo có ghi cảnh báo)."
   ],
   "upgrades": [
-    "P1 – Dò máy in trong mạng (cổng 9100, 631, WS-Discovery, mDNS) để chọn trong danh sách thay vì gõ IP.",
-    "P1 – Đọc model và đường dẫn IPP thật của máy in (IPP Get-Printer-Attributes) thay vì giả định /ipp/print.",
-    "P1 – Nút tắt \"SNMP status\" cho cổng TCP/IP khi máy in báo Offline mà vẫn in được.",
-    "P1 – Kết nối máy in chia sẻ qua Local Port (\\\\MÁY\\máy-in) với driver hãng cài sẵn: tránh hẳn RPC (0x0000011B, 0x00000709) mà không phải nới bảo mật.",
-    "P2 – Sao lưu, khôi phục máy in (printbrm) khi chuyển máy, dùng chung với \"Chuyển dữ liệu khi cài lại Windows\".",
-    "P2 – Chẩn đoán cả văn phòng: chạy từ một máy, kiểm tra lần lượt các máy và máy in trong danh sách."
+    "P1: Dò máy in trong mạng (cổng 9100, 631, WS-Discovery, mDNS) để chọn trong danh sách thay vì gõ IP.",
+    "P1: Đọc model và đường dẫn IPP thật của máy in (IPP Get-Printer-Attributes) thay vì giả định /ipp/print.",
+    "P1: Nút tắt \"SNMP status\" cho cổng TCP/IP khi máy in báo Offline mà vẫn in được.",
+    "P1: Kết nối máy in chia sẻ qua Local Port (\\\\MÁY\\máy-in) với driver hãng cài sẵn: tránh hẳn RPC (0x0000011B, 0x00000709) mà không phải nới bảo mật.",
+    "P2: Sao lưu, khôi phục máy in (printbrm) khi chuyển máy, dùng chung với \"Chuyển dữ liệu khi cài lại Windows\".",
+    "P2: Chẩn đoán cả văn phòng: chạy từ một máy, kiểm tra lần lượt các máy và máy in trong danh sách."
   ]
 }

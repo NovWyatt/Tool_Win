@@ -3,6 +3,22 @@
 Bộ công cụ Windows của Wyatt (chẩn đoán, sửa lỗi, tối ưu, văn phòng, chuyển đổi dữ liệu, cài lại máy) và một
 **trạm** để tìm, chạy và theo dõi tất cả từ một chỗ.
 
+## Cài trên máy mới
+
+Chép cả thư mục `Tool_Win` sang máy (hoặc giải nén file .zip), rồi bấm đúp **`CAI_DAT.bat`** một lần.
+
+- Bộ cài kiểm tra từng công cụ cần gì (giống mục *Yêu cầu để chạy* trong trạm), in danh sách còn thiếu kèm cách cài,
+  thời gian, có cần quyền Admin không; gõ `C` để cài tất cả hoặc `T` để chọn từng mục.
+- Cài theo thứ tự: gói winget (Python 3.12, ODBC Driver 18), script cài của từng công cụ (`.venv`, LibreDWG, mô hình
+  ghi âm khoảng 5 GB), script của trạm cần Admin (SQL Server LocalDB). Xong thì kiểm tra lại, tạo lối tắt **Trạm Tool**
+  trên Desktop và mở trạm.
+- Tự bỏ dấu "tải từ Internet" của file trong thư mục trạm (Windows hay chặn `.bat`, `.ps1` giải nén từ .zip tải về), tự
+  lấy `tools\mdf2sql` khi thư mục này trống (bản .zip của GitHub không kèm submodule).
+- Chạy lại bao nhiêu lần cũng được: thứ đã có thì bỏ qua. `CAI_DAT.bat -ChayThu` chỉ kiểm tra, không cài gì;
+  `CAI_DAT.bat -TatCa` không hỏi.
+- Dùng `.bat` thay vì đóng thành `.exe`: file `.exe` tự đóng gói từ script PowerShell (không có chữ ký số) thường bị
+  phần mềm diệt virus và SmartScreen chặn, còn `.bat` mở ra đọc được từng dòng.
+
 ## Mở trạm
 
 Bấm đúp **`TramTool.bat`**.
@@ -64,6 +80,7 @@ Thả thư mục công cụ vào `tools\`, bấm *Làm mới* trong trạm. Vi�
 
 ```
 TramTool.bat              mở trạm
+CAI_DAT.bat               cài một lần cho máy mới (hub\CaiDat.ps1)
 hub\
   TramTool.ps1            máy chủ HTTP cục bộ và API
   lib\                    Catalog (đọc tool.json), Launcher (chạy công cụ), Checks (điều kiện, kết quả, thông tin máy),
@@ -110,6 +127,8 @@ các mẫu tên báo cáo. Thêm công cụ mới có mẫu tên kết quả m�
 - Thử giao diện mà không đụng lịch sử, cài đặt thật: thêm `-DataDir <thư mục tạm>\data`, và `-ToolsDir <thư mục tạm>\tools`
   để dùng công cụ giả (một `tool.json` trỏ tới `.bat` chờ vài giây rồi thoát) khi thử nút Chạy, Xoá.
 - Giao diện là ES module chạy thẳng, không cần build: `hub\web\app.js` (định tuyến), `hub\web\js\` (dữ liệu, hộp thoại,
-  ô tìm nhanh, thanh Đang chạy), `hub\web\js\pages\` (mỗi trang một file), vẽ bằng lit-html và thành phần Fluent UI.
+  ô tìm nhanh, thanh Đang chạy), `hub\web\js\pages\` (mỗi trang một file), vẽ bằng lit-html trên phần tử HTML gốc.
+  Màu, chữ, hình dạng nằm hết trong `hub\web\app.css` (biến màu cho sáng và tối, một màu nhấn xanh dầu, bo góc 8px).
+  Chữ Be Vietnam Pro, JetBrains Mono và biểu tượng Phosphor nằm sẵn trong `hub\web\vendor\`, `hub\web\icons.svg`.
 - Môi trường Python của công cụ cài bằng `CAI_DAT.ps1` trong thư mục công cụ (DWG sang PDF, Ghi âm sang Word),
   phiên bản khoá trong `requirements-lock.txt`.

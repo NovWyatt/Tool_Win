@@ -175,9 +175,9 @@
     "Khi UAC hỏi mật khẩu một Admin khác, Desktop, Documents, Downloads trong danh sách tìm file khoá là của tài khoản Admin đó, không phải của người đang dùng máy."
   ],
   "upgrades": [
-    "P1 – Sao lưu khoá lên tài khoản Microsoft ngay trong công cụ (BackupRecoveryInformationToMicrosoftAccount) khi người dùng đăng nhập tài khoản Microsoft.",
-    "P1 – Lưu gói khoá (.KPG, manage-bde -KeyPackage) để cứu dữ liệu bằng repair-bde khi phần đầu ổ bị hỏng.",
-    "P2 – Bật BitLocker, Mã hoá thiết bị có hướng dẫn: lưu khoá ra ngoài máy trước rồi mới bật.",
-    "P2 – Chặn Windows tự mã hoá lại sau khi cài mới (PreventDeviceEncryption), hỏi trước, hoàn tác được."
+    "P1: Sao lưu khoá lên tài khoản Microsoft ngay trong công cụ (BackupRecoveryInformationToMicrosoftAccount) khi người dùng đăng nhập tài khoản Microsoft.",
+    "P1: Lưu gói khoá (.KPG, manage-bde -KeyPackage) để cứu dữ liệu bằng repair-bde khi phần đầu ổ bị hỏng.",
+    "P2: Bật BitLocker, Mã hoá thiết bị có hướng dẫn: lưu khoá ra ngoài máy trước rồi mới bật.",
+    "P2: Chặn Windows tự mã hoá lại sau khi cài mới (PreventDeviceEncryption), hỏi trước, hoàn tác được."
   ]
 }

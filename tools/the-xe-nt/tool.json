@@ -99,7 +99,7 @@
     "Đọc .xlsx thẳng từ file (không cần Excel): chỉ sheet đầu tiên, 26 cột đầu; ô công thức lấy giá trị Excel đã lưu trong file."
   ],
   "upgrades": [
-    "P1 – So file mới với danh sách thẻ đang có trong phần mềm (bảng active) để báo trước mã trùng, STT đã có.",
-    "P2 – Ghép nhiều lô vào một file, tách một lô lớn thành nhiều file."
+    "P1: So file mới với danh sách thẻ đang có trong phần mềm (bảng active) để báo trước mã trùng, STT đã có.",
+    "P2: Ghép nhiều lô vào một file, tách một lô lớn thành nhiều file."
   ]
 }

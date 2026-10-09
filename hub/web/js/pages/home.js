@@ -1,8 +1,8 @@
-// Trạm Tool - trang Tổng quan: cần chú ý, đã ghim, dùng gần đây, rồi toàn bộ công cụ theo nhóm.
+// Trạm Tool - trang Tổng quan: máy này, ô tìm, cần chú ý, đã ghim, dùng gần đây, rồi danh mục công cụ theo nhóm.
 import { html, nothing } from '../../vendor/lit-html/lit-html.js';
-import { icon, enc, timeAgo, clock } from '../core.js';
+import { icon, enc, clock, uptimeText, driveName } from '../core.js';
 import { S, go, visibleTools, pinnedTools, missingDeps, runState } from '../state.js';
-import { section, pageHead, toolRow, toolTile, runStateBadge, stop, emptyState } from '../parts.js';
+import { section, toolRow, pinRow, runStateText, shortWhen, onRowKey, stop, emptyState, btn } from '../parts.js';
 import { runAction } from '../run.js';
 import { openPalette } from '../palette.js';
 import { loadHistory, loadDepsAll, loadSystem, reloadCatalog } from '../data.js';
@@ -25,7 +25,7 @@ function attentionItems() {
   const s = S.system;
   if (s && !s.error) {
     for (const d of s.disks || []) {
-      if (d.freePct < 12) out.push({ ic: 'hard-drive', tone: 'warning', text: `Ổ ${d.drive} chỉ còn ${d.freePct}% trống (${d.free}). Ổ đầy làm máy chậm và Windows Update dễ lỗi.`, act: 'Xem máy', to: '#/system' });
+      if (d.freePct < 12) out.push({ ic: 'hard-drive', tone: 'warning', text: `Ổ ${driveName(d.drive)} chỉ còn ${d.freePct}% trống (${d.free}). Ổ đầy làm máy chậm và Windows Update dễ lỗi.`, act: 'Xem máy', to: '#/system' });
     }
     const days = s.lastBoot ? Math.floor((Date.now() - Date.parse(s.lastBoot)) / 86400000) : 0;
     if (days >= 14) out.push({ ic: 'clock', tone: 'info', text: `Máy đã bật liên tục ${days} ngày. Khởi động lại giúp Windows cài xong bản cập nhật và chạy ổn định hơn.`, act: '', to: '' });
@@ -51,12 +51,10 @@ function attentionItems() {
   return out;
 }
 
-function attRow(a) {
-  return html`<div class="attn-row ${a.tone}">
-    ${icon(a.ic)}<span>${a.text}</span>
-    ${a.act ? html`<fluent-button size="small" @click=${() => go(a.to)}>${a.act}</fluent-button>` : nothing}
-  </div>`;
-}
+const noticeRow = (a) => html`<div class="notice-row ${a.tone}">
+  ${icon(a.ic)}<span>${a.text}</span>
+  ${a.act ? btn(a.act, () => go(a.to), { sm: true }) : nothing}
+</div>`;
 
 // Mỗi việc (công cụ + action) chỉ hiện lần chạy gần nhất.
 function recentRuns() {
@@ -77,19 +75,30 @@ function recentRow(h) {
   const t = S.byId.get(h.toolId);
   const a = (t.actions || []).find((x) => x.id === h.actionId);
   const to = `#/tool/${enc(t.id)}`;
-  return html`<div class="row clickable compact" role="link" tabindex="0" @click=${() => go(to)}
-      @keydown=${(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) go(to); }}>
-    <div class="tile">${icon(t.icon || 'toolbox')}</div>
-    <div class="row-main">
-      <div class="row-title"><span class="name">${t.name}</span>${runStateBadge(h)}</div>
-      <div class="row-sub">${h.actionLabel}, ${timeAgo(h.time)}</div>
-    </div>
-    <div class="row-side">
-      ${a && a.exists && h.state !== 'running' ? html`<fluent-button appearance="outline" @click=${stop(() => runAction(t.id, a.id, { values: h.values || null }))}>
-        ${icon('arrow-repeat', 'ic-16')}Chạy lại</fluent-button>` : nothing}
-      ${icon('chevron-right', 'chev')}
+  return html`<div class="rrow" role="link" tabindex="0" aria-label=${t.name} @click=${() => go(to)} @keydown=${onRowKey(to)}>
+    <span class="when">${shortWhen(h.time)}</span>
+    <div class="what"><span class="name">${t.name}</span><span class="sub">${h.actionLabel}</span></div>
+    <div class="side">
+      ${runStateText(h, { withDur: false })}
+      ${a && a.exists && h.state !== 'running' ? html`<button class="icon-btn" title=${h.values ? 'Chạy lại với tham số của lần này' : 'Chạy lại'} aria-label="Chạy lại"
+        @click=${stop(() => runAction(t.id, a.id, { values: h.values || null }))}>${icon('arrow-repeat')}</button>` : html`<span class="icon-gap"></span>`}
     </div>
   </div>`;
+}
+
+// Vài dòng về máy đang dùng, lấy từ trang Máy này.
+function machineFacts() {
+  const s = S.system;
+  if (!s) return html`<p class="facts-wait">Đang đọc thông tin máy...</p>`;
+  if (s.error) return nothing;
+  const c = (s.disks || []).find((d) => /^C:/i.test(d.drive));
+  const fact = (k, v, warn = false) => html`<div><dt>${k}</dt><dd class=${warn ? 'warn' : ''} title=${v}>${v}</dd></div>`;
+  return html`<dl class="facts-strip">
+    ${fact('Máy', s.computer)}
+    ${fact('Windows', `${s.displayVersion || ''} build ${s.build}`.trim())}
+    ${c ? fact('Ổ C còn trống', `${c.free}, ${Math.round(c.freePct)}%`, c.freePct < 12) : nothing}
+    ${s.uptimeText ? fact('Đã bật liên tục', uptimeText(s.uptimeText)) : nothing}
+  </dl>`;
 }
 
 export function homePage() {
@@ -99,18 +108,30 @@ export function homePage() {
   const att = attentionItems();
   const recent = recentRuns();
   return html`<div class="page">
-    ${pageHead('Tổng quan', `${tools.length} công cụ trong ${cats.length} nhóm. Bấm vào một công cụ để xem chi tiết, hoặc bấm Chạy để mở ngay.`,
-      html`<fluent-button appearance="subtle" title="Quét lại thư mục tools" @click=${() => reloadCatalog()}>${icon('refresh', 'ic-16')}Làm mới</fluent-button>`)}
+    <header class="page-head">
+      <div><h1>Tổng quan</h1>${machineFacts()}</div>
+      <div class="actions">${btn('Làm mới', () => reloadCatalog(), { kind: 'ghost', ic: 'refresh', title: 'Quét lại thư mục tools' })}</div>
+    </header>
     <button class="omnibox" @click=${() => openPalette()}>
       ${icon('search')}<span>Tìm hoặc chạy công cụ, vd "wifi", "excel", "ổ cứng"</span><span class="keys"><kbd>Ctrl</kbd><kbd>K</kbd></span>
     </button>
-    ${att.length ? section('Cần chú ý', '', html`<div class="card attn">${att.map(attRow)}</div>`) : nothing}
-    ${pins.length ? section('Đã ghim', '', html`<div class="tiles">${pins.map(toolTile)}</div>`) : nothing}
-    ${recent.length ? section('Dùng gần đây', '', html`<div class="stack">${recent.map(recentRow)}</div>`,
-      { tools: html`<fluent-button appearance="subtle" @click=${() => go('#/history')}>Xem lịch sử</fluent-button>` }) : nothing}
-    ${tools.length ? cats.map((c) => section(c.label, c.description,
-      html`<div class="stack">${tools.filter((t) => t.category === c.id).map(toolRow)}</div>`, { id: `cat-${c.id}` }))
-    : emptyState('toolbox', 'Chưa có công cụ nào', 'Thả thư mục công cụ vào tools\\ rồi bấm Làm mới.',
-      html`<fluent-button @click=${() => reloadCatalog()}>Làm mới</fluent-button>`)}
+    ${att.length ? section('Cần chú ý', '', html`<div class="notices">${att.map(noticeRow)}</div>`) : nothing}
+    ${pins.length || recent.length ? html`<div class="quick">
+      ${pins.length ? section('Đã ghim', '', html`<div class="stack">${pins.map(pinRow)}</div>`) : nothing}
+      ${recent.length ? section('Dùng gần đây', '', html`<div class="stack">${recent.map(recentRow)}</div>`,
+        { tools: btn('Lịch sử', () => go('#/history'), { kind: 'ghost', sm: true }) }) : nothing}
+    </div>` : nothing}
+    ${tools.length ? html`<section class="catalog">
+      <div class="catalog-head"><h2>Tất cả công cụ</h2><span>${tools.length} công cụ, ${cats.length} nhóm</span></div>
+      ${cats.map((c) => {
+        const list = tools.filter((t) => t.category === c.id);
+        return html`<div class="cat" id="cat-${c.id}">
+          <div class="cat-head"><h3>${icon(c.icon || 'toolbox')}<span>${c.label}</span><span class="count">${list.length}</span></h3>${c.description ? html`<p>${c.description}</p>` : nothing}</div>
+          <div class="cat-list">${list.map(toolRow)}</div>
+        </div>`;
+      })}
+    </section>`
+    : section('', '', emptyState('toolbox', 'Chưa có công cụ nào', 'Thả thư mục công cụ vào tools\\ rồi bấm Làm mới.',
+      btn('Làm mới', () => reloadCatalog(), { ic: 'refresh' })))}
   </div>`;
 }

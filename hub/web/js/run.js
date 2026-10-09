@@ -37,9 +37,9 @@ function field(spec, prev) {
     return html`<div class="field"><span class="field-label" id="lbl-${spec.id}">${spec.label}${req}</span>
       <div class="pick">
         <div class="pick-value${text ? ' set' : ''}" id=${id} aria-labelledby="lbl-${spec.id}">${text || empty}</div>
-        <fluent-button @click=${() => pickArg(spec)}>${icon('folder', 'ic-16')}Chọn</fluent-button>
-        ${text ? html`<fluent-button appearance="subtle" icon-only aria-label="Bỏ chọn" title="Bỏ chọn"
-          @click=${() => { form.picks[spec.id] = []; redrawForm(); }}>${icon('dismiss', 'ic-16')}</fluent-button>` : nothing}
+        <button class="btn secondary" @click=${() => pickArg(spec)}>${icon('folder')}Chọn</button>
+        ${text ? html`<button class="icon-btn" aria-label="Bỏ chọn" title="Bỏ chọn"
+          @click=${() => { form.picks[spec.id] = []; redrawForm(); }}>${icon('dismiss')}</button>` : nothing}
       </div>${help}${err}</div>`;
   }
   if (spec.type === 'bool') {
@@ -109,12 +109,12 @@ function formBody(cur) {
   const changes = a.changes || [];
   return html`
     ${a.description ? html`<p class=${specs.length ? 'muted' : ''}>${a.description}</p>` : nothing}
-    ${cur.filled && specs.length ? html`<p class="muted small">${icon('history', 'ic-16')} Đã điền sẵn giá trị của lần chạy trước.</p>` : nothing}
+    ${cur.filled && specs.length ? html`<p class="muted small note">${icon('history', 'ic-16')}<span>Đã điền sẵn giá trị của lần chạy trước.</span></p>` : nothing}
     ${specs.length ? html`<div class="form">${specs.map((s) => field(s, prev))}</div>` : nothing}
     ${risky && a.confirm ? html`<div class="warnbox">${icon('warning', 'ic-16')}<span>${a.confirm}</span></div>` : nothing}
     ${risky && changes.length ? html`<p class="dlg-sub">Công cụ có thể thay đổi:</p><ul>${changes.map((c) => html`<li>${c}</li>`)}</ul>` : nothing}
     ${safetyBlock(cur)}
-    ${a.admin ? html`<p class="muted note">${icon('shield', 'ic-16')} Windows sẽ hỏi quyền Admin (UAC). Bấm "Có" để tiếp tục.</p>` : nothing}`;
+    ${a.admin ? html`<p class="muted note">${icon('shield', 'ic-16')}<span>Windows sẽ hỏi quyền Admin (UAC). Bấm "Có" để tiếp tục.</span></p>` : nothing}`;
 }
 
 function redrawForm() {
@@ -172,8 +172,8 @@ export async function runAction(toolId, actionId, { values: given = null } = {})
       body: formBody(current),
       wide: specs.length > 2,
       buttons: [
-        { label: a.admin ? 'Chạy với quyền Admin' : 'Chạy', appearance: 'primary', value: true, icon: a.admin ? 'shield' : 'play' },
         { label: 'Huỷ', value: false },
+        { label: a.admin ? 'Chạy với quyền Admin' : 'Chạy', appearance: 'primary', value: true, icon: a.admin ? 'shield' : 'play' },
       ],
       validate: () => {
         const r = collectValues(specs);

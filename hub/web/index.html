@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="light dark">
   <title>Trạm Tool</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="vendor/fonts/fonts.css">
   <link rel="stylesheet" href="app.css">
   <script type="module" src="app.js"></script>
 </head>
@@ -26,23 +27,23 @@
 
   <dialog class="palette" id="palette" aria-label="Tìm hoặc chạy"></dialog>
 
-  <fluent-dialog id="dlg" type="modal" aria-labelledby="dlg-title">
-    <fluent-dialog-body>
-      <span slot="title" id="dlg-title"></span>
-      <fluent-button slot="close" appearance="transparent" icon-only aria-label="Đóng">
-        <svg class="ic ic-16" aria-hidden="true"><use href="#i-dismiss"></use></svg>
-      </fluent-button>
-      <div id="dlg-body"></div>
-      <div slot="action" id="dlg-actions" style="display:contents"></div>
-    </fluent-dialog-body>
-  </fluent-dialog>
+  <dialog class="dlg" id="dlg" aria-labelledby="dlg-title">
+    <div class="dlg-frame">
+      <div class="dlg-head">
+        <h2 id="dlg-title"></h2>
+        <button class="icon-btn" id="dlg-close" aria-label="Đóng"><svg class="ic" aria-hidden="true"><use href="#i-dismiss"></use></svg></button>
+      </div>
+      <div class="dlg-body" id="dlg-body"></div>
+      <div class="dlg-foot" id="dlg-actions"></div>
+    </div>
+  </dialog>
 
   <div class="overlay" id="overlay" hidden>
-    <div class="card box">
+    <div class="box">
       <svg class="ic ic-24" aria-hidden="true"><use href="#i-plug"></use></svg>
       <h2 id="overlay-title">Mất kết nối với Trạm Tool</h2>
       <p id="overlay-text">Có thể cửa sổ máy chủ của trạm đã bị đóng. Mở lại bằng file TramTool.bat rồi bấm Thử lại.</p>
-      <fluent-button appearance="primary" id="overlay-retry">Thử lại</fluent-button>
+      <button class="btn primary" id="overlay-retry">Thử lại</button>
     </div>
   </div>
 </body>

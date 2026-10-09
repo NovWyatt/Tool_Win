@@ -72,6 +72,23 @@ function Test-PathInside {
     return ($full -eq $rootFull) -or $full.StartsWith($rootFull + '\', [StringComparison]::OrdinalIgnoreCase)
 }
 
+function New-DesktopShortcut {
+    # Lối tắt "Trạm Tool" trên Desktop trỏ tới TramTool.bat (dùng ở trang Cài đặt và CAI_DAT.bat).
+    param([Parameter(Mandatory)][string]$RootDir, [Parameter(Mandatory)][string]$HubDir)
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    $lnk = Join-Path $desktop 'Trạm Tool.lnk'
+    $shell = New-Object -ComObject WScript.Shell
+    $s = $shell.CreateShortcut($lnk)
+    $s.TargetPath = Join-Path $RootDir 'TramTool.bat'
+    $s.WorkingDirectory = $RootDir
+    $s.WindowStyle = 7
+    $ico = Join-Path $HubDir 'web\tramtool.ico'
+    $s.IconLocation = if (Test-Path -LiteralPath $ico) { $ico } else { "$env:SystemRoot\System32\imageres.dll,109" }
+    $s.Description = 'Trạm Tool - chọn và chạy công cụ Windows'
+    $s.Save()
+    return $lnk
+}
+
 function Update-EnvPath {
     # Nạp lại PATH từ registry để thấy Python/winget vừa cài trong lúc trạm đang chạy.
     $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')

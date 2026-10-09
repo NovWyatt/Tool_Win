@@ -1,7 +1,6 @@
 // Trạm Tool - thông báo, hộp thoại, lớp phủ mất kết nối, giao diện sáng/tối.
+// Toàn bộ dựng trên phần tử HTML gốc (<dialog>, <button>), màu lấy từ biến trong app.css.
 import { html, render, nothing } from '../vendor/lit-html/lit-html.js';
-import { setTheme } from '../vendor/fluent-web-components.min.js';
-import { webLightTheme, webDarkTheme } from '../vendor/fluent-tokens.min.js';
 import { $, icon } from './core.js';
 import { S } from './state.js';
 
@@ -9,14 +8,13 @@ import { S } from './state.js';
 const mq = matchMedia('(prefers-color-scheme: dark)');
 export function applyTheme() {
   const dark = S.settings.theme === 'dark' || (S.settings.theme === 'system' && mq.matches);
-  setTheme(dark ? webDarkTheme : webLightTheme);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
 }
 mq.addEventListener('change', () => { if (S.settings.theme === 'system') applyTheme(); });
 
 // ------------------------------------------------------------------ thông báo nhanh
-// Tin qua nhanh thì dùng toast; vấn đề cần xử lý thì hiện ngay trên trang (message bar), không dùng toast.
+// Tin qua nhanh thì dùng toast; vấn đề cần xử lý thì hiện ngay trên trang, không dùng toast.
 // Trả về { update(intent, text, opts), close() } để cập nhật cùng một thông báo thay vì hiện thêm cái mới.
 const TOAST_ICON = { success: 'check-circle', error: 'dismiss-circle', warning: 'warning', info: 'info' };
 
@@ -25,12 +23,14 @@ export function toast(intent, text, { ms = 6000, action = null } = {}) {
   $('#toasts').append(host);
   let timer = null;
   const close = () => { clearTimeout(timer); host.remove(); };
-  const draw = (i, t, a) => render(html`<fluent-message-bar intent=${i} layout="multiline">
-      <span slot="icon" class="toast-ic">${icon(TOAST_ICON[i] || 'info', 'ic-16')}</span>
-      ${t}
-      ${a ? html`<fluent-button slot="actions" size="small" @click=${() => { close(); a.run(); }}>${a.label}</fluent-button>` : nothing}
-      <fluent-button slot="dismiss" appearance="transparent" icon-only aria-label="Đóng" @click=${close}>${icon('dismiss', 'ic-16')}</fluent-button>
-    </fluent-message-bar>`, host);
+  const draw = (i, t, a) => render(html`<div class="toast ${i}" role=${i === 'error' ? 'alert' : 'status'}>
+      <span class="toast-ic">${icon(TOAST_ICON[i] || 'info', 'ic-16')}</span>
+      <span class="toast-text">${t}</span>
+      <span class="toast-act">
+        ${a ? html`<button class="btn ghost sm" @click=${() => { close(); a.run(); }}>${a.label}</button>` : nothing}
+        <button class="icon-btn sm" aria-label="Đóng" @click=${close}>${icon('dismiss', 'ic-16')}</button>
+      </span>
+    </div>`, host);
   const arm = (m) => { clearTimeout(timer); if (m) timer = setTimeout(close, m); };
   draw(intent, text, action);
   arm(ms);
@@ -75,28 +75,32 @@ export function openDialog({ title, body, buttons, validate = null, wide = false
       if (err) { showError(err); return; }
     }
     if (dlgResolve) dlgResolve(b.value);
-    dlg.hide();
+    dlg.close();
   };
+  const kind = (b) => (b.appearance === 'primary' ? (b.danger ? 'danger' : 'primary') : 'secondary');
   $('#dlg-title').textContent = title;
   dlg.classList.toggle('wide', wide);
   render(html`${body}<div class="form-error" id="dlg-error" role="alert" hidden></div>`, $('#dlg-body'));
-  render(html`${buttons.map((b) => html`<fluent-button appearance=${b.appearance || 'secondary'} class=${b.danger ? 'danger' : ''}
-      data-primary=${b.appearance === 'primary' ? '1' : nothing} @click=${() => choose(b)}>${b.icon ? icon(b.icon, 'ic-16') : nothing}${b.label}</fluent-button>`)}`,
+  render(html`${buttons.map((b) => html`<button class="btn ${kind(b)}" data-primary=${b.appearance === 'primary' ? '1' : nothing}
+      data-safe=${b.value ? nothing : '1'} @click=${() => choose(b)}>${b.icon ? icon(b.icon) : nothing}${b.label}</button>`)}`,
   $('#dlg-actions'));
-  dlg.show();
+  if (!dlg.open) dlg.showModal();
+  // Ô nhập đầu tiên nếu có; không thì nút an toàn (Huỷ, Đóng), để Enter không vô tình xác nhận việc xoá.
+  const first = $('#dlg-body').querySelector('input:not([type=checkbox]):not([disabled]), select, textarea')
+    || $('#dlg-actions [data-safe]') || $('#dlg-actions .btn');
+  first?.focus();
+  $('#dlg-body').scrollTop = 0;
   return promise;
 }
 
 export function initDialog() {
   const dlg = $('#dlg');
-  dlg.addEventListener('toggle', () => {
-    const open = dlg.dialog && dlg.dialog.open;
-    if (!open && dlgResolve) dlgResolve(null);
-  });
+  dlg.addEventListener('close', () => { if (dlgResolve) dlgResolve(null); });
+  $('#dlg-close').addEventListener('click', () => dlg.close());
   // Enter trong ô nhập chữ = bấm nút chính.
   dlg.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || e.isComposing) return;
-    const t = e.composedPath()[0];
+    const t = e.target;
     if (!(t instanceof HTMLInputElement) || t.type === 'checkbox') return;
     const btn = $('#dlg-actions [data-primary]');
     if (btn) { e.preventDefault(); btn.click(); }
@@ -109,7 +113,7 @@ export function confirmDialog({ title, body, confirmLabel, confirmIcon = '', dan
   return openDialog({
     title,
     body: html`${body}${ack ? html`<label class="ack"><input type="checkbox" id="dlg-ack"><span>${ack}</span></label>` : nothing}`,
-    buttons: [{ label: confirmLabel, appearance: 'primary', danger, icon: confirmIcon, value: true }, { label: 'Huỷ', value: false }],
+    buttons: [{ label: 'Huỷ', value: false }, { label: confirmLabel, appearance: 'primary', danger, icon: confirmIcon, value: true }],
     validate: (v) => (v && ack && !$('#dlg-ack')?.checked ? { error: 'Đánh dấu ô xác nhận ở trên trước đã.' } : null),
   });
 }

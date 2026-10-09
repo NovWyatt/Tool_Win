@@ -17,7 +17,7 @@
       "admin": true,
       "risk": "modifies-system",
       "primary": true,
-      "duration": "Tuỳ mục: SFC 10–15 phút, DISM 15–30 phút, 'chạy tất cả' 30–60 phút",
+      "duration": "Tuỳ mục: SFC 10-15 phút, DISM 15-30 phút, 'chạy tất cả' 30-60 phút",
       "description": "Menu 10 mục, chọn số rồi Enter. Nên chạy DISM (mục 2) trước rồi mới SFC (mục 1).",
       "confirm": "Một số mục thay đổi lớn: 'Reset Network' đặt lại cả tường lửa Windows (xoá mọi luật tự thêm); 'Check Disk' chạy chkdsk /f /r (hàng giờ, không chạy trên ổ đang hỏng trước khi cứu dữ liệu); 'Registry Cleanup' xoá khoá DelegateFolders. Đọc kỹ trước khi chọn.",
       "changes": [
@@ -40,10 +40,10 @@
     "'Check Disk' chạy chkdsk /f /r trên ổ sắp hỏng có thể làm mất dữ liệu; nên cứu dữ liệu (CheckWinFix) trước."
   ],
   "upgrades": [
-    "P0 – Tự nâng quyền Admin (fltmc + RunAs) và kiểm tra mã lỗi từng lệnh trước khi báo hoàn tất.",
-    "P0 – Tách 'đặt lại tường lửa' khỏi 'Reset Network' và hỏi lại trước khi chạy; bỏ mục 'Registry Cleanup'.",
-    "P1 – 'Run All' theo thứ tự DISM rồi SFC; đặt lại Windows Update dùng tên có thời gian (.old_<giờ>) và %SystemRoot%.",
-    "P1 – Ghi nhật ký ra file (tóm tắt CBS.log, DISM.log) để gửi kèm báo cáo.",
-    "P2 – Gộp vào CheckWinFix như bước 'Sửa' sau chẩn đoán, chỉ đề xuất lệnh hợp với bệnh đã tìm thấy."
+    "P0: Tự nâng quyền Admin (fltmc + RunAs) và kiểm tra mã lỗi từng lệnh trước khi báo hoàn tất.",
+    "P0: Tách 'đặt lại tường lửa' khỏi 'Reset Network' và hỏi lại trước khi chạy; bỏ mục 'Registry Cleanup'.",
+    "P1: 'Run All' theo thứ tự DISM rồi SFC; đặt lại Windows Update dùng tên có thời gian (.old_<giờ>) và %SystemRoot%.",
+    "P1: Ghi nhật ký ra file (tóm tắt CBS.log, DISM.log) để gửi kèm báo cáo.",
+    "P2: Gộp vào CheckWinFix như bước 'Sửa' sau chẩn đoán, chỉ đề xuất lệnh hợp với bệnh đã tìm thấy."
   ]
 }
