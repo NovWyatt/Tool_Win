@@ -126,8 +126,7 @@
     "Lỗi Ntfs 140 (không ghi được dữ liệu) không ghi số ổ nên vẫn tính cả lần rút ổ USB khi đang ghi. Lỗi của nguồn disk thì đã tách: ổ USB hoặc ổ đã rút ra chỉ là cảnh báo."
   ],
   "upgrades": [
-    "P1: Gom phần dùng chung (khởi chạy, đọc SMART, minidump, WHEA) vào một lõi, build ra từng .bat như MyExcelFix.",
-    "P1: JSON kết quả cho các script chuyên sâu (phần cứng, WHEA, sụp nguồn) như Thu thập thông tin.",
+    "P2: Đưa thêm phần đọc minidump, sự kiện WHEA và đoạn khởi chạy (nâng quyền, tách PowerShell) vào src\\Chung.ps1; hiện mỗi script tự làm theo cách riêng.",
     "P1: Đọc trường sự kiện từ EventData thay vì chữ trong thông điệp ở các mục còn lại để chạy đúng trên Windows mọi ngôn ngữ."
   ]
 }

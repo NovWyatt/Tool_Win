@@ -64,7 +64,7 @@ foreach ($file in $scripts.Keys) {
 Write-KT '2. FLAG, Save-KetQua (hàm tách từ 2-CHAN-DOAN-PHAN-CUNG.bat)' Cyan
 foreach ($n in $asts['2-CHAN-DOAN-PHAN-CUNG.bat'].FindAll({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -in 'FLAG', 'Save-KetQua' }, $true)) { . ([scriptblock]::Create($n.Extent.Text)) }
 $OutDir = New-TestDir 'chuyen-sau-ham'
-$T0 = Get-Date; $SCRIPT_VER = '1.1'; $isAdmin = $true
+$T0 = Get-Date; $SCRIPT_VER = '1.2'; $isAdmin = $true
 $script:FLAGS = New-Object System.Collections.ArrayList
 FLAG 'A_OK' 'Tot' -Muc 'ok'
 FLAG 'B_TIN' 'Thong tin' -Muc 'thong-tin' -Tiep 'fix-win/ram'
@@ -81,7 +81,7 @@ if ($f.Count -eq 1) {
     Check (-not ($b[0] -eq 0xEF -and $b[1] -eq 0xBB)) 'UTF-8 không BOM'
     Check ((@($j.phatHien | ForEach-Object { $_.ma }) -join ',') -eq 'C_LOI,D_CANH,B_TIN,A_OK') "lỗi lên đầu, ok xuống cuối ($(@($j.phatHien | ForEach-Object { $_.ma }) -join ','))"
     Check ($j.tomTat.loi -eq 1 -and $j.tomTat.canhBao -eq 1 -and $j.tomTat.thongTin -eq 1 -and $j.ma -eq 'CO_LOI' -and $j.thongDiep -match '1 lỗi, 1 cảnh báo') 'tóm tắt, mã chung, thông điệp'
-    Check ($j.chuan -eq 'tramtool.ketqua/1' -and $j.congCu -eq 'checkwinfix' -and $j.cheDo -eq 'phan-cung' -and $j.phienBan -eq '1.1' -and $j.maThoat -eq 0 -and $j.trangThai -eq 'xong' -and $j.quyenAdmin -eq $true) 'chuẩn, công cụ, chế độ, phiên bản, mã thoát'
+    Check ($j.chuan -eq 'tramtool.ketqua/1' -and $j.congCu -eq 'checkwinfix' -and $j.cheDo -eq 'phan-cung' -and $j.phienBan -eq '1.2' -and $j.maThoat -eq 0 -and $j.trangThai -eq 'xong' -and $j.quyenAdmin -eq $true) 'chuẩn, công cụ, chế độ, phiên bản, mã thoát'
     $c = @($j.phatHien)[0]
     Check ($c.chayTiep.congCu -eq 'checkwinfix' -and $c.chayTiep.action -eq 'bang-chung' -and $c.chiTiet -eq "dong 1`ndong 2") 'chạy tiếp, chi tiết'
     Check (-not (@($j.phatHien)[1].PSObject.Properties.Name -contains 'chayTiep')) 'Tiep sai dạng thì bỏ'
@@ -144,7 +144,7 @@ foreach ($file in $scripts.Keys) {
     $j = [IO.File]::ReadAllText($js[0].FullName) | ConvertFrom-Json
     $items = @($j.phatHien)
     $ma = @($items | ForEach-Object { $_.ma })
-    Check ($j.chuan -eq 'tramtool.ketqua/1' -and $j.congCu -eq 'checkwinfix' -and $j.cheDo -eq $action.id -and $j.phienBan -eq '1.1' -and $j.maThoat -eq 0) "${file}: chuẩn, cheDo $($j.cheDo), phiên bản $($j.phienBan)"
+    Check ($j.chuan -eq 'tramtool.ketqua/1' -and $j.congCu -eq 'checkwinfix' -and $j.cheDo -eq $action.id -and $j.phienBan -eq '1.2' -and $j.maThoat -eq 0) "${file}: chuẩn, cheDo $($j.cheDo), phiên bản $($j.phienBan)"
     Check ($rep.Count -eq 1 -and @($j.tep | Where-Object { $_.duongDan -eq $rep[0].FullName }).Count -eq 1) "${file}: tep trỏ tới $($info.Out)"
     Check (-not @($items | Where-Object { $_.ma -notmatch '^[A-Z][A-Z0-9_]+$' -or $_.mucDo -notin 'loi', 'canh-bao', 'thong-tin', 'ok' }).Count) "${file}: mã, mức hợp lệ ($($ma -join ', '))"
     $order = @($items | ForEach-Object { @{ 'loi' = 0; 'canh-bao' = 1; 'thong-tin' = 2; 'ok' = 3 }[$_.mucDo] })

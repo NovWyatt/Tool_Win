@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 chcp 65001 >nul 2>&1
-title CHAN DOAN PHAN CUNG - WHEA / o dia / RAM (v1.1)
+title CHAN DOAN PHAN CUNG - WHEA / o dia / RAM (v1.2)
 
 set "SELF=%~f0"
 set "OUTDIR=%~dp0"
@@ -76,10 +76,21 @@ function S { param([string]$t) W ''; W ("  --- $t " + ('-' * [Math]::Max(1, 76 -
 function KV { param($k, $v) W ("  {0,-30}: {1}" -f $k, $v) }
 function Step { param([string]$t) Write-Host ("  >> $t") -ForegroundColor Cyan }
 
-$SCRIPT_VER = '1.1'
+$SCRIPT_VER = '1.2'
 $T0 = Get-Date
-$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+#=====CHUNG_BAT_DAU=====
+# Sinh tu src\Chung.ps1 bang src\build.ps1: sua o file do, dung sua o day.
+# Phan dung chung cua cac script CheckWinFix (ThuThapThongTin.bat, 2-5). src\build.ps1 chep nguyen file nay vao
+# giua hai dong dau moc CHUNG_BAT_DAU va CHUNG_KET_THUC cua moi .bat: moi .bat van chay doc lap (gui rieng cho
+# khach duoc). Sua o day roi chay src\build.ps1, khong sua thang trong .bat.
+# Script goi Save-KetQua phai dat truoc: $SCRIPT_VER, $T0 (gio bat dau), $OutDir, $isAdmin.
+
 $script:FLAGS = New-Object System.Collections.ArrayList
+
+function Test-QuyenAdmin {
+  try { return ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) } catch { return $false }
+}
+
 function FLAG {
   # Phat hien cho Tram Tool: ma co dinh (khong doi khi sua chu), muc do (loi | canh-bao | thong-tin | ok), viec nen
   # chay tiep (<id cong cu>/<id action> trong Tram Tool), chi tiet. Cung cau thi chi ghi mot lan.
@@ -89,42 +100,7 @@ function FLAG {
   if ($Tiep -match '^([a-z0-9-]+)/([A-Za-z0-9_-]+)$') { $f['chayTiep'] = [ordered]@{ congCu = $Matches[1]; action = $Matches[2] } }
   [void]$script:FLAGS.Add($f)
 }
-function Get-DiskBus {
-  # Kieu ket noi cua o vat ly so N ('USB', 'NVMe', 'SATA'...); 'KHONG_CON' neu o khong con gan vao may (o rut ra);
-  # '' neu khong doc duoc danh sach o.
-  param([int]$Number)
-  if ($null -eq $script:DiskBus) {
-    $script:DiskBus = @{}
-    try { foreach ($d in @(Get-Disk -ErrorAction Stop)) { $script:DiskBus[[int]$d.Number] = [string]$d.BusType } } catch { $script:DiskBus = @{ 'loi' = $true } }
-  }
-  if ($script:DiskBus.ContainsKey('loi')) { return '' }
-  if ($script:DiskBus.ContainsKey($Number)) { return $script:DiskBus[$Number] }
-  return 'KHONG_CON'
-}
-function Measure-DiskIo {
-  # Phan loai su kien o dia (cung cach Thu thap thong tin): Hard = loi phan cung (bad block 7, paging 51, IO that bai
-  # 154, NTFS hong 55), Soft = IO yeu (controller 11, thu lai 153, bo dieu khien reset 129) tren o trong may; Usb = cac
-  # loi do tren o USB hoac o da rut ra (thuong do rut o khi dang ghi). PerDisk: so loi theo tung o.
-  param([object[]]$Events)
-  $r = [pscustomobject]@{ Hard = 0; Soft = 0; Usb = 0; PerDisk = @{} }
-  foreach ($e in @($Events)) {
-    $pv = [string]$e.ProviderName
-    $hard = ($pv -eq 'disk' -and @(7, 51, 154) -contains [int]$e.Id) -or ($pv -match '^(Ntfs|Microsoft-Windows-Ntfs)$' -and [int]$e.Id -eq 55)
-    $soft = ($pv -eq 'disk' -and @(11, 153) -contains [int]$e.Id) -or ($pv -match '^(storahci|stornvme|storport|iaStor)' -and [int]$e.Id -eq 129)
-    if (-not ($hard -or $soft)) { continue }
-    $k = 'khong ro o nao'; $rut = $false
-    try {
-      if ($pv -eq 'disk' -and [string]$e.Properties[0].Value -match 'Harddisk(\d+)') {
-        $bus = Get-DiskBus ([int]$Matches[1])
-        $k = 'Disk {0} ({1})' -f $Matches[1], $(if ($bus -eq 'KHONG_CON') { 'da rut ra' } elseif ($bus) { $bus } else { '?' })
-        $rut = $bus -in 'USB', 'KHONG_CON'
-      }
-    } catch {}
-    if ($rut) { $r.Usb++ } elseif ($hard) { $r.Hard++ } else { $r.Soft++ }
-    $r.PerDisk[$k] = 1 + [int]$r.PerDisk[$k]
-  }
-  return $r
-}
+
 function Save-KetQua {
   # Ghi KetQua_CheckWinFix_<Ten>_<may>_<gio>.json (chuan tramtool.ketqua/1) canh bao cao: loi len dau. Tra duong dan, '' khi loi.
   param([string]$CheDo, [string]$Ten, [object[]]$Tep = @(), [string]$Message = '')
@@ -155,6 +131,94 @@ function Save-KetQua {
     Move-Item -LiteralPath ($p + '.tmp') -Destination $p -Force -ErrorAction Stop
     return $p
   } catch { Write-Host ('  [!] Khong ghi duoc file ket qua JSON: ' + $_.Exception.Message) -ForegroundColor Yellow; return '' }
+}
+
+function Get-DiskBus {
+  # Kieu ket noi cua o vat ly so N ('USB', 'NVMe', 'SATA'...); 'KHONG_CON' neu o khong con gan vao may (o rut ra);
+  # '' neu khong doc duoc danh sach o.
+  param([int]$Number)
+  if ($null -eq $script:DiskBus) {
+    $script:DiskBus = @{}
+    try { foreach ($d in @(Get-Disk -ErrorAction Stop)) { $script:DiskBus[[int]$d.Number] = [string]$d.BusType } } catch { $script:DiskBus = @{ 'loi' = $true } }
+  }
+  if ($script:DiskBus.ContainsKey('loi')) { return '' }
+  if ($script:DiskBus.ContainsKey($Number)) { return $script:DiskBus[$Number] }
+  return 'KHONG_CON'
+}
+
+# ---- SMART (o ATA/SATA qua driver; NVMe va o USB thuong khong co bang nay)
+$script:SMART_TEN = @{
+  1 = 'Raw_Read_Error_Rate'; 5 = 'Reallocated_Sectors_Count'; 7 = 'Seek_Error_Rate'; 9 = 'Power_On_Hours'
+  10 = 'Spin_Retry_Count'; 12 = 'Power_Cycle_Count'; 184 = 'End_to_End_Error'; 187 = 'Reported_Uncorrectable'
+  188 = 'Command_Timeout'; 190 = 'Airflow_Temperature'; 194 = 'Temperature'; 196 = 'Reallocated_Event_Count'
+  197 = 'Current_Pending_Sector'; 198 = 'Offline_Uncorrectable'; 199 = 'UDMA_CRC_Error_Count'
+  200 = 'Multi_Zone_Error_Rate'; 231 = 'SSD_Life_Left'; 233 = 'Media_Wearout_Indicator'; 241 = 'Total_LBA_Written'
+}
+
+function ConvertFrom-SmartVendor {
+  # Bang thuoc tinh tu VendorSpecific cua MSStorageDriver_FailurePredictData: 2 byte dau, roi 30 o x 12 byte
+  # (ID, 2 byte co, Value, Worst, Raw 6 byte little-endian, 1 byte du). $Nguong: VendorSpecific cua
+  # MSStorageDriver_FailurePredictThresholds cung o (ID, Threshold). Tra tung thuoc tinh co ID khac 0 (Nguong $null khi
+  # khong co).
+  param([byte[]]$Data = @(), [byte[]]$Nguong = @())
+  $th = @{}
+  for ($k = 0; $k -lt 30; $k++) {
+    $b = 2 + 12 * $k
+    if (($b + 1) -ge $Nguong.Count) { break }
+    if ([int]$Nguong[$b] -ne 0) { $th[[int]$Nguong[$b]] = [int]$Nguong[$b + 1] }
+  }
+  for ($k = 0; $k -lt 30; $k++) {
+    $b = 2 + 12 * $k
+    if (($b + 11) -ge $Data.Count) { break }
+    $id = [int]$Data[$b]
+    if ($id -eq 0) { continue }
+    $raw = [uint64]0
+    for ($j = 5; $j -ge 0; $j--) { $raw = $raw * 256 + [uint64]$Data[$b + 5 + $j] }
+    [pscustomobject]@{
+      Id = $id; Ten = $(if ($script:SMART_TEN.ContainsKey($id)) { $script:SMART_TEN[$id] } else { 'Attr_' + $id })
+      Value = [int]$Data[$b + 3]; Worst = [int]$Data[$b + 4]
+      Nguong = $(if ($th.ContainsKey($id)) { $th[$id] } else { $null }); Raw = $raw
+    }
+  }
+}
+
+function Get-SmartThuocTinh {
+  # Moi o co bang SMART: [pscustomobject]@{ O = InstanceName; ThuocTinh = @(ConvertFrom-SmartVendor) }. Can quyen Admin;
+  # khong doc duoc thi khong tra gi.
+  $nguong = @{}
+  foreach ($t in @(Get-CimInstance -Namespace root\wmi -ClassName MSStorageDriver_FailurePredictThresholds -OperationTimeoutSec 30 -ErrorAction SilentlyContinue)) {
+    $nguong[[string]$t.InstanceName] = [byte[]]@($t.VendorSpecific)
+  }
+  foreach ($d in @(Get-CimInstance -Namespace root\wmi -ClassName MSStorageDriver_FailurePredictData -OperationTimeoutSec 30 -ErrorAction SilentlyContinue)) {
+    $ng = if ($nguong.ContainsKey([string]$d.InstanceName)) { $nguong[[string]$d.InstanceName] } else { [byte[]]@() }
+    [pscustomobject]@{ O = [string]$d.InstanceName; ThuocTinh = @(ConvertFrom-SmartVendor -Data ([byte[]]@($d.VendorSpecific)) -Nguong $ng) }
+  }
+}
+#=====CHUNG_KET_THUC=====
+$isAdmin = Test-QuyenAdmin
+function Measure-DiskIo {
+  # Phan loai su kien o dia (cung cach Thu thap thong tin): Hard = loi phan cung (bad block 7, paging 51, IO that bai
+  # 154, NTFS hong 55), Soft = IO yeu (controller 11, thu lai 153, bo dieu khien reset 129) tren o trong may; Usb = cac
+  # loi do tren o USB hoac o da rut ra (thuong do rut o khi dang ghi). PerDisk: so loi theo tung o.
+  param([object[]]$Events)
+  $r = [pscustomobject]@{ Hard = 0; Soft = 0; Usb = 0; PerDisk = @{} }
+  foreach ($e in @($Events)) {
+    $pv = [string]$e.ProviderName
+    $hard = ($pv -eq 'disk' -and @(7, 51, 154) -contains [int]$e.Id) -or ($pv -match '^(Ntfs|Microsoft-Windows-Ntfs)$' -and [int]$e.Id -eq 55)
+    $soft = ($pv -eq 'disk' -and @(11, 153) -contains [int]$e.Id) -or ($pv -match '^(storahci|stornvme|storport|iaStor)' -and [int]$e.Id -eq 129)
+    if (-not ($hard -or $soft)) { continue }
+    $k = 'khong ro o nao'; $rut = $false
+    try {
+      if ($pv -eq 'disk' -and [string]$e.Properties[0].Value -match 'Harddisk(\d+)') {
+        $bus = Get-DiskBus ([int]$Matches[1])
+        $k = 'Disk {0} ({1})' -f $Matches[1], $(if ($bus -eq 'KHONG_CON') { 'da rut ra' } elseif ($bus) { $bus } else { '?' })
+        $rut = $bus -in 'USB', 'KHONG_CON'
+      }
+    } catch {}
+    if ($rut) { $r.Usb++ } elseif ($hard) { $r.Hard++ } else { $r.Soft++ }
+    $r.PerDisk[$k] = 1 + [int]$r.PerDisk[$k]
+  }
+  return $r
 }
 
 if ([string]::IsNullOrWhiteSpace($OutDir) -or -not (Test-Path -LiteralPath $OutDir)) { $OutDir = Join-Path $env:USERPROFILE 'Desktop' }
@@ -331,51 +395,26 @@ foreach ($d in (Get-PhysicalDisk -ErrorAction SilentlyContinue)) {
   if ($rc -and ([int64]$rc.ReadErrorsUncorrected + [int64]$rc.WriteErrorsUncorrected) -gt 0) { FLAG 'O_DIA_LOI_KHONG_SUA_DUOC' ("O #{0} {1}: {2} loi doc, {3} loi ghi khong tu sua duoc." -f $d.DeviceId, $d.FriendlyName, [int64]$rc.ReadErrorsUncorrected, [int64]$rc.WriteErrorsUncorrected) -Muc 'loi' -Tiep 'checkwinfix/bang-chung' }
   if ($rc -and $null -ne $rc.Wear -and [int]$rc.Wear -ge 90) { FLAG 'SSD_SAP_HET_TUOI_THO' ("O #{0} {1}: da dung {2}% tuoi tho." -f $d.DeviceId, $d.FriendlyName, $rc.Wear) }
 }
-$names = @{ 1 = 'Raw_Read_Error_Rate'; 5 = 'Reallocated_Sectors'; 7 = 'Seek_Error_Rate'; 9 = 'Power_On_Hours'; 10 = 'Spin_Retry';
-  184 = 'End_to_End_Error'; 187 = 'Reported_Uncorrectable'; 188 = 'Command_Timeout'; 194 = 'Temperature';
-  196 = 'Realloc_Event_Count'; 197 = 'Current_Pending_Sector'; 198 = 'Offline_Uncorrectable'; 199 = 'UDMA_CRC_Error'
-}
 S 'Bang thuoc tinh SMART (Value thap gan Threshold = sap hong)'
-foreach ($disk in (Get-CimInstance -Namespace root\wmi -ClassName MSStorageDriver_FailurePredictData -ErrorAction SilentlyContinue)) {
-  W ('  O dia: ' + $disk.InstanceName)
-  $th = @{}
-  foreach ($t in (Get-CimInstance -Namespace root\wmi -ClassName MSStorageDriver_FailurePredictThresholds -ErrorAction SilentlyContinue)) {
-    if ($t.InstanceName -ne $disk.InstanceName) { continue }
-    $vv = $t.VendorSpecific
-    for ($k = 0; $k -lt 30; $k++) {
-      $b = 2 + 12 * $k
-      if (($b + 1) -ge $vv.Count) { break }
-      if ([int]$vv[$b] -ne 0) { $th[[int]$vv[$b]] = [int]$vv[$b + 1] }
-    }
-  }
-  $v = $disk.VendorSpecific
+foreach ($disk in @(Get-SmartThuocTinh)) {
+  W ('  O dia: ' + $disk.O)
   $marks = @(); $markBad = $false
-  W ('    {0,-24} {1,-5} {2,-7} {3,-7} {4,-10} {5}' -f 'Thuoc tinh', 'ID', 'Value', 'Worst', 'Threshold', 'Raw')
-  for ($k = 0; $k -lt 30; $k++) {
-    $b = 2 + 12 * $k
-    if (($b + 11) -ge $v.Count) { break }
-    $id = [int]$v[$b]
-    if ($id -eq 0) { continue }
-    $raw = [uint64]0
-    for ($j = 5; $j -ge 0; $j--) { $raw = $raw * 256 + [uint64]$v[$b + 5 + $j] }
-    $nm = 'Attr_' + $id
-    if ($names.ContainsKey($id)) { $nm = $names[$id] }
-    $tv = ''
-    if ($th.ContainsKey($id)) { $tv = $th[$id] }
+  W ('    {0,-28} {1,-5} {2,-7} {3,-7} {4,-10} {5}' -f 'Thuoc tinh', 'ID', 'Value', 'Worst', 'Threshold', 'Raw')
+  foreach ($a in $disk.ThuocTinh) {
     $mark = ''
-    if ($th.ContainsKey($id) -and $th[$id] -gt 0) {
-      if ([int]$v[$b + 3] -le $th[$id])      { $mark = '  <<< DANG HONG (Value <= Threshold)' }
-      elseif ([int]$v[$b + 4] -le $th[$id])  { $mark = '  <<< DA TUNG CHAM NGUONG (Worst <= Threshold)' }
+    if ($null -ne $a.Nguong -and $a.Nguong -gt 0) {
+      if ($a.Value -le $a.Nguong)     { $mark = '  <<< DANG HONG (Value <= Threshold)' }
+      elseif ($a.Worst -le $a.Nguong) { $mark = '  <<< DA TUNG CHAM NGUONG (Worst <= Threshold)' }
     }
-    if ($id -in @(5, 187, 197, 198) -and $raw -gt 0) { $mark = '  <<< RAW > 0 - CO LOI THAT' }
-    W ('    {0,-24} {1,-5} {2,-7} {3,-7} {4,-10} {5}{6}' -f $nm, $id, $v[$b + 3], $v[$b + 4], $tv, $raw, $mark)
+    if ($a.Id -in @(5, 187, 197, 198) -and $a.Raw -gt 0) { $mark = '  <<< RAW > 0 - CO LOI THAT' }
+    W ('    {0,-28} {1,-5} {2,-7} {3,-7} {4,-10} {5}{6}' -f $a.Ten, $a.Id, $a.Value, $a.Worst, $a.Nguong, $a.Raw, $mark)
     if ($mark) {
-      $marks += ('{0} (ID {1}): Value {2}, Worst {3}, Threshold {4}, Raw {5}' -f $nm, $id, $v[$b + 3], $v[$b + 4], $tv, $raw)
+      $marks += ('{0} (ID {1}): Value {2}, Worst {3}, Threshold {4}, Raw {5}' -f $a.Ten, $a.Id, $a.Value, $a.Worst, $a.Nguong, $a.Raw)
       if ($mark -notmatch 'CHAM NGUONG') { $markBad = $true }
     }
   }
-  if ($marks.Count -and $markBad) { FLAG 'SMART_BAO_HONG' ('SMART cua o ' + $disk.InstanceName + ' bao hong: sao luu du lieu ngay, chuan bi thay o.') -Muc 'loi' -Tiep 'checkwinfix/bang-chung' -ChiTiet ($marks -join "`n") }
-  elseif ($marks.Count) { FLAG 'SMART_TUNG_CHAM_NGUONG' ('SMART cua o ' + $disk.InstanceName + ' tung cham nguong hong.') -ChiTiet ($marks -join "`n") }
+  if ($marks.Count -and $markBad) { FLAG 'SMART_BAO_HONG' ('SMART cua o ' + $disk.O + ' bao hong: sao luu du lieu ngay, chuan bi thay o.') -Muc 'loi' -Tiep 'checkwinfix/bang-chung' -ChiTiet ($marks -join "`n") }
+  elseif ($marks.Count) { FLAG 'SMART_TUNG_CHAM_NGUONG' ('SMART cua o ' + $disk.O + ' tung cham nguong hong.') -ChiTiet ($marks -join "`n") }
 }
 
 # ============================ 5. MAN HINH XANH ================================

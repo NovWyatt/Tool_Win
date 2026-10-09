@@ -129,6 +129,15 @@ Mỗi kết luận trong báo cáo `.txt` in kèm mã trong ngoặc. Gợi ý ch
 xanh → *Sụp nguồn*. Không có quyền Admin thì có `THIEU_QUYEN_ADMIN` và không kết luận máy ổn. Script 5 ghi file kết
 quả trước khi hỏi bật minidump hay theo dõi. Script 4, 5 nhận `-KhongHoi` để không hỏi gì (bài thử dùng).
 
+## Sửa mã: phần dùng chung
+
+`ThuThapThongTin.bat` và các script 2 đến 5 có chung một khối mã, nằm giữa dòng `#=====CHUNG_BAT_DAU=====` và dòng
+`#=====CHUNG_KET_THUC=====`. Khối này gồm: ghi phát hiện (`FLAG`), ghi JSON kết quả (`Save-KetQua`), kiểm quyền Admin,
+kiểu kết nối ổ (`Get-DiskBus`), đọc bảng SMART (`Get-SmartThuocTinh`).
+- Muốn sửa khối này thì sửa `src\Chung.ps1`, rồi chạy `src\build.ps1` để chép vào từng `.bat`. Không sửa thẳng trong `.bat`.
+- `src\build.ps1 -Kiem` chỉ kiểm tra, không ghi. Bài thử `checkwinfix/5_PhanChung` báo hỏng khi có `.bat` chưa dựng lại.
+- Mỗi `.bat` vẫn chạy một mình được, nên gửi riêng cho khách như trước.
+
 ## Kiểm chứng
 
 Đã chạy thử thật trên máy này (Windows 11 25H2, build 26200): chạy hết 24/24 mục trong **85 giây**, không mục nào lỗi, báo cáo 76 KB, tự bắt được 16 cảnh báo.
