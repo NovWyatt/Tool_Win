@@ -2,14 +2,14 @@
 chcp 65001 >nul
 title Kiem tra va Khac phuc su co Wi-Fi
 
-:: Kiem tra quyen Administrator
-net session >nul 2>&1
+:: Kiem tra quyen Administrator (fltmc khong can dich vu Server nhu net session)
+fltmc >nul 2>&1
 if %errorlevel% neq 0 (
     echo ========================================================
     echo VUI LONG CHAY FILE NAY DUOI QUYEN ADMIN (Run as Administrator)
     echo ========================================================
     pause
-    exit /b
+    exit /b 2
 )
 
 :MENU

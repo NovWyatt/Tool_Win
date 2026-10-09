@@ -103,7 +103,7 @@
   "issues": [
     "\"Kết nối Wi-Fi\" mới chạy thử (chưa có quyền Admin) trên máy phát triển; phần đọc danh sách mạng, lưu mạng, kết nối chưa chạy thật.",
     "Không tự tạo được hồ sơ cho mạng doanh nghiệp (tài khoản, chứng chỉ) và WEP: công cụ báo và chỉ sang Settings.",
-    "Menu cũ (fixwf.bat): kiểm tra quyền Admin bằng 'net session' cần dịch vụ Server; tìm card bằng chữ 'Wi-Fi'/'Wireless' nên hụt khi card đổi tên hoặc Windows khác ngôn ngữ; ping google.com hỏng bị báo là lỗi DNS.",
+    "Menu cũ (fixwf.bat): tìm card bằng chữ 'Wi-Fi'/'Wireless' nên hụt khi card đổi tên hoặc Windows khác ngôn ngữ; ping google.com hỏng bị báo là lỗi DNS.",
     "Menu cũ mục 2 không nhắc phải khởi động lại sau khi đặt lại Winsock/TCP-IP; ipconfig /release ngắt mạng mọi card, không chỉ Wi-Fi."
   ],
   "upgrades": [

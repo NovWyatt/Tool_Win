@@ -29,8 +29,11 @@ Mức ưu tiên:
 - **Lan can an toàn (Trạm 1.2.0)**: điểm khôi phục hệ thống trước công cụ đổi máy bằng quyền Admin, ghi dịch vụ và
   registry trước khi chạy để xem thay đổi và trả lại, kiểm tra và sửa winget. Đã thử bằng giả lập, chưa tạo điểm khôi
   phục thật (máy phát triển đang tắt Bảo vệ hệ thống).
-- **Cần sửa trước khi đưa người khác dùng (P0)**: Chuyển dữ liệu khi cài lại Windows, phần *Cứu dữ liệu* của
-  CheckWinFix.
+- **Cần sửa trước khi đưa người khác dùng (P0)**: Chuyển dữ liệu khi cài lại Windows.
+- **CheckWinFix 2026.10.2**: *Cứu dữ liệu* chọn nơi lưu trên ổ vật lý khác, dừng mọi instance SQL Server, đối chiếu
+  MD5 khi SQL còn dừng, luôn bật lại dịch vụ (nhớ cả khi cửa sổ bị đóng), luôn ghi vào thư mục mới; bảng cảnh báo so
+  theo nguồn + mã sự kiện, đọc cả mức Warning, tách lỗi ổ đĩa theo từng Disk; kiểm tra Admin bằng `fltmc`. Cứu dữ
+  liệu mới thử bằng giả lập.
 - **Sửa lỗi Windows 2.0**: mỗi lệnh kiểm tra kết quả thật (DISM đọc trạng thái ảnh, SFC đọc CBS.log, ổ đĩa dùng
   `Repair-Volume`); đặt lại tường lửa tách riêng, sao lưu trước và hỏi lại; bỏ *Registry Cleanup*, *Clean Temp*. Mới
   thử bằng giả lập, chưa chạy sửa thật.
@@ -70,7 +73,7 @@ Mức ưu tiên:
 
 | Công cụ | Dành cho | Đánh giá | Việc nên làm trước |
 |---|---|---|---|
-| CheckWinFix | Mọi người | Bộ chẩn đoán đầy đủ nhất: 24 nhóm thông tin, khoảng 45 cảnh báo tự động, chạy đúng với mọi đường dẫn. | P0: sửa *Cứu dữ liệu* (đối chiếu MD5 khi SQL còn dừng, so ổ vật lý), bổ sung mã sự kiện mức Warning. |
+| CheckWinFix | Mọi người | Bộ chẩn đoán đầy đủ nhất: 24 nhóm thông tin, khoảng 45 cảnh báo tự động (lỗi sự kiện so theo nguồn + mã, cả mức Warning), chạy đúng với mọi đường dẫn. *Cứu dữ liệu* bản 2.0 an toàn hơn (ổ vật lý khác, MD5 khi SQL dừng, luôn bật lại dịch vụ), mới thử bằng giả lập. | P1: lõi dùng chung, JSON kết quả, đọc EventData ở các mục còn lại. |
 | Báo cáo sức khoẻ | Mọi người | Chạy được, nhưng trùng phần lớn với *Thu thập thông tin* của CheckWinFix. | P1: gộp vào CheckWinFix thành chế độ nhanh. |
 | Sửa lỗi Windows | Kỹ thuật | Bản 2.0: DISM rồi SFC, đặt lại mạng (ghi lại IP/DNS đặt tay trước), đặt lại tường lửa (sao lưu `.wfw`, hỏi lại, khôi phục được), quét và sửa ổ đĩa (xem sức khoẻ ổ trước), kiểm tra RAM, đặt lại Windows Update (đổi tên có thời gian); mỗi lệnh kiểm tra kết quả thật. Mới thử bằng giả lập. | P1: nhật ký tóm tắt CBS/DISM; DISM dùng ISO khi Windows Update không tải được. |
 | Kiểm tra và sửa lỗi Wi-Fi | Mọi người | Bản 1.1 thêm `KET_NOI_WIFI.bat`: gọi thẳng API Wi-Fi (không phụ thuộc ngôn ngữ Windows), sửa lỗi *Can't connect to this network* khi vào mạng mới sau khi máy thức dậy, chẩn đoán từ nhật ký WLAN theo mã lý do. Phần kết nối mới chạy thử, chưa chạy thật. Menu cũ `fixwf.bat` vẫn tìm card bằng chữ. | P1: tự sửa sau khi máy thức dậy; gộp menu cũ vào `KetNoiWifi.ps1`. |
@@ -93,8 +96,8 @@ Mức ưu tiên:
 Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy ước chung thay vì vá từng nơi.
 
 1. **Kiểm tra quyền Admin sai cách hoặc không kiểm tra.** CheckWinFix, Wi-Fi dùng `net session` (cần dịch vụ Server,
-   bị tắt là báo nhầm hoặc tự mở lại không dừng). Sửa lỗi Windows, Tắt/bật dịch vụ, Tối ưu đồng hồ không kiểm tra gì
-   (đã sửa ở bản 2.0 của cả ba).
+   bị tắt là báo nhầm hoặc tự mở lại không dừng; nay đã đổi sang `fltmc`, còn Báo cáo sức khoẻ và Chuyển dữ liệu khi
+   cài lại Windows). Sửa lỗi Windows, Tắt/bật dịch vụ, Tối ưu đồng hồ không kiểm tra gì (đã sửa ở bản 2.0 của cả ba).
    Quy ước: `fltmc >nul 2>&1` để kiểm tra, tự nâng quyền đúng một lần, không được thì báo rõ và thoát.
 2. **Báo thành công giả.** Lỗi bị giấu bằng `>nul 2>&1` rồi in *thành công*; mã thoát luôn 0. Quy ước: kiểm tra
    `errorlevel` (hoặc `$LASTEXITCODE`) sau mỗi lệnh thay đổi máy; mã thoát `0` xong, `1` lỗi, `2` thiếu điều kiện,
@@ -117,12 +120,12 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 
 ### Giai đoạn 1: an toàn (P0)
 
-- [ ] Quy ước Admin + mã thoát (mục 1, 2 ở trên) cho Sửa lỗi Windows, Tắt/bật dịch vụ, Wi-Fi, CheckWinFix.
+- [x] Quy ước Admin + mã thoát (mục 1, 2 ở trên) cho Sửa lỗi Windows, Tắt/bật dịch vụ, Wi-Fi, CheckWinFix.
 - [x] Tối ưu đồng hồ: viết lại bằng `bcdedit /set {current} disabledynamictick yes` và
       `bcdedit /deletevalue {current} useplatformclock`, đọc trạng thái thật bằng `bcdedit /enum {current}` (bản 2.0).
-- [ ] CheckWinFix *Cứu dữ liệu*: đối chiếu MD5 khi SQL còn dừng, so ổ vật lý nguồn/đích, dò mọi instance `MSSQL*`,
+- [x] CheckWinFix *Cứu dữ liệu*: đối chiếu MD5 khi SQL còn dừng, so ổ vật lý nguồn/đích, dò mọi instance `MSSQL*`,
       luôn bật lại SQL Server kể cả khi lỗi giữa chừng.
-- [ ] CheckWinFix cảnh báo: so theo nguồn sự kiện + mã, thêm disk 154, WHEA 1/18 và mức Warning.
+- [x] CheckWinFix cảnh báo: so theo nguồn sự kiện + mã, thêm disk 154, WHEA 1/18 và mức Warning.
 - [x] Sửa lỗi Windows: tách đặt lại tường lửa và hỏi lại; bỏ *Registry Cleanup* (bản 2.0).
 - [x] Tắt/bật dịch vụ: xét kiểu khởi động, lưu trạng thái gốc ra file để *bật lại* trả đúng giá trị cũ (bản 2.0).
 - [ ] MyExcelFix: dừng có thông báo khi hết đầu vào; hoàn tác giữ bản hiện tại nếu file đã đổi sau khi sửa; mã thoát.

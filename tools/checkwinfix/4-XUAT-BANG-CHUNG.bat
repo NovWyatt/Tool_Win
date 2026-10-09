@@ -20,18 +20,25 @@ echo.
 where powershell >nul 2>&1
 if errorlevel 1 goto :ERR_NOPS
 
-net session >nul 2>&1
-if errorlevel 1 goto :ELEVATE
-goto :ADMIN_OK
+rem fltmc chi chay duoc bang quyen Admin va khong can dich vu Server (net session thi can).
+fltmc >nul 2>&1
+if not errorlevel 1 goto :ADMIN_OK
+if /i "%~1"=="/danangquyen" goto :ERR_ADMIN
+echo  [*] Can quyen Administrator. Dang mo lai bang quyen Admin, vui long bam YES...
+powershell -NoProfile -Command "try { $p = Start-Process -FilePath $env:SELF -ArgumentList '/danangquyen' -Verb RunAs -Wait -PassThru -ErrorAction Stop; exit $p.ExitCode } catch { exit 1223 }"
+set "RC=%ERRORLEVEL%"
+if not "%RC%"=="1223" exit /b %RC%
+echo.
+echo  [!] Khong nang duoc quyen Admin (da bam No o hop thoai UAC?).
+echo      Hay chuot phai vao file nay, chon "Run as administrator".
+echo.
+pause
+exit /b 2
 
-:ELEVATE
-echo  [*] Can quyen Administrator. Dang mo lai, vui long bam YES...
-powershell -NoProfile -Command "Start-Process -FilePath $env:SELF -Verb RunAs" >nul 2>&1
-if errorlevel 1 (
-  echo  [!] Khong nang duoc quyen. Chuot phai file nay ^> Run as administrator.
-  pause
-)
-exit /b
+:ERR_ADMIN
+echo  [X] Da mo lai bang quyen Admin ma van chua co quyen. Dung lai de khong hoi UAC mai.
+pause
+exit /b 2
 
 :ADMIN_OK
 set "PS1=%TEMP%\CWF_Evidence_%RANDOM%.ps1"
@@ -248,7 +255,7 @@ foreach ($disk in (Get-CimInstance -Namespace root\wmi -ClassName MSStorageDrive
 
 Head '4/5  GOM CAC BAO CAO DA CHAY TRUOC DO'
 $copied = 0
-foreach ($pat in @('LagReport_*.txt', 'HwDiag_*.txt', 'WheaDecode_*.txt', 'KET_QUA_CUU_DU_LIEU.txt')) {
+foreach ($pat in @('LagReport', 'HwDiag', 'WheaDecode', 'SupNguon' | ForEach-Object { '{0}_{1}_*.txt' -f $_, $env:COMPUTERNAME })) {
   foreach ($f in (Get-ChildItem -LiteralPath $OutDir -Filter $pat -ErrorAction SilentlyContinue)) {
     Copy-Item -LiteralPath $f.FullName -Destination $dir -Force -ErrorAction SilentlyContinue
     if ($?) { Say ('  Da chep: ' + $f.Name) Green; $copied++ }
@@ -310,7 +317,7 @@ W '       "The IO operation at logical block address 0x... for Disk 0'
 W '        failed due to a hardware error."'
 W '  5. Nhan phim PrtScn (hoac Windows + Shift + S) de chup man hinh nop kem.'
 W '  6. Lam tuong tu voi Windows Logs > Application, nguon MSSQLSERVER, Event ID 823'
-W '     de thay loi 483 tren tep co so du lieu.'
+W '     de thay loi doc/ghi tep co so du lieu SQL Server (neu co).'
 W ''
 W '  Neu da tao Custom View o buoc 5: mo Event Viewer > Custom Views >'
 W '  "CheckWinFix - Bang chung loi o dia" la thay ngay toan bo, khong can loc tay.'
@@ -320,7 +327,7 @@ W '  DANH MUC FILE TRONG HO SO'
 W ('-' * 78)
 
 $sumPath = Join-Path $dir '00_BAN_TOM_TAT.txt'
-[IO.File]::WriteAllText($sumPath, $SUM.ToString(), (New-Object System.Text.UTF8Encoding $true))
+try { [IO.File]::WriteAllText($sumPath, $SUM.ToString(), (New-Object System.Text.UTF8Encoding $true)) } catch { Write-Host ('  [X] Khong ghi duoc bao cao ' + $sumPath + ': ' + $_.Exception.Message) -ForegroundColor Red; exit 1 }
 
 $listing = New-Object System.Text.StringBuilder
 foreach ($f in (Get-ChildItem -LiteralPath $dir | Sort-Object Name)) {

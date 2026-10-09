@@ -20,22 +20,25 @@ echo.
 where powershell >nul 2>&1
 if errorlevel 1 goto :ERR_NOPS
 
-net session >nul 2>&1
-if errorlevel 1 goto :ELEVATE
-goto :ADMIN_OK
+rem fltmc chi chay duoc bang quyen Admin va khong can dich vu Server (net session thi can).
+fltmc >nul 2>&1
+if not errorlevel 1 goto :ADMIN_OK
+if /i "%~1"=="/danangquyen" goto :ERR_ADMIN
+echo  [*] Can quyen Administrator. Dang mo lai bang quyen Admin, vui long bam YES...
+powershell -NoProfile -Command "try { $p = Start-Process -FilePath $env:SELF -ArgumentList '/danangquyen' -Verb RunAs -Wait -PassThru -ErrorAction Stop; exit $p.ExitCode } catch { exit 1223 }"
+set "RC=%ERRORLEVEL%"
+if not "%RC%"=="1223" exit /b %RC%
+echo.
+echo  [!] Khong nang duoc quyen Admin (da bam No o hop thoai UAC?).
+echo      Hay chuot phai vao file nay, chon "Run as administrator".
+echo.
+pause
+exit /b 2
 
-:ELEVATE
-echo  [*] Can quyen Administrator de doc duoc day du thong tin.
-echo      Dang mo lai bang quyen Admin, vui long bam YES...
-powershell -NoProfile -Command "Start-Process -FilePath $env:SELF -Verb RunAs" >nul 2>&1
-if errorlevel 1 (
-  echo.
-  echo  [!] Khong nang duoc quyen Admin.
-  echo      Hay chuot phai vao file nay, chon "Run as administrator".
-  echo.
-  pause
-)
-exit /b
+:ERR_ADMIN
+echo  [X] Da mo lai bang quyen Admin ma van chua co quyen. Dung lai de khong hoi UAC mai.
+pause
+exit /b 2
 
 :ADMIN_OK
 set "PS1=%TEMP%\CheckWinFix_Collect_%RANDOM%.ps1"
@@ -879,31 +882,64 @@ function Ev {
   try { Get-WinEvent -FilterHashtable $f -MaxEvents $Max -ErrorAction Stop } catch { $null }
 }
 
-$WATCH = @{
-  41   = 'Kernel-Power: may tat/treo dot ngot (mat dien, nguon yeu, treo cung)'
-  1001 = 'BugCheck (man hinh xanh) hoac bao cao loi WER'
-  6008 = 'Lan truoc may tat khong dung cach'
-  129  = 'storahci/storport RESET o dia - O DIA hoac CAP/DRIVER dang loi (gay dung hinh vai giay)'
-  153  = 'IO tren o dia phai thu lai (retry) - o dia yeu'
-  11   = 'Disk: controller error - cap SATA/o dia loi'
-  51   = 'Loi paging tren o dia - o dia sap hong'
-  7    = 'Disk: co bad block'
-  55   = 'NTFS hong cau truc - can chkdsk'
-  98   = 'NTFS khong ghi duoc metadata'
-  140  = 'NTFS khong ghi duoc du lieu len o dia'
-  4101 = 'Driver card man hinh treo va phai khoi dong lai (TDR) - giat/den man hinh'
-  219  = 'Nap driver that bai'
-  7031 = 'Dich vu bi crash bat ngo'
-  7034 = 'Dich vu bi crash bat ngo (khong tu khoi dong lai)'
-  7000 = 'Dich vu khong khoi dong duoc'
-  7009 = 'Dich vu khoi dong qua lau (timeout)'
-  7011 = 'Dich vu khong phan hoi trong thoi gian cho - DAU HIEU MAY BI DUNG HINH'
-  2004 = 'Het bo nho ao (Resource-Exhaustion) - Windows phai kill ung dung'
-  17   = 'WHEA: loi phan cung duoc sua (CPU/RAM/PCIe)'
-  18   = 'WHEA: loi phan cung NGHIEM TRONG'
-  19   = 'WHEA: loi phan cung duoc sua'
-  47   = 'WHEA: loi PCIe'
-  1003 = 'Loi he thong nghiem trong'
+# Loi da biet: so theo NGUON + MA (cung mot ma o nguon khac la chuyen khac, vd ID 1 cua Kernel-General la doi gio).
+# L = cac muc can dem (1 Critical, 2 Error, 3 Warning); bo trong = ca 3 muc. Nhieu loi o dia, man hinh chi ghi muc Warning.
+$WATCH = @(
+  @{ P = '^Microsoft-Windows-Kernel-Power$'; Id = 41; T = 'Kernel-Power: may tat/treo dot ngot (mat dien, nguon yeu, treo cung)' }
+  @{ P = '^(Microsoft-Windows-WER-SystemErrorReporting|BugCheck)$'; Id = 1001; T = 'BugCheck: man hinh xanh' }
+  @{ P = '^EventLog$'; Id = 6008; T = 'Lan truoc may tat khong dung cach' }
+  @{ P = '^(storahci|stornvme|storport|Microsoft-Windows-StorPort|iaStor\w*|amd_sata|amdsata|nvstor\w*|LSI_SAS\w*)$'; Id = 129; T = 'Bo dieu khien RESET o dia - O DIA hoac CAP/DRIVER dang loi (gay dung hinh vai giay)' }
+  @{ P = '^disk$'; Id = 153; T = 'Disk: IO tren o dia phai thu lai (retry) - o dia yeu' }
+  @{ P = '^disk$'; Id = 154; T = 'Disk: IO tren o dia THAT BAI do loi phan cung - O DIA DANG HONG, cuu du lieu ngay' }
+  @{ P = '^disk$'; Id = 11; T = 'Disk: controller error - cap SATA/o dia loi' }
+  @{ P = '^disk$'; Id = 51; T = 'Disk: loi khi doc/ghi bo nho ao (paging) - o dia sap hong' }
+  @{ P = '^disk$'; Id = 7; T = 'Disk: co bad block' }
+  @{ P = '^(Ntfs|Microsoft-Windows-Ntfs)$'; Id = 55; T = 'NTFS hong cau truc - can chkdsk' }
+  @{ P = '^(Ntfs|Microsoft-Windows-Ntfs)$'; Id = 98; T = 'NTFS: o can quet loi ngoai tuyen (chkdsk)' }
+  @{ P = '^(Ntfs|Microsoft-Windows-Ntfs)$'; Id = 140; T = 'NTFS khong ghi duoc du lieu len o dia' }
+  @{ P = '^Display$'; Id = 4101; T = 'Driver card man hinh treo va phai khoi dong lai (TDR) - giat/den man hinh' }
+  @{ P = '^Microsoft-Windows-Kernel-PnP$'; Id = 219; L = @(1, 2); T = 'Nap driver that bai' }
+  @{ P = '^Service Control Manager$'; Id = 7031; T = 'Dich vu bi crash bat ngo' }
+  @{ P = '^Service Control Manager$'; Id = 7034; T = 'Dich vu bi crash bat ngo (khong tu khoi dong lai)' }
+  @{ P = '^Service Control Manager$'; Id = 7000; T = 'Dich vu khong khoi dong duoc' }
+  @{ P = '^Service Control Manager$'; Id = 7009; T = 'Dich vu khoi dong qua lau (timeout)' }
+  @{ P = '^Service Control Manager$'; Id = 7011; T = 'Dich vu khong phan hoi trong thoi gian cho - DAU HIEU MAY BI DUNG HINH' }
+  @{ P = '^Microsoft-Windows-Resource-Exhaustion-Detector$'; Id = 2004; T = 'Het bo nho ao (Resource-Exhaustion) - Windows phai dong ung dung' }
+  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 1; T = 'WHEA: loi phan cung NGHIEM TRONG o lan chay truoc (thuong kem man hinh xanh 0x124)' }
+  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 17; T = 'WHEA: loi phan cung duoc sua (CPU/RAM/PCIe)' }
+  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 18; T = 'WHEA: loi phan cung NGHIEM TRONG' }
+  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 19; T = 'WHEA: loi phan cung duoc sua' }
+  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 47; T = 'WHEA: loi RAM/PCIe duoc sua' }
+)
+
+function Find-WatchHits {
+  # Doc nhat ky System 14 ngay theo cac ma trong $WATCH (moi muc), roi giu su kien dung nguon va dung muc.
+  param([datetime]$Since = $since14)
+  $ids = @($WATCH | ForEach-Object { [int]$_.Id } | Sort-Object -Unique)
+  $events = @()
+  for ($i = 0; $i -lt $ids.Count; $i += 20) {
+    $chunk = $ids[$i..([Math]::Min($i + 19, $ids.Count - 1))]
+    $r = Ev 'System' $null $Since 3000 $chunk
+    if ($r) { $events += @($r) }
+  }
+  $groups = [ordered]@{}
+  foreach ($e in $events) {
+    foreach ($w in $WATCH) {
+      if ([int]$e.Id -ne [int]$w.Id -or [string]$e.ProviderName -notmatch $w.P) { continue }
+      $levels = if ($w.L) { $w.L } else { @(1, 2, 3) }
+      if ($levels -notcontains [int]$e.Level) { continue }
+      # Su kien cua nguon 'disk' ghi \Device\HarddiskN\... o truong dau: tach theo tung o (o USB rut ra cung ghi loi nay).
+      $dev = ''
+      if ([string]$e.ProviderName -eq 'disk') { try { if ([string]$e.Properties[0].Value -match 'Harddisk(\d+)') { $dev = 'Disk ' + $Matches[1] } } catch {} }
+      $k = '{0}|{1}|{2}' -f $e.ProviderName, $e.Id, $dev
+      $txt = if ($dev) { "$($w.T) [$dev, xem muc o dia de biet la o nao]" } else { $w.T }
+      if (-not $groups.Contains($k)) { $groups[$k] = [pscustomobject]@{ Provider = [string]$e.ProviderName; Id = [int]$e.Id; Count = 0; Last = $e.TimeCreated; Text = $txt } }
+      $g = $groups[$k]; $g.Count++
+      if ($e.TimeCreated -gt $g.Last) { $g.Last = $e.TimeCreated }
+      break
+    }
+  }
+  return @($groups.Values | Sort-Object Count -Descending)
 }
 
 # =============================== 17. NHAT KY HIEU NANG ========================
@@ -962,8 +998,15 @@ Sec 'Nhat ky HIEU NANG cua Windows (muc quan trong nhat)' {
 
 # =============================== 18. NHAT KY SYSTEM ===========================
 Sec 'Nhat ky SYSTEM - loi va canh bao nghiem trong (14 ngay)' {
+  SH 'DOI CHIEU voi danh sach loi gay cham/treo da biet (theo nguon + ma, ca muc Warning)'
+  $hits = @(Find-WatchHits)
+  foreach ($h in $hits) {
+    W ('  >> {0} ID {1} x{2} lan (gan nhat {3:yyyy-MM-dd HH:mm}) - {4}' -f $h.Provider, $h.Id, $h.Count, $h.Last, $h.Text)
+    FLAG ("Su kien {0} ID {1} xuat hien {2} lan trong 14 ngay: {3}" -f $h.Provider, $h.Id, $h.Count, $h.Text)
+  }
+  if (-not $hits.Count) { W '  (khong trung loi da biet nao - tot)' }
   $ev = Ev 'System' @(1, 2) $since14 2000
-  if (-not $ev) { W '  (khong co loi nao hoac khong doc duoc log)'; return }
+  if (-not $ev) { W ''; W '  (khong co su kien Error/Critical nao hoac khong doc duoc log)'; return }
   KV 'Tong so Error/Critical' $ev.Count
   SH 'Nhom theo nguon + EventID (25 nhom nhieu nhat)'
   $g = $ev | Group-Object { "$($_.ProviderName)|$($_.Id)" } | Sort-Object Count -Descending | Select-Object -First 25
@@ -972,18 +1015,6 @@ Sec 'Nhat ky SYSTEM - loi va canh bao nghiem trong (14 ngay)' {
     W ('  {0,5} lan | {1,-42} | ID {2,-6} | gan nhat {3:yyyy-MM-dd HH:mm}' -f $x.Count, (Trunc $f.ProviderName 42), $f.Id, $f.TimeCreated)
     W ('          -> ' + (Trunc $f.Message 300))
   }
-  SH 'DOI CHIEU voi danh sach loi gay cham/treo da biet'
-  $hit = $false
-  foreach ($x in ($ev | Group-Object Id | Sort-Object Count -Descending)) {
-    $idn = [int]$x.Name
-    if ($WATCH.ContainsKey($idn)) {
-      $hit = $true
-      $f = $x.Group[0]
-      W ('  >> ID {0} x{1} lan (gan nhat {2:yyyy-MM-dd HH:mm}) - {3}' -f $idn, $x.Count, $f.TimeCreated, $WATCH[$idn])
-      FLAG ("Event ID {0} xuat hien {1} lan trong 14 ngay: {2}" -f $idn, $x.Count, $WATCH[$idn])
-    }
-  }
-  if (-not $hit) { W '  (khong trung ma loi nghiem trong nao - tot)' }
   SH '15 su kien Error/Critical moi nhat'
   foreach ($e in ($ev | Select-Object -First 15)) {
     W ('  [{0:yyyy-MM-dd HH:mm}] {1,-34} ID {2,-6}' -f $e.TimeCreated, (Trunc $e.ProviderName 34), $e.Id)
@@ -1229,7 +1260,7 @@ try {
   [IO.File]::WriteAllText($reportPath, $final, (New-Object System.Text.UTF8Encoding $true))
 } catch {
   $reportPath = Join-Path $env:TEMP ("LagReport_{0}_{1}.txt" -f $env:COMPUTERNAME, $stamp)
-  [IO.File]::WriteAllText($reportPath, $final, (New-Object System.Text.UTF8Encoding $true))
+  try { [IO.File]::WriteAllText($reportPath, $final, (New-Object System.Text.UTF8Encoding $true)) } catch { Write-Host ('  [X] Khong ghi duoc bao cao ' + $reportPath + ': ' + $_.Exception.Message) -ForegroundColor Red; exit 1 }
 }
 
 Write-Host ''

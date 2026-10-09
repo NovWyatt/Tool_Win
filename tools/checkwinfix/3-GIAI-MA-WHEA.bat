@@ -20,18 +20,25 @@ echo.
 where powershell >nul 2>&1
 if errorlevel 1 goto :ERR_NOPS
 
-net session >nul 2>&1
-if errorlevel 1 goto :ELEVATE
-goto :ADMIN_OK
+rem fltmc chi chay duoc bang quyen Admin va khong can dich vu Server (net session thi can).
+fltmc >nul 2>&1
+if not errorlevel 1 goto :ADMIN_OK
+if /i "%~1"=="/danangquyen" goto :ERR_ADMIN
+echo  [*] Can quyen Administrator. Dang mo lai bang quyen Admin, vui long bam YES...
+powershell -NoProfile -Command "try { $p = Start-Process -FilePath $env:SELF -ArgumentList '/danangquyen' -Verb RunAs -Wait -PassThru -ErrorAction Stop; exit $p.ExitCode } catch { exit 1223 }"
+set "RC=%ERRORLEVEL%"
+if not "%RC%"=="1223" exit /b %RC%
+echo.
+echo  [!] Khong nang duoc quyen Admin (da bam No o hop thoai UAC?).
+echo      Hay chuot phai vao file nay, chon "Run as administrator".
+echo.
+pause
+exit /b 2
 
-:ELEVATE
-echo  [*] Can quyen Administrator. Dang mo lai, vui long bam YES...
-powershell -NoProfile -Command "Start-Process -FilePath $env:SELF -Verb RunAs" >nul 2>&1
-if errorlevel 1 (
-  echo  [!] Khong nang duoc quyen. Chuot phai file nay ^> Run as administrator.
-  pause
-)
-exit /b
+:ERR_ADMIN
+echo  [X] Da mo lai bang quyen Admin ma van chua co quyen. Dung lai de khong hoi UAC mai.
+pause
+exit /b 2
 
 :ADMIN_OK
 set "PS1=%TEMP%\CWF_Whea_%RANDOM%.ps1"
@@ -150,7 +157,7 @@ try {
 if ($evs.Count -eq 0) {
   W ''
   W '  Khong tim thay su kien WHEA nao trong 60 ngay (hoac thieu quyen Admin).'
-  [IO.File]::WriteAllText($out, $SB.ToString(), (New-Object System.Text.UTF8Encoding $true))
+  try { [IO.File]::WriteAllText($out, $SB.ToString(), (New-Object System.Text.UTF8Encoding $true)) } catch { Write-Host ('  [X] Khong ghi duoc bao cao ' + $out + ': ' + $_.Exception.Message) -ForegroundColor Red; exit 1 }
   Write-Host "  Khong co su kien WHEA. Bao cao: $out" -ForegroundColor Yellow
   exit 0
 }
@@ -324,7 +331,7 @@ W '   * Neu thay "PCI Express" hoac "PCI Component" => xem dong ">>> THIET BI:" 
 W '   * Neu chi thay "WHEA Error Packet (Microsoft)" va loi don vao luc khoi dong,'
 W '     thuong la thiet bi khoi tao that bai - phu hop voi o cung dang hong.'
 
-[IO.File]::WriteAllText($out, $SB.ToString(), (New-Object System.Text.UTF8Encoding $true))
+try { [IO.File]::WriteAllText($out, $SB.ToString(), (New-Object System.Text.UTF8Encoding $true)) } catch { Write-Host ('  [X] Khong ghi duoc bao cao ' + $out + ': ' + $_.Exception.Message) -ForegroundColor Red; exit 1 }
 Write-Host ''
 Write-Host ('  ' + ('=' * 72)) -ForegroundColor Green
 Write-Host '   XONG. Bao cao luu tai:' -ForegroundColor Green

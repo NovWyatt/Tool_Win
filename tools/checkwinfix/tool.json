@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "checkwinfix",
   "name": "CheckWinFix: chẩn đoán máy Windows",
-  "version": "2026.10",
+  "version": "2026.10.2",
   "category": "chan-doan",
   "icon": "stethoscope",
   "audience": "all",
@@ -82,11 +82,12 @@
       "risk": "modifies-system",
       "restorePoint": false,
       "duration": "Vài phút đến vài giờ, tuỳ dung lượng và mức hỏng của ổ",
-      "description": "Viết riêng cho ca máy giữ xe dùng ITS-Pro trên SQL Server khi ổ D: hỏng: dừng SQL Server, chép D:\\ITS bằng robocopy sang nơi lưu (mặc định C:\\CUU_DU_LIEU_ITS_<giờ>), bật lại dịch vụ, đối chiếu MD5. Phải gõ Y để bắt đầu.",
-      "confirm": "Chỉ chạy khi đã xác định ổ D: hỏng phần cứng. Phần mềm giữ xe ngừng trong lúc chép. Nên chọn nơi lưu là USB hoặc ổ khác ổ vật lý đang hỏng (C: và D: có thể cùng một ổ).",
+      "description": "Viết riêng cho ca máy giữ xe dùng ITS-Pro trên SQL Server khi ổ D: hỏng. Chọn nơi lưu trên ổ vật lý khác (ưu tiên USB, từ chối nơi lưu cùng ổ vật lý), dừng mọi dịch vụ SQL Server, chép D:\\ITS bằng robocopy vào thư mục mới CUU_DU_LIEU_ITS_<giờ>, đối chiếu MD5 file database trong lúc SQL còn dừng, rồi luôn bật lại dịch vụ. Phải gõ Y để bắt đầu.",
+      "confirm": "Chỉ chạy khi đã xác định ổ D: hỏng phần cứng. Phần mềm giữ xe ngừng trong lúc chép. Cắm sẵn USB hoặc ổ cứng ngoài đủ chỗ: C: và D: thường cùng một ổ vật lý nên công cụ không cho lưu vào C:.",
       "changes": [
-        "Dừng các dịch vụ SQL Server, buộc đóng ITS-Pro, SSMS, sqlservr",
-        "Chép dữ liệu ra thư mục mới, rồi bật lại các dịch vụ đã dừng"
+        "Dừng mọi dịch vụ SQL Server đang chạy (mọi instance), buộc đóng ITS-Pro, SSMS, sqlservr",
+        "Chép dữ liệu ra thư mục mới trên ổ vật lý khác, rồi bật lại đúng các dịch vụ đã dừng",
+        "Ghi tạm danh sách dịch vụ đang dừng vào HKLM\\SOFTWARE\\TramTool\\CuuDuLieu (xoá khi đã bật lại)"
       ]
     }
   ],
@@ -100,28 +101,20 @@
       "deleteNote": "Lần chẩn đoán sụp nguồn sau đọc file theo dõi mới nhất để biết máy đang làm gì ngay trước khi tắt. Chỉ xoá khi đã chẩn đoán xong." },
     { "label": "Báo cáo pin (laptop)", "glob": "PinReport_%COMPUTERNAME%_*.html" },
     { "label": "Hồ sơ bằng chứng", "type": "folder", "glob": "HoSoBangChung_%COMPUTERNAME%_*",
-      "deleteNote": "Hồ sơ bằng chứng (nhật ký sự kiện gốc của Windows và các báo cáo) để nộp bảo hành hoặc gửi người hỗ trợ. Chỉ xoá khi đã gửi đi hoặc không cần nữa." },
-    { "label": "Kết quả cứu dữ liệu", "dir": "C:\\CUU_DU_LIEU_ITS_*", "glob": "KET_QUA_CUU_DU_LIEU.txt" }
+      "deleteNote": "Hồ sơ bằng chứng (nhật ký sự kiện gốc của Windows và các báo cáo) để nộp bảo hành hoặc gửi người hỗ trợ. Chỉ xoá khi đã gửi đi hoặc không cần nữa." }
   ],
   "pack": {
     "name": "CheckWinFix",
     "include": ["ThuThapThongTin.bat", "2-CHAN-DOAN-PHAN-CUNG.bat", "3-GIAI-MA-WHEA.bat", "4-XUAT-BANG-CHUNG.bat", "5-CHAN-DOAN-SUP-NGUON.bat"]
   },
   "issues": [
-    "Cứu dữ liệu: đối chiếu MD5 chạy sau khi đã bật lại SQL Server nên file .mdf/.ldf đang bị khoá, báo 'không khớp' ngay trong ca script được viết ra.",
-    "Cứu dữ liệu: chỉ chặn nơi lưu là ổ D:, không kiểm tra C: và D: có cùng một ổ vật lý; chỉ dừng instance SQL mặc định; đóng cửa sổ giữa chừng thì SQL Server không được bật lại.",
-    "Thu thập thông tin: bảng cảnh báo chỉ so mã sự kiện mức Error/Critical, bỏ sót disk 154, WHEA-Logger 1 và 10 mã ở mức Warning.",
-    "Xuất bằng chứng: gom mọi LagReport_*, HwDiag_* trong thư mục, kể cả báo cáo của máy khác; bản tóm tắt còn chép cứng số liệu của một ca đã xử lý trước đây.",
-    "Kiểm tra quyền Admin bằng 'net session' cần dịch vụ Server; dịch vụ này bị tắt thì script tự mở lại không dừng.",
-    "Lỗi ghi file cuối bị nuốt nên vẫn báo XONG và mở Notepad với file không tồn tại; mã thoát luôn là 0.",
-    "Đọc chữ trong thông điệp sự kiện tiếng Anh: Windows ngôn ngữ khác bị bỏ sót; CSV theo dõi sụp nguồn lệch cột khi số thập phân dùng dấu phẩy."
+    "Đọc chữ trong thông điệp sự kiện tiếng Anh ở một số mục (ngoài bảng cảnh báo): Windows ngôn ngữ khác có thể bị bỏ sót; CSV theo dõi sụp nguồn lệch cột khi số thập phân dùng dấu phẩy.",
+    "Cứu dữ liệu bản 2.0 mới thử bằng giả lập (dịch vụ SQL, ổ vật lý, robocopy giả); chưa chạy lại trên máy giữ xe thật.",
+    "Bảng cảnh báo đếm cả lỗi của ổ USB bị rút khi đang ghi (disk 51, Ntfs 140); dòng cảnh báo ghi số Disk để đối chiếu với mục ổ đĩa."
   ],
   "upgrades": [
-    "P0: Cứu dữ liệu: đối chiếu khi SQL còn dừng, so ổ vật lý nguồn/đích, tự dò mọi instance MSSQL*, try/finally bật lại dịch vụ, luôn ghi vào thư mục mới.",
-    "P0: Cảnh báo: so theo nguồn sự kiện + mã, thêm disk 154, WHEA 1/18, đọc cả mức Warning.",
-    "P0: Thay 'net session' bằng 'fltmc', chỉ tự nâng quyền một lần; báo lỗi rõ và trả mã thoát khác 0 khi thất bại.",
     "P1: Gom phần dùng chung (khởi chạy, đọc SMART, minidump, WHEA) vào một lõi, build ra từng .bat như MyExcelFix.",
     "P1: Xuất thêm JSON kết quả (máy, thời gian, phát hiện, mức độ) để Trạm Tool hiển thị và gợi ý script tiếp theo.",
-    "P1: Đọc trường sự kiện từ EventData thay vì chữ trong thông điệp để chạy đúng trên Windows mọi ngôn ngữ."
+    "P1: Đọc trường sự kiện từ EventData thay vì chữ trong thông điệp ở các mục còn lại để chạy đúng trên Windows mọi ngôn ngữ."
   ]
 }

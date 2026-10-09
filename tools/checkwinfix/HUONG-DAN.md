@@ -11,6 +11,17 @@
 
 Tất cả đều tự nâng quyền Admin và chỉ đọc. Riêng script 1 có dừng/bật lại dịch vụ SQL (có hỏi trước), script 4 có tuỳ chọn tạo Custom View trong Event Viewer (có hỏi trước), script 5 có tuỳ chọn bật minidump + tắt AutoReboot để lần sau thấy mã lỗi (có hỏi trước).
 
+Kiểm tra quyền Admin bằng `fltmc` (không cần dịch vụ Server như `net session`), tự mở lại bằng quyền Admin đúng một lần. Mã thoát: 0 xong, 1 lỗi (kể cả không ghi được báo cáo), 2 không có quyền Admin hoặc đã huỷ, 3 xong một phần (chỉ script 1).
+
+## Cứu dữ liệu (script 1, bản 2.0)
+
+- Nơi lưu phải nằm trên **ổ vật lý khác** với ổ đang hỏng: script liệt kê các ổ khác (ưu tiên USB) và từ chối nơi lưu cùng ổ vật lý (C: và D: thường là hai phân vùng của cùng một ổ).
+- Dừng **mọi** dịch vụ SQL Server (mọi instance `MSSQL$...`, Agent, Full-text, SSIS, SQLWriter...), đóng ITS-Pro, SSMS.
+- Chép bằng robocopy vào một **thư mục mới** `CUU_DU_LIEU_ITS_<ngày giờ>` (không bao giờ chép chồng lên lần trước).
+- Đối chiếu MD5 file `.mdf/.ldf/.ndf/.bak` **trong lúc SQL Server còn dừng** (bản cũ đối chiếu sau khi bật lại nên file bị khoá, luôn báo "không khớp").
+- Luôn bật lại đúng các dịch vụ đã dừng, kể cả khi lỗi giữa chừng. Cửa sổ bị đóng khi SQL đang dừng thì lần chạy sau script nhắc và bật lại (danh sách ghi tạm ở `HKLM\SOFTWARE\TramTool\CuuDuLieu`).
+- Kết quả `KET_QUA_CUU_DU_LIEU.txt` và `robocopy_log.txt` nằm trong thư mục cứu.
+
 **Ca thực tế đã xử lý:** [du-lieu/ca-DESKTOP-2VQE588/CHAN-DOAN-DESKTOP-2VQE588.md](du-lieu/ca-DESKTOP-2VQE588/CHAN-DOAN-DESKTOP-2VQE588.md) (dữ liệu khách, chỉ lưu trên máy, không đưa lên git) — biên bản trình bày: https://claude.ai/artifact/VCqBxCGexui2ZpVXerB9up
 
 ---
@@ -52,7 +63,7 @@ Tất cả đều tự nâng quyền Admin và chỉ đọc. Riêng script 1 có
 | 15 | Thiết bị lỗi trong Device Manager + driver mới cài | Driver hỏng |
 | 16 | Mạng, **proxy**, file hosts, ổ mạng | Adware đổi proxy, hosts bị crack sửa |
 | 17 | **Nhật ký hiệu năng của Windows** | Windows *tự khai* cái gì làm chậm boot |
-| 18 | Log System (Error/Critical 14 ngày) + đối chiếu 24 mã lỗi đã biết | Reset ổ đĩa, NTFS hỏng, dịch vụ treo |
+| 18 | Log System 14 ngày + đối chiếu 25 lỗi đã biết theo **nguồn + mã**, gồm cả mức Warning (disk 153/154/51, Display 4101, WHEA 1/17/18/19/47...), tách theo từng ổ | Reset ổ đĩa, ổ hỏng, NTFS hỏng, driver màn hình treo, dịch vụ treo |
 | 19 | Log Application + cảnh báo **hết bộ nhớ** | App crash liên tục |
 | 20 | Lịch sử bật/tắt máy + **file minidump** | Màn hình xanh, tắt đột ngột |
 | 21 | **Dòng thời gian 90 ngày**: update, phần mềm mới cài, restore point | **Đối chiếu đúng ngày máy bắt đầu chậm** |
