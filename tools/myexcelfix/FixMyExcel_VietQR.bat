@@ -9,10 +9,10 @@ rem  Ban sao cua file nay ten HoanTac_FixMyExcel.bat trong thu muc sao luu
 rem  se tu chay che do HOAN TAC.
 rem  Ma thoat: 0 xong, 1 loi, 2 chua sua gi (sai tai khoan, khong dong y,
 rem  Excel chua dong, het dau vao...), 3 lam duoc mot phan / VietQR van loi.
-rem  Phien ban: 2026.10.1
+rem  Phien ban: 2026.10.2
 rem ==========================================================================
 chcp 65001 >nul
-title MyExcel VietQR - Sua loi (2026.10.1)
+title MyExcel VietQR - Sua loi (2026.10.2)
 set "MYX_SELF=%~f0"
 set "MYX_PS=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" set "MYX_PS=%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
@@ -60,7 +60,7 @@ function Test-VietConsole {
 }
 function Txt([string]$Text) { if ($script:NoDau) { return (Remove-Diacritics $Text) }; return $Text }
 $script:NoDau = -not (Test-VietConsole)
-$script:Version    = '2026.10.1'   # build.ps1 thay bằng version trong tool.json
+$script:Version    = '2026.10.2'   # build.ps1 thay bằng version trong tool.json
 $script:Log        = New-Object System.Collections.Generic.List[string]
 $script:Started    = Get-Date
 $script:Stamp      = $script:Started.ToString('yyyyMMdd_HHmmss')
@@ -69,9 +69,10 @@ $script:RegBase    = if ($env:MYX_REGBASE) { $env:MYX_REGBASE.Trim('\') + '\' } 
 $script:Auto       = [bool]$env:MYX_AUTO                                                            # chỉ dùng khi test
 $script:QrAnswers  = @(if ($env:MYX_QR_OK) { $env:MYX_QR_OK -split ',' })                           # chỉ dùng khi test
 $script:QrAsked    = 0
-# Hoàn tác: bản HoanTac_FixMyExcel.bat trong thư mục sao lưu, hoặc HOAN_TAC.bat đặt MYX_UNDO_DIR rồi gọi bản mới nhất
+# Hoàn tác: bản HoanTac_FixMyExcel.bat trong thư mục sao lưu, hoặc HOAN_TAC.bat đặt MYX_UNDO_DIR rồi gọi bản mới nhất;
+# HOAN_TAC.bat không có thư mục thì đặt MYX_UNDO_CHON=1: liệt kê bản sao lưu của tài khoản này để chọn
 $script:UndoDir    = if ($env:MYX_UNDO_DIR) { $env:MYX_UNDO_DIR.TrimEnd('\') } elseif ((Split-Path $env:MYX_SELF -Leaf) -like 'HoanTac*') { Split-Path $env:MYX_SELF -Parent } else { $null }
-$script:UndoMode   = [bool]$script:UndoDir
+$script:UndoMode   = [bool]$script:UndoDir -or ($env:MYX_UNDO_CHON -eq '1')
 $script:Changes    = 0
 $script:Problems   = 0
 $script:Warnings   = New-Object System.Collections.Generic.List[string]
@@ -248,9 +249,59 @@ function Save-Manifest {
 function Get-Sha256([string]$Path) {
     try { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash } catch { return $null }
 }
-function Get-ResultDir {
+# Nơi lưu. Sao lưu (có số tài khoản ngân hàng, bản sao file Excel), nhật ký, JSON kết quả: thư mục riêng của tài khoản
+# %LOCALAPPDATA%\MyExcelFix - không đồng bộ OneDrive như Desktop, tài khoản khác không đọc được như Public Documents.
+# MYX_OUT, MYX_DESKTOP chỉ dùng khi test.
+function Get-MyxDataDir([string]$Sub) {
     if ($env:MYX_OUT) { return $env:MYX_OUT }
-    return (Join-Path $env:PUBLIC 'Documents\MyExcelCheck')
+    $base = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $env:USERPROFILE 'AppData\Local' }
+    return (Join-Path (Join-Path $base 'MyExcelFix') $Sub)
+}
+function Get-DesktopDir {
+    if ($env:MYX_DESKTOP) { return $env:MYX_DESKTOP }
+    return [Environment]::GetFolderPath('Desktop')
+}
+function Get-ResultDir { return (Get-MyxDataDir 'BaoCao') }
+function Move-OldResults([string]$To) {
+    # Bản trước 2026.10.2 ghi báo cáo, JSON kết quả vào thư mục chung: chuyển các file của tài khoản này sang thư mục
+    # riêng. File của tài khoản khác để nguyên (chuyển khi tài khoản đó chạy bản mới), snapshot để nguyên.
+    $from = Join-Path $env:PUBLIC 'Documents\MyExcelCheck'
+    if ($env:MYX_OUT -or -not (Test-Path -LiteralPath $from)) { return }
+    $u = ($env:USERNAME -replace '[^\w\.-]', '_'); $c = $env:COMPUTERNAME
+    $mine = @(Get-ChildItem -LiteralPath $from -File -ErrorAction SilentlyContinue | Where-Object {
+            $_.Name -like "BaoCao_MyExcel_$($c)_$($u)_*.txt" -or $_.Name -like "KetQua_MyExcel_*_$($c)_$($u)_*.json" })
+    if ($mine.Count -eq 0) { return }
+    $n = 0
+    try {
+        if (-not (Test-Path -LiteralPath $To)) { New-Item -ItemType Directory -Path $To -Force -ErrorAction Stop | Out-Null }
+        foreach ($f in $mine) {
+            $dest = Join-Path $To $f.Name
+            if (Test-Path -LiteralPath $dest) { continue }
+            try { Move-Item -LiteralPath $f.FullName -Destination $dest -ErrorAction Stop; $n++ } catch {}
+        }
+    } catch {}
+    if ($n) { Say "  Đã chuyển $n báo cáo cũ của tài khoản này từ $from (mọi tài khoản đọc được) sang $To" 'DarkGray' }
+}
+function Get-BackupList {
+    # Bản sao lưu có manifest.json, mới nhất trước: thư mục riêng (từ 2026.10.2) và Desktop (bản cũ hơn)
+    $roots = @(Get-MyxDataDir 'SaoLuu')
+    if (-not $env:MYX_OUT -or $env:MYX_DESKTOP) { $roots += Get-DesktopDir }
+    $seen = @{}
+    $list = foreach ($r in $roots) {
+        if (-not $r -or -not (Test-Path -LiteralPath $r -PathType Container)) { continue }
+        foreach ($d in @(Get-ChildItem -LiteralPath $r -Directory -Filter 'MyExcelFix_SaoLuu_*' -ErrorAction SilentlyContinue)) {
+            if ($seen.ContainsKey($d.FullName) -or -not (Test-Path -LiteralPath (Join-Path $d.FullName 'manifest.json'))) { continue }
+            $seen[$d.FullName] = $true
+            $m = $null
+            try { $m = Get-Content -LiteralPath (Join-Path $d.FullName 'manifest.json') -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop } catch {}
+            [pscustomobject]@{
+                Dir = $d.FullName; Name = $d.Name; Manifest = $m
+                User = $(if ($m) { [string]$m.User } else { '' }); Time = $(if ($m) { [string]$m.Time } else { '' })
+                OnDesktop = (Test-SamePath $r (Get-DesktopDir))
+            }
+        }
+    }
+    return @($list | Sort-Object Name -Descending)   # tên có giờ yyyyMMdd_HHmmss
 }
 function Save-ResultJson([string]$LogPath) {
     # Kết quả máy đọc được cho Trạm Tool: trạng thái, mã lý do ổn định, cảnh báo, nơi sao lưu
@@ -271,6 +322,7 @@ function Save-ResultJson([string]$LogPath) {
     try {
         $dir = Get-ResultDir
         if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null }
+        Move-OldResults $dir
         $path = Join-Path $dir $name
         [IO.File]::WriteAllText($path, ($r | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
         Say "  Kết quả (JSON): $path" 'DarkGray'
@@ -280,15 +332,24 @@ function Save-ResultJson([string]$LogPath) {
 # ----------------------------------------------------------------------------
 function Invoke-Backup {
     Step 'BƯỚC 2 - SAO LƯU (registry + file hoàn tác)'
-    $root = if ($env:MYX_OUT) { $env:MYX_OUT } else { [Environment]::GetFolderPath('Desktop') }
+    # Sao lưu có số tài khoản ngân hàng và bản sao file Excel: để trong thư mục riêng của tài khoản, không để trên
+    # Desktop (thường đồng bộ OneDrive) như bản trước 2026.10.2
+    $root = Get-MyxDataDir 'SaoLuu'
     $script:BackupDir = Join-Path $root "MyExcelFix_SaoLuu_$($script:Stamp)"
     try {
-        New-Item -ItemType Directory -Path $script:BackupDir -Force | Out-Null
+        New-Item -ItemType Directory -Path $script:BackupDir -Force -ErrorAction Stop | Out-Null
     } catch {
         Warn "Không tạo được thư mục sao lưu $($script:BackupDir): $($_.Exception.Message)"
         return $false
     }
-    Note "Thư mục sao lưu: $($script:BackupDir)"
+    Note "Thư mục sao lưu (riêng của tài khoản này): $($script:BackupDir)"
+    if (-not $env:MYX_OUT -or $env:MYX_DESKTOP) {
+        $old = @(Get-ChildItem -LiteralPath (Get-DesktopDir) -Directory -Filter 'MyExcelFix_SaoLuu_*' -ErrorAction SilentlyContinue)
+        if ($old.Count) {
+            Note "Trên Desktop còn $($old.Count) thư mục sao lưu của bản cũ (có số tài khoản ngân hàng, Desktop thường đồng bộ OneDrive)."
+            Note 'Không cần hoàn tác các lần sửa đó nữa thì xoá đi; cần thì HOAN_TAC.bat vẫn liệt kê và dùng được.'
+        }
+    }
 
     $regRoot = 'HKCU\' + $script:RegBase
     foreach ($ver in (Get-ExcelVersions)) {
@@ -825,12 +886,19 @@ function Get-DeclaredBank {
     return $null
 }
 
-function Save-DeclaredBank {
-    # Ghi thông tin tài khoản ra thư mục sao lưu để khai báo lại; màn hình và nhật ký chỉ hiện số đã che
+function Show-DeclaredBank {
+    # Màn hình và nhật ký chỉ hiện số tài khoản đã che
     $b = Get-DeclaredBank
     if (-not $b) { Note 'Profile này chưa khai báo tài khoản ngân hàng trong MyExcel.'; return }
     $masked = if ($b.Account.Length -gt 4) { ('*' * ($b.Account.Length - 4)) + $b.Account.Substring($b.Account.Length - 4) } else { $b.Account }
     Note "Tài khoản đang khai báo: $($b.Bank) - số TK $masked - $($b.Name)"
+}
+
+function Save-DeclaredBank {
+    # Ghi đủ thông tin tài khoản ra thư mục sao lưu (riêng tài khoản) để khai báo lại. Chỉ gọi khi đã chắc chắn đặt
+    # lại: chọn không đặt lại thì không ghi file này (bản sao lưu đã có VBA_Settings.reg để hoàn tác).
+    $b = Get-DeclaredBank
+    if (-not $b) { return }
     $file = Join-Path $script:BackupDir 'ThongTinKhaiBao.txt'
     $lines = @(
         'THÔNG TIN TÀI KHOẢN ĐÃ KHAI BÁO TRONG MYEXCEL (để khai báo lại sau khi đặt lại dữ liệu)'
@@ -855,11 +923,12 @@ function Invoke-MyExcelReset([bool]$Confirm = $true) {
     if ($names.Count -eq 0) { Skip 'Profile này không có dữ liệu MyExcel để đặt lại'; return $false }
     if (-not $script:Manifest.RegVB) { Warn 'Chưa sao lưu được dữ liệu MyExcel nên không đặt lại.'; return $false }
     Note ('Sẽ xóa: ' + (($names | ForEach-Object { "HKCU\Software\VB and VBA Program Settings\$_" }) -join ' ; '))
-    Save-DeclaredBank
+    Show-DeclaredBank
     Note 'Sau khi đặt lại, mọi tùy chọn MyExcel của profile (tài khoản ngân hàng, In vùng, QR hàng loạt...) về mặc định.'
-    Note 'Nếu MyExcel đòi kích hoạt bản quyền: nhập lại key hoặc liên hệ MyExcel. HoanTac sẽ đưa dữ liệu cũ (và lỗi cũ) trở lại.'
+    Note 'Nếu MyExcel đòi kích hoạt bản quyền: nhập lại key hoặc liên hệ MyExcel. Hoàn tác sẽ đưa dữ liệu cũ (và lỗi cũ) trở lại.'
     if ($Confirm -and -not (Ask 'Đặt lại dữ liệu MyExcel ngay bây giờ?')) { Skip 'Không đặt lại dữ liệu MyExcel'; return $false }
     if (-not (Wait-ExcelClosed)) { Warn 'Excel chưa đóng nên chưa đặt lại.'; return $false }
+    Save-DeclaredBank
     $root = Open-UserKey 'Software\VB and VBA Program Settings' $true
     $ok = $false
     foreach ($n in $names) {
@@ -905,7 +974,8 @@ function Show-QrSteps([bool]$AfterReset) {
     if ($AfterReset) { Say '   - MyExcel hiện màn hình chạy lần đầu thì làm theo như lúc mới cài.' }
     Say '   - Tab Mini Tool > Tạo QR Code: TẮT rồi BẬT lại hàm QR, phải thấy "Bạn đã có thể dùng Hàm QR".'
     if ($AfterReset) {
-        $hint = if ($script:BackupDir -and (Test-Path -LiteralPath (Join-Path $script:BackupDir 'ThongTinKhaiBao.txt'))) { ' (thông tin cũ trong ThongTinKhaiBao.txt ở thư mục sao lưu)' } else { '' }
+        $info = if ($script:BackupDir) { Join-Path $script:BackupDir 'ThongTinKhaiBao.txt' } else { $null }
+        $hint = if ($info -and (Test-Path -LiteralPath $info)) { " (thông tin cũ: mở bằng Notepad file $info)" } else { '' }
         Say "   - Khai báo lại tài khoản: Mini Tool > Tạo QR Code > Tạo QR Code tài khoản ngân hàng > Khai báo$hint."
     }
     Say ('   - Thử tạo mã VietQR như mọi khi, hoặc gõ =QrBank_Sotien_Noidung(10000{0}"THU NGHIEM") vào một ô trống.' -f $sep)
@@ -989,8 +1059,9 @@ function Invoke-Fix {
     Invoke-DataStep
     Save-Manifest
     Say ''
-    Say "  Sao lưu: $($script:BackupDir)" 'White'
-    Say '  HoanTac_FixMyExcel.bat trong đó trả lại mọi thứ như trước khi sửa (kể cả lỗi cũ) - chỉ chạy khi thật cần.' 'White'
+    Say "  Sao lưu (thư mục riêng của tài khoản này, có số tài khoản ngân hàng): $($script:BackupDir)" 'White'
+    Say '  Hoàn tác trả lại mọi thứ như trước khi sửa (kể cả lỗi cũ) - chỉ chạy khi thật cần: HOAN_TAC.bat cạnh file này' 'White'
+    Say '  (hoặc nút Hoàn tác của Trạm Tool) liệt kê các bản sao lưu để chọn; bấm đúp HoanTac_FixMyExcel.bat trong thư mục trên cũng được.' 'White'
     if ($script:StillBroken) { Set-Result 3 'VIETQR_VAN_LOI' 'Đã sửa nhưng VietQR vẫn chưa chạy được.' }
     elseif ($script:Problems -gt 0) { Set-Result 3 'CO_CANH_BAO' "Đã sửa, còn $($script:Problems) cảnh báo cần xem." }
     else { Set-Result 0 'XONG' 'Đã sửa xong.' }
@@ -1065,13 +1136,37 @@ function Save-PreUndoState([string]$Dir) {
     return $true
 }
 
+function Select-UndoBackup {
+    # HOAN_TAC.bat không kèm thư mục: chọn trong các bản sao lưu của tài khoản này, mới nhất trước
+    $all = @(Get-BackupList)
+    $mine = @($all | Where-Object { $_.User -eq $env:USERNAME })
+    if ($mine.Count -eq 0) {
+        $other = if ($all.Count) { " (có $($all.Count) bản của tài khoản khác: phải hoàn tác bằng đúng tài khoản đó)" } else { '' }
+        Warn "Không thấy bản sao lưu nào của tài khoản $env:USERNAME$other."
+        Note "Nơi tìm: $(Get-MyxDataDir 'SaoLuu') và Desktop."
+        return $null
+    }
+    $opts = foreach ($b in $mine) {
+        $n = @($b.Manifest.Workbooks | Where-Object { $_ }).Count
+        $reset = @($b.Manifest.ResetKeys | Where-Object { $_ }).Count
+        '{0}  ({1} file Excel{2}){3}  {4}' -f $b.Time, $n, $(if ($reset) { ', có đặt lại dữ liệu MyExcel' } else { '' }), $(if ($b.OnDesktop) { ' [Desktop]' } else { '' }), $b.Dir
+    }
+    Say '  Các bản sao lưu của tài khoản này (mới nhất trước):' 'White'
+    $i = Choose 'Chọn bản sao lưu cần hoàn tác' @($opts) 1
+    return $mine[$i - 1].Dir
+}
+
 function Invoke-Undo {
-    $dir = $script:UndoDir
-    $script:BackupDir = $null
-    $mf = Join-Path $dir 'manifest.json'
     Say ''
     Say "  HOÀN TÁC SỬA LỖI MYEXCEL (bản $($script:Version))" 'Cyan'
     Show-FontHint
+    if (-not $script:UndoDir) {
+        $script:UndoDir = Select-UndoBackup
+        if (-not $script:UndoDir) { Set-Result 2 'KHONG_CO_SAO_LUU' 'Không thấy bản sao lưu nào của tài khoản này.'; return }
+    }
+    $dir = $script:UndoDir
+    $script:BackupDir = $null
+    $mf = Join-Path $dir 'manifest.json'
     if (-not (Test-Path -LiteralPath $mf)) { Warn "Không thấy manifest.json trong $dir"; Set-Result 2 'THIEU_MANIFEST' 'Thư mục sao lưu thiếu manifest.json.'; return }
     try { $m = Get-Content -LiteralPath $mf -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop }
     catch { Warn "manifest.json hỏng, không đọc được: $($_.Exception.Message)"; Set-Result 1 'MANIFEST_HONG' 'manifest.json hỏng nên không hoàn tác được.'; return }
@@ -1129,7 +1224,7 @@ try {
         Say ''
         Say '  Hết đầu vào: không có ai trả lời câu hỏi (chạy không có cửa sổ dòng lệnh?) nên dừng lại.' 'Yellow'
         if ($real -gt 0) {
-            $more = if ($script:UndoMode) { 'chạy lại hoàn tác để làm nốt.' } else { 'mọi thay đổi đều có sao lưu, chạy HoanTac_FixMyExcel.bat trong thư mục sao lưu nếu cần trả lại.' }
+            $more = if ($script:UndoMode) { 'chạy lại hoàn tác để làm nốt.' } else { "mọi thay đổi đều có sao lưu ($($script:BackupDir)), chạy HOAN_TAC.bat nếu cần trả lại." }
             Say "  Đã làm $real thay đổi trước khi dừng: $more" 'Yellow'
             Set-Result 3 'HET_DAU_VAO' "Hết đầu vào sau $real thay đổi."
         } else {

@@ -22,14 +22,14 @@ Check ($rep.Count -eq 1) 'report written'
 $js = @(Get-ChildItem $chk -Filter 'KetQua_MyExcel_KiemTra_*.json')
 Check ($js.Count -eq 1) 'result JSON written'
 $j = Get-Content $js[0].FullName -Raw -Encoding UTF8 | ConvertFrom-Json
-Check ($j.cheDo -eq 'kiem-tra' -and $j.maThoat -eq 0 -and $j.ma -eq 'XONG' -and $j.phienBan -eq '2026.10.1') "JSON head: $($j.cheDo) $($j.maThoat) $($j.ma) $($j.phienBan)"
+Check ($j.cheDo -eq 'kiem-tra' -and $j.maThoat -eq 0 -and $j.ma -eq 'XONG' -and $j.phienBan -eq $ToolVersion) "JSON head: $($j.cheDo) $($j.maThoat) $($j.ma) $($j.phienBan)"
 Check ($j.baoCao -eq $rep[0].FullName) 'JSON points to the report'
 $items = @($j.phatHien)
 Check ($items.Count -ge 1) "phatHien has $($items.Count) item(s)"
 Check (@($items | Where-Object { $_.ma -notmatch '^[A-Z0-9_]+$' -or $_.mucDo -notin 'loi', 'canh-bao', 'thong-tin' -or -not $_.tieuDe -or -not $_.cachSua }).Count -eq 0) 'every finding has code, level, title, fix'
 Check ($j.tomTat.loi + $j.tomTat.canhBao + $j.tomTat.thongTin -eq $items.Count) "tomTat adds up: $($j.tomTat.loi)/$($j.tomTat.canhBao)/$($j.tomTat.thongTin)"
 Write-Host ('  codes: ' + (($items | ForEach-Object { "$($_.ma)($($_.mucDo))" }) -join ', '))
-Check ((Get-Content $rep[0].FullName -Raw -Encoding UTF8) -match 'Phiên bản công cụ\s*: 2026\.10\.1') 'report shows the tool version'
+Check ((Get-Content $rep[0].FullName -Raw -Encoding UTF8) -match ('Phiên bản công cụ\s*: ' + [regex]::Escape($ToolVersion))) 'report shows the tool version'
 
 Write-Host '== T4b: output folder cannot be created -> exit 1 ==' -ForegroundColor Cyan
 Set-Content (Join-Path $root 'la_file.txt') 'x'
@@ -37,4 +37,5 @@ $r = Invoke-Bat "$Tool\CheckMyExcel_VietQR.bat" -Env @{ MYX_OUT = (Join-Path $ro
 Check ($r.Code -eq 1) "exit 1 (got $($r.Code), $($r.Sec)s)"
 Check ($r.Out -match 'Không ghi được báo cáo') 'says the report could not be written'
 
+Assert-RealUntouched
 Complete-Test

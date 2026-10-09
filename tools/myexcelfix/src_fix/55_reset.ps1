@@ -24,12 +24,19 @@ function Get-DeclaredBank {
     return $null
 }
 
-function Save-DeclaredBank {
-    # Ghi thông tin tài khoản ra thư mục sao lưu để khai báo lại; màn hình và nhật ký chỉ hiện số đã che
+function Show-DeclaredBank {
+    # Màn hình và nhật ký chỉ hiện số tài khoản đã che
     $b = Get-DeclaredBank
     if (-not $b) { Note 'Profile này chưa khai báo tài khoản ngân hàng trong MyExcel.'; return }
     $masked = if ($b.Account.Length -gt 4) { ('*' * ($b.Account.Length - 4)) + $b.Account.Substring($b.Account.Length - 4) } else { $b.Account }
     Note "Tài khoản đang khai báo: $($b.Bank) - số TK $masked - $($b.Name)"
+}
+
+function Save-DeclaredBank {
+    # Ghi đủ thông tin tài khoản ra thư mục sao lưu (riêng tài khoản) để khai báo lại. Chỉ gọi khi đã chắc chắn đặt
+    # lại: chọn không đặt lại thì không ghi file này (bản sao lưu đã có VBA_Settings.reg để hoàn tác).
+    $b = Get-DeclaredBank
+    if (-not $b) { return }
     $file = Join-Path $script:BackupDir 'ThongTinKhaiBao.txt'
     $lines = @(
         'THÔNG TIN TÀI KHOẢN ĐÃ KHAI BÁO TRONG MYEXCEL (để khai báo lại sau khi đặt lại dữ liệu)'
@@ -54,11 +61,12 @@ function Invoke-MyExcelReset([bool]$Confirm = $true) {
     if ($names.Count -eq 0) { Skip 'Profile này không có dữ liệu MyExcel để đặt lại'; return $false }
     if (-not $script:Manifest.RegVB) { Warn 'Chưa sao lưu được dữ liệu MyExcel nên không đặt lại.'; return $false }
     Note ('Sẽ xóa: ' + (($names | ForEach-Object { "HKCU\Software\VB and VBA Program Settings\$_" }) -join ' ; '))
-    Save-DeclaredBank
+    Show-DeclaredBank
     Note 'Sau khi đặt lại, mọi tùy chọn MyExcel của profile (tài khoản ngân hàng, In vùng, QR hàng loạt...) về mặc định.'
-    Note 'Nếu MyExcel đòi kích hoạt bản quyền: nhập lại key hoặc liên hệ MyExcel. HoanTac sẽ đưa dữ liệu cũ (và lỗi cũ) trở lại.'
+    Note 'Nếu MyExcel đòi kích hoạt bản quyền: nhập lại key hoặc liên hệ MyExcel. Hoàn tác sẽ đưa dữ liệu cũ (và lỗi cũ) trở lại.'
     if ($Confirm -and -not (Ask 'Đặt lại dữ liệu MyExcel ngay bây giờ?')) { Skip 'Không đặt lại dữ liệu MyExcel'; return $false }
     if (-not (Wait-ExcelClosed)) { Warn 'Excel chưa đóng nên chưa đặt lại.'; return $false }
+    Save-DeclaredBank
     $root = Open-UserKey 'Software\VB and VBA Program Settings' $true
     $ok = $false
     foreach ($n in $names) {

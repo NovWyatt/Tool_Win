@@ -15,7 +15,7 @@ if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" set "MYX
 "%MYX_PS%" -NoProfile -ExecutionPolicy Bypass -Command "$s=[IO.File]::ReadAllText($env:MYX_SELF,[Text.Encoding]::UTF8); iex $s"
 set "MYX_RC=%ERRORLEVEL%"
 echo.
-if "%MYX_RC%"=="0" echo Da xong. Bao cao da duoc mo bang Notepad va luu trong C:\Users\Public\Documents\MyExcelCheck
+if "%MYX_RC%"=="0" echo Da xong. Bao cao da duoc mo bang Notepad, luu trong "%LOCALAPPDATA%\MyExcelFix\BaoCao" va ban sao tren Desktop.
 if not defined MYX_NOPAUSE pause
 exit /b %MYX_RC%
 #>

@@ -46,11 +46,13 @@ Check (Test-Path (Join-Path $root 'MyExcel_old_cu')) 'nothing undone'
 Check (@(Get-ChildItem $bk -Directory -Filter 'TruocHoanTac_*').Count -eq 0) 'no pre-undo export (stopped at the question)'
 
 Write-Host '== T3e: HOAN_TAC.bat argument checks ==' -ForegroundColor Cyan
-$r = Invoke-Bat "$Tool\HOAN_TAC.bat" -Env @{ MYX_NOPAUSE = '1' } -TimeoutSec 30
-Check ($r.Code -eq 2) "no folder -> 2 (got $($r.Code))"
-$r = Invoke-Bat "$Tool\HOAN_TAC.bat" -BatArgs @((Join-Path $root 'khong_co')) -Env @{ MYX_NOPAUSE = '1' } -TimeoutSec 30
+# Không kèm thư mục thì HOAN_TAC.bat tìm bản sao lưu trong LOCALAPPDATA và Desktop thật: thử ở 4_NoiLuu (T5c, T5d)
+# với các thư mục đó trỏ vào thư mục tạm, không gọi ở đây.
+$sb = New-TestDir 'fx3noi'
+$envArg = @{ MYX_NOPAUSE = '1'; LOCALAPPDATA = $sb; PUBLIC = $sb; MYX_DESKTOP = $sb; MYX_OUT = (Join-Path $root 'out') }
+$r = Invoke-Bat "$Tool\HOAN_TAC.bat" -BatArgs @((Join-Path $root 'khong_co')) -Env $envArg -TimeoutSec 30
 Check ($r.Code -eq 2) "missing folder -> 2 (got $($r.Code))"
-$r = Invoke-Bat "$Tool\HOAN_TAC.bat" -BatArgs @((Join-Path $root 'scan')) -Env @{ MYX_NOPAUSE = '1' } -TimeoutSec 30
+$r = Invoke-Bat "$Tool\HOAN_TAC.bat" -BatArgs @((Join-Path $root 'scan')) -Env $envArg -TimeoutSec 30
 Check ($r.Code -eq 2) "folder without manifest -> 2 (got $($r.Code))"
 
 # ---------------------------------------------------------------- old-format manifest, missing original, corrupt manifest
@@ -94,5 +96,6 @@ Set-Content $mfPath '{ hong' -Encoding ASCII
 $r = Invoke-Bat "$bk\HoanTac_FixMyExcel.bat" -Env $envFix
 Check ($r.Code -eq 1) "corrupt manifest -> 1 (got $($r.Code))"
 
+Assert-RealUntouched
 Clear-TestRegistry
 Complete-Test

@@ -2,15 +2,24 @@
 # ----------------------------------------------------------------------------
 function Invoke-Backup {
     Step 'BƯỚC 2 - SAO LƯU (registry + file hoàn tác)'
-    $root = if ($env:MYX_OUT) { $env:MYX_OUT } else { [Environment]::GetFolderPath('Desktop') }
+    # Sao lưu có số tài khoản ngân hàng và bản sao file Excel: để trong thư mục riêng của tài khoản, không để trên
+    # Desktop (thường đồng bộ OneDrive) như bản trước 2026.10.2
+    $root = Get-MyxDataDir 'SaoLuu'
     $script:BackupDir = Join-Path $root "MyExcelFix_SaoLuu_$($script:Stamp)"
     try {
-        New-Item -ItemType Directory -Path $script:BackupDir -Force | Out-Null
+        New-Item -ItemType Directory -Path $script:BackupDir -Force -ErrorAction Stop | Out-Null
     } catch {
         Warn "Không tạo được thư mục sao lưu $($script:BackupDir): $($_.Exception.Message)"
         return $false
     }
-    Note "Thư mục sao lưu: $($script:BackupDir)"
+    Note "Thư mục sao lưu (riêng của tài khoản này): $($script:BackupDir)"
+    if (-not $env:MYX_OUT -or $env:MYX_DESKTOP) {
+        $old = @(Get-ChildItem -LiteralPath (Get-DesktopDir) -Directory -Filter 'MyExcelFix_SaoLuu_*' -ErrorAction SilentlyContinue)
+        if ($old.Count) {
+            Note "Trên Desktop còn $($old.Count) thư mục sao lưu của bản cũ (có số tài khoản ngân hàng, Desktop thường đồng bộ OneDrive)."
+            Note 'Không cần hoàn tác các lần sửa đó nữa thì xoá đi; cần thì HOAN_TAC.bat vẫn liệt kê và dùng được.'
+        }
+    }
 
     $regRoot = 'HKCU\' + $script:RegBase
     foreach ($ver in (Get-ExcelVersions)) {

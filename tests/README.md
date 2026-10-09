@@ -45,6 +45,9 @@ Cả lượt mất khoảng 6 phút. Bộ chậm nhất: `new-windows/4_TienTrin
   new-windows từ chối lưu bản sao lưu vào thư mục Trạm Tool. Chạy đạt hết thì thư mục này bị xoá.
 - Registry: chỉ `HKCU\Software\TramToolTest`, trình chạy xoá trước và sau mỗi lượt.
 - Xoá thư mục tạm không đi theo junction (bài Office, Dọn ổ C có tạo junction để thử).
+- Công cụ ghi vào thư mục của tài khoản (`%LOCALAPPDATA%`, `%PUBLIC%`, Desktop): bài thử trỏ các biến đó vào thư mục
+  tạm. Bộ `myexcelfix` so `%LOCALAPPDATA%\MyExcelFix`, `%PUBLIC%\Documents\MyExcelCheck` và Desktop thật trước, sau
+  mỗi bài (`Assert-RealUntouched`); có file mới là bài hỏng.
 
 ## Thẻ `doc-may`
 
@@ -54,6 +57,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 |---|---|
 | `new-windows/4_TienTrinh` | chạy thử xuất (`-DryRun`): tên mạng Wi-Fi đã lưu, máy in, ổ đĩa; không đọc mật khẩu |
 | `myexcelfix/3_KiemTra` | Kiểm tra MyExcel (chỉ đọc), kết quả ghi vào thư mục tạm |
+| `myexcelfix/5_KiemTraNoiLuu` | Kiểm tra MyExcel (chỉ đọc) với `LOCALAPPDATA`, `PUBLIC`, Desktop trỏ vào thư mục tạm |
 | `tram/3_KhoiChay` | Máy in LAN `-ChayThu -KhongDung` dò máy này và 127.0.0.1 |
 | `health-report/1_SuKien` | gọi `Get-WinEvent` thật với bộ lọc không khớp gì (nhật ký Application) để chắc mã "không có sự kiện" |
 
@@ -66,7 +70,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `tinh` | cú pháp mọi `.ps1` (cả PowerShell nhúng trong `.bat`), BOM/CRLF, danh mục `tool.json`, lược đồ, không commit dữ liệu khách |
 | `tram` | lan can an toàn (điểm khôi phục, trả lại trạng thái, sửa winget), mã thoát qua Launcher, tham số từ `tool.json`, CaiDat |
 | `new-windows` | mã hoá AES/HMAC, zip, xuất/nhập giữa hai "máy" giả, không lộ mật khẩu ra đĩa, chạy thử, hết đầu vào, hai `.bat` |
-| `myexcelfix` | sửa rồi hoàn tác trên bộ MyExcel giả, hết đầu vào giữa chừng, manifest cũ, kiểm tra chỉ đọc |
+| `myexcelfix` | sửa rồi hoàn tác trên bộ MyExcel giả, hết đầu vào giữa chừng, manifest cũ, kiểm tra chỉ đọc; nơi lưu riêng của tài khoản (sao lưu, báo cáo, chuyển file cũ khỏi Public Documents), che số và tên chủ tài khoản, `HOAN_TAC.bat` không tham số liệt kê bản sao lưu |
 | `office` | che khoá sản phẩm, đọc mẫu, gỡ, cài, kích hoạt (ODT, giấy phép, tiến trình đều giả) |
 | `bitlocker` | lưu khoá, tạm dừng, bật lại, mở khoá, giải mã, hoàn tác trên ổ giả; khoá không lọt vào báo cáo |
 | `don-o-c` | danh sách cho phép xoá, xoá theo tuổi file, junction, trình duyệt, WinSxS (trong thư mục cát) |

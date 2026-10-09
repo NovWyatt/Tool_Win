@@ -14,7 +14,7 @@ Check ($r.Code -eq 0) "fix exit code 0 (got $($r.Code), $($r.Sec)s)"
 $bk = @(Get-ChildItem (Join-Path $root 'out') -Directory -Filter 'MyExcelFix_SaoLuu_*')[0].FullName
 Check ([bool]$bk) "backup dir created: $bk"
 $m = Get-Content (Join-Path $bk 'manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-Check ($m.Format -eq 2 -and $m.Version -eq '2026.10.1') "manifest Format=2 Version=$($m.Version)"
+Check ($m.Format -eq 2 -and $m.Version -eq $ToolVersion) "manifest Format=2 Version=$($m.Version)"
 Check (@($m.Workbooks).Count -eq 2) "manifest has 2 workbooks"
 foreach ($w in $m.Workbooks) {
     Check ($w.Backup -like 'Workbooks\*') "relative backup path $($w.Backup)"
@@ -32,7 +32,7 @@ Check ($null -eq (Get-RegVal ($rb + 'Software\VB and VBA Program Settings\liliil
 $res = @(Get-ChildItem (Join-Path $root 'out') -Filter 'KetQua_MyExcel_Sua_*.json')
 Check ($res.Count -eq 1) 'fix result JSON written'
 $j = Get-Content $res[0].FullName -Raw -Encoding UTF8 | ConvertFrom-Json
-Check ($j.maThoat -eq 0 -and $j.ma -eq 'XONG' -and $j.cheDo -eq 'sua' -and $j.trangThai -eq 'xong' -and $j.phienBan -eq '2026.10.1') "fix JSON: $($j.maThoat) $($j.ma) $($j.cheDo) $($j.trangThai) $($j.phienBan) soThayDoi=$($j.soThayDoi)"
+Check ($j.maThoat -eq 0 -and $j.ma -eq 'XONG' -and $j.cheDo -eq 'sua' -and $j.trangThai -eq 'xong' -and $j.phienBan -eq $ToolVersion) "fix JSON: $($j.maThoat) $($j.ma) $($j.cheDo) $($j.trangThai) $($j.phienBan) soThayDoi=$($j.soThayDoi)"
 Check ($j.thuMucSaoLuu -eq $bk) 'fix JSON points to backup dir'
 Check (Test-Path (Join-Path $bk 'NhatKy_Sua.txt')) 'fix log written'
 
@@ -64,5 +64,6 @@ $j = Get-Content $res[0].FullName -Raw -Encoding UTF8 | ConvertFrom-Json
 Check ($j.maThoat -eq 0 -and $j.cheDo -eq 'hoan-tac' -and @($j.giuLai).Count -eq 1 -and $j.giuLai[0] -eq $kept) "undo JSON: $($j.maThoat) $($j.ma) giuLai=$($j.giuLai -join ';')"
 Check (@(Get-ChildItem $bk -Filter 'NhatKy_HoanTac_*.txt').Count -eq 1) 'undo log written'
 
+Assert-RealUntouched
 Clear-TestRegistry
 Complete-Test

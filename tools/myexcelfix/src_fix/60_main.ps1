@@ -29,7 +29,8 @@ function Show-QrSteps([bool]$AfterReset) {
     if ($AfterReset) { Say '   - MyExcel hiện màn hình chạy lần đầu thì làm theo như lúc mới cài.' }
     Say '   - Tab Mini Tool > Tạo QR Code: TẮT rồi BẬT lại hàm QR, phải thấy "Bạn đã có thể dùng Hàm QR".'
     if ($AfterReset) {
-        $hint = if ($script:BackupDir -and (Test-Path -LiteralPath (Join-Path $script:BackupDir 'ThongTinKhaiBao.txt'))) { ' (thông tin cũ trong ThongTinKhaiBao.txt ở thư mục sao lưu)' } else { '' }
+        $info = if ($script:BackupDir) { Join-Path $script:BackupDir 'ThongTinKhaiBao.txt' } else { $null }
+        $hint = if ($info -and (Test-Path -LiteralPath $info)) { " (thông tin cũ: mở bằng Notepad file $info)" } else { '' }
         Say "   - Khai báo lại tài khoản: Mini Tool > Tạo QR Code > Tạo QR Code tài khoản ngân hàng > Khai báo$hint."
     }
     Say ('   - Thử tạo mã VietQR như mọi khi, hoặc gõ =QrBank_Sotien_Noidung(10000{0}"THU NGHIEM") vào một ô trống.' -f $sep)
@@ -113,8 +114,9 @@ function Invoke-Fix {
     Invoke-DataStep
     Save-Manifest
     Say ''
-    Say "  Sao lưu: $($script:BackupDir)" 'White'
-    Say '  HoanTac_FixMyExcel.bat trong đó trả lại mọi thứ như trước khi sửa (kể cả lỗi cũ) - chỉ chạy khi thật cần.' 'White'
+    Say "  Sao lưu (thư mục riêng của tài khoản này, có số tài khoản ngân hàng): $($script:BackupDir)" 'White'
+    Say '  Hoàn tác trả lại mọi thứ như trước khi sửa (kể cả lỗi cũ) - chỉ chạy khi thật cần: HOAN_TAC.bat cạnh file này' 'White'
+    Say '  (hoặc nút Hoàn tác của Trạm Tool) liệt kê các bản sao lưu để chọn; bấm đúp HoanTac_FixMyExcel.bat trong thư mục trên cũng được.' 'White'
     if ($script:StillBroken) { Set-Result 3 'VIETQR_VAN_LOI' 'Đã sửa nhưng VietQR vẫn chưa chạy được.' }
     elseif ($script:Problems -gt 0) { Set-Result 3 'CO_CANH_BAO' "Đã sửa, còn $($script:Problems) cảnh báo cần xem." }
     else { Set-Result 0 'XONG' 'Đã sửa xong.' }
@@ -189,13 +191,37 @@ function Save-PreUndoState([string]$Dir) {
     return $true
 }
 
+function Select-UndoBackup {
+    # HOAN_TAC.bat không kèm thư mục: chọn trong các bản sao lưu của tài khoản này, mới nhất trước
+    $all = @(Get-BackupList)
+    $mine = @($all | Where-Object { $_.User -eq $env:USERNAME })
+    if ($mine.Count -eq 0) {
+        $other = if ($all.Count) { " (có $($all.Count) bản của tài khoản khác: phải hoàn tác bằng đúng tài khoản đó)" } else { '' }
+        Warn "Không thấy bản sao lưu nào của tài khoản $env:USERNAME$other."
+        Note "Nơi tìm: $(Get-MyxDataDir 'SaoLuu') và Desktop."
+        return $null
+    }
+    $opts = foreach ($b in $mine) {
+        $n = @($b.Manifest.Workbooks | Where-Object { $_ }).Count
+        $reset = @($b.Manifest.ResetKeys | Where-Object { $_ }).Count
+        '{0}  ({1} file Excel{2}){3}  {4}' -f $b.Time, $n, $(if ($reset) { ', có đặt lại dữ liệu MyExcel' } else { '' }), $(if ($b.OnDesktop) { ' [Desktop]' } else { '' }), $b.Dir
+    }
+    Say '  Các bản sao lưu của tài khoản này (mới nhất trước):' 'White'
+    $i = Choose 'Chọn bản sao lưu cần hoàn tác' @($opts) 1
+    return $mine[$i - 1].Dir
+}
+
 function Invoke-Undo {
-    $dir = $script:UndoDir
-    $script:BackupDir = $null
-    $mf = Join-Path $dir 'manifest.json'
     Say ''
     Say "  HOÀN TÁC SỬA LỖI MYEXCEL (bản $($script:Version))" 'Cyan'
     Show-FontHint
+    if (-not $script:UndoDir) {
+        $script:UndoDir = Select-UndoBackup
+        if (-not $script:UndoDir) { Set-Result 2 'KHONG_CO_SAO_LUU' 'Không thấy bản sao lưu nào của tài khoản này.'; return }
+    }
+    $dir = $script:UndoDir
+    $script:BackupDir = $null
+    $mf = Join-Path $dir 'manifest.json'
     if (-not (Test-Path -LiteralPath $mf)) { Warn "Không thấy manifest.json trong $dir"; Set-Result 2 'THIEU_MANIFEST' 'Thư mục sao lưu thiếu manifest.json.'; return }
     try { $m = Get-Content -LiteralPath $mf -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop }
     catch { Warn "manifest.json hỏng, không đọc được: $($_.Exception.Message)"; Set-Result 1 'MANIFEST_HONG' 'manifest.json hỏng nên không hoàn tác được.'; return }
@@ -253,7 +279,7 @@ try {
         Say ''
         Say '  Hết đầu vào: không có ai trả lời câu hỏi (chạy không có cửa sổ dòng lệnh?) nên dừng lại.' 'Yellow'
         if ($real -gt 0) {
-            $more = if ($script:UndoMode) { 'chạy lại hoàn tác để làm nốt.' } else { 'mọi thay đổi đều có sao lưu, chạy HoanTac_FixMyExcel.bat trong thư mục sao lưu nếu cần trả lại.' }
+            $more = if ($script:UndoMode) { 'chạy lại hoàn tác để làm nốt.' } else { "mọi thay đổi đều có sao lưu ($($script:BackupDir)), chạy HOAN_TAC.bat nếu cần trả lại." }
             Say "  Đã làm $real thay đổi trước khi dừng: $more" 'Yellow'
             Set-Result 3 'HET_DAU_VAO' "Hết đầu vào sau $real thay đổi."
         } else {

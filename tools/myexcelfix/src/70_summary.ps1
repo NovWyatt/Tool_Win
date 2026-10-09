@@ -1,13 +1,14 @@
 
 # ----------------------------------------------------------------------------
 Section '12. SO SÁNH VỚI PROFILE KHÁC TRÊN CÙNG MÁY'
-$outDir = if ($env:MYX_OUT) { $env:MYX_OUT } else { Join-Path $env:PUBLIC 'Documents\MyExcelCheck' }
+$outDir = Get-MyxDataDir 'BaoCao'    # báo cáo, JSON: riêng tài khoản này
+$snapDir = Get-SharedDir             # snapshot cấu hình: chung để profile khác so sánh được
 $stamp = $script:Started.ToString('yyyyMMdd_HHmmss')
 $safeUser = ($env:USERNAME -replace '[^\w\.-]', '_')
 try {
-    if (-not (Test-Path -LiteralPath $outDir)) { New-Item -ItemType Directory -Path $outDir -Force | Out-Null }
-    $snapFile = Join-Path $outDir ("snapshot_{0}_{1}.json" -f $env:COMPUTERNAME, $safeUser)
-    $others = @(Get-ChildItem -LiteralPath $outDir -Filter ("snapshot_{0}_*.json" -f $env:COMPUTERNAME) -File -ErrorAction SilentlyContinue |
+    if (-not (Test-Path -LiteralPath $snapDir)) { New-Item -ItemType Directory -Path $snapDir -Force | Out-Null }
+    $snapFile = Join-Path $snapDir ("snapshot_{0}_{1}.json" -f $env:COMPUTERNAME, $safeUser)
+    $others = @(Get-ChildItem -LiteralPath $snapDir -Filter ("snapshot_{0}_*.json" -f $env:COMPUTERNAME) -File -ErrorAction SilentlyContinue |
         Where-Object { $_.FullName -ne $snapFile })
     if ($others.Count -eq 0) {
         Note 'Chưa có kết quả của profile nào khác.'
@@ -80,11 +81,12 @@ $steps = @(
     '6) Mini Tool > Tạo QR Code: TẮT rồi BẬT lại hàm QR, đóng mở lại Excel.',
     '7) Nếu vẫn lỗi: đóng Excel, xóa cache  del /s /q "%TEMP%\*.exd"  và dọn thư mục %TEMP%.',
     '8) Vẫn lỗi => đặt lại dữ liệu MyExcel của profile (cách đã sửa được lỗi "profile mới chạy, profile cũ không"):',
-    '     reg export "HKCU\Software\VB and VBA Program Settings" "%USERPROFILE%\Desktop\MyExcel_data_backup.reg"',
+    '     reg export "HKCU\Software\VB and VBA Program Settings" "%LOCALAPPDATA%\MyExcelFix\MyExcel_data_backup.reg"',
+    '     (file .reg này có số tài khoản ngân hàng: để trong thư mục riêng của tài khoản, không để trên Desktop/OneDrive)',
     '     rồi trong regedit xóa các nhánh tên chỉ gồm chữ i/l (vd liliiliiliiiliilli, liliiliiliiiliill) dưới key đó,',
     '     mở Excel, TẮT/BẬT hàm QR và khai báo lại tài khoản ngân hàng.',
     '9) Vẫn lỗi => reset riêng cấu hình Excel của profile (giống profile mới, không cần tạo user mới):',
-    '     reg export "HKCU\Software\Microsoft\Office\16.0\Excel" "%USERPROFILE%\Desktop\Excel_backup.reg"',
+    '     reg export "HKCU\Software\Microsoft\Office\16.0\Excel" "%LOCALAPPDATA%\MyExcelFix\Excel_backup.reg"',
     '     rồi đổi tên key HKCU\Software\Microsoft\Office\16.0\Excel thành Excel_old (bằng regedit),',
     '     mở Excel và làm lại các bước cài MyExcel (Trust Center + Add-in). Có thể khôi phục bằng file .reg.'
 )
@@ -103,20 +105,22 @@ try {
     Out-Line ''
     Out-Line "  (Thời gian kiểm tra: $elapsed giây)" 'DarkGray'
     if (-not (Test-Path -LiteralPath $outDir)) { New-Item -ItemType Directory -Path $outDir -Force -ErrorAction Stop | Out-Null }
+    Move-OldResults $outDir
     $reportName = "BaoCao_MyExcel_{0}_{1}_{2}.txt" -f $env:COMPUTERNAME, $safeUser, $stamp
     $reportPath = Join-Path $outDir $reportName
     $utf8Bom = New-Object Text.UTF8Encoding $true
     [IO.File]::WriteAllLines($reportPath, $script:Report.ToArray(), $utf8Bom)
+    # Bản sao để gửi kỹ thuật: báo cáo đã che số tài khoản và tên chủ tài khoản
     $deskCopy = $null
-    if (-not $env:MYX_OUT) {
+    if (-not $env:MYX_OUT -or $env:MYX_DESKTOP) {
         try {
-            $deskCopy = Join-Path ([Environment]::GetFolderPath('Desktop')) $reportName
+            $deskCopy = Join-Path (Get-DesktopDir) $reportName
             [IO.File]::WriteAllLines($deskCopy, $script:Report.ToArray(), $utf8Bom)
         } catch { $deskCopy = $null }
     }
     Write-Host ''
-    Write-Host (Txt "  Đã lưu báo cáo: $reportPath") -ForegroundColor Cyan
-    if ($deskCopy) { Write-Host (Txt "  Bản sao trên Desktop: $deskCopy") -ForegroundColor Cyan }
+    Write-Host (Txt "  Đã lưu báo cáo (thư mục riêng của tài khoản này): $reportPath") -ForegroundColor Cyan
+    if ($deskCopy) { Write-Host (Txt "  Bản sao để gửi trên Desktop: $deskCopy") -ForegroundColor Cyan }
     Write-Host (Txt '  => Gửi file báo cáo này (của CẢ profile lỗi và profile mới nếu có) cho kỹ thuật.') -ForegroundColor Cyan
     Write-Host '  (Chu tieng Viet tren man hinh bi loi font? Mo file bao cao bang Notepad - file luon dung chinh ta.)' -ForegroundColor DarkGray
     if (-not $env:MYX_NO_NOTEPAD) { Start-Process notepad.exe -ArgumentList "`"$reportPath`"" }

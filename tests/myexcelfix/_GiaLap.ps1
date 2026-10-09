@@ -4,6 +4,24 @@
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
 $script:Tool = "$ToolsDir\myexcelfix"
+$script:ToolVersion = [string]((Get-Content -LiteralPath (Join-Path $script:Tool 'tool.json') -Raw -Encoding UTF8 | ConvertFrom-Json).version)   # build.ps1 đóng dấu bản này vào .bat
+
+# Nơi lưu thật của công cụ trên máy chạy thử: bài thử không được ghi vào đây. Ghi trạng thái lúc nạp file này,
+# Assert-RealUntouched (gọi cuối mỗi bài) so lại.
+function Get-RealPlacesState {
+    $items = foreach ($d in (Join-Path $env:LOCALAPPDATA 'MyExcelFix'), (Join-Path $env:PUBLIC 'Documents\MyExcelCheck')) {
+        if (Test-Path -LiteralPath $d) { Get-ChildItem -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+    $desk = [Environment]::GetFolderPath('Desktop')
+    if ($desk -and (Test-Path -LiteralPath $desk)) {
+        $items = @($items) + @(Get-ChildItem -LiteralPath $desk -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'BaoCao_MyExcel_*' -or $_.Name -like 'MyExcelFix_SaoLuu_*' })
+    }
+    return (@($items | Where-Object { $_ } | ForEach-Object { "$($_.FullName)|$($_.LastWriteTimeUtc.Ticks)" } | Sort-Object) -join "`n")
+}
+$script:RealBefore = Get-RealPlacesState
+function Assert-RealUntouched {
+    Check ((Get-RealPlacesState) -eq $script:RealBefore) 'không ghi vào nơi lưu thật (%LOCALAPPDATA%\MyExcelFix, %PUBLIC%\Documents\MyExcelCheck, Desktop)'
+}
 
 function Test-ExcelOpenHere {
     # The fix waits for Excel of this session to close; with MYX_AUTO it stops instead. Skip rather than fail.

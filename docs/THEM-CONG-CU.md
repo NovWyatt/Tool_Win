@@ -191,13 +191,15 @@ hại máy (registry, dịch vụ của phần mềm mà công cụ gỡ hoặc 
 ```json
 "outputs": [
   { "label": "Báo cáo chẩn đoán", "glob": "LagReport_%COMPUTERNAME%_*.txt;HwDiag_%COMPUTERNAME%_*.txt" },
-  { "label": "Bản sao lưu", "dir": "{Desktop}", "glob": "MyExcelFix_SaoLuu_*", "type": "folder",
+  { "label": "Bản sao lưu", "dir": "%LOCALAPPDATA%\\MyExcelFix\\SaoLuu", "glob": "MyExcelFix_SaoLuu_*", "type": "folder",
     "deleteNote": "\"Hoàn tác lần sửa\" cần đúng thư mục này. Xoá rồi thì không hoàn tác được lần sửa đó nữa." },
   { "label": "Hướng dẫn trong bản sao lưu", "dir": "DuLieu_SaoLuu", "glob": "HUONG_DAN.txt", "deletable": false }
 ]
 ```
 
 - `dir`: mặc định thư mục công cụ; nhận `%BIEN%`, `{Desktop}` và dấu `*` ở phần cuối (vd `C:\CUU_DU_LIEU_*`).
+  Dữ liệu khách của một tài khoản Windows (sao lưu, báo cáo có số tài khoản, mật khẩu) để trong
+  `%LOCALAPPDATA%\<công cụ>`: Desktop thường đồng bộ OneDrive, Public Documents thì mọi tài khoản đều đọc được.
 - `glob`: nhiều mẫu cách nhau bằng `;`. Nên lọc theo `%COMPUTERNAME%` khi báo cáo có tên máy.
 - `type: "folder"` khi kết quả là cả thư mục; `recurse: true` để tìm cả thư mục con.
 - `deleteNote`: cảnh báo hiện trong hộp thoại xoá, người dùng phải đánh dấu "đã đọc" mới xoá được. Dùng cho bản sao

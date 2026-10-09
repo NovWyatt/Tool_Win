@@ -45,9 +45,10 @@ $script:RegBase    = if ($env:MYX_REGBASE) { $env:MYX_REGBASE.Trim('\') + '\' } 
 $script:Auto       = [bool]$env:MYX_AUTO                                                            # chỉ dùng khi test
 $script:QrAnswers  = @(if ($env:MYX_QR_OK) { $env:MYX_QR_OK -split ',' })                           # chỉ dùng khi test
 $script:QrAsked    = 0
-# Hoàn tác: bản HoanTac_FixMyExcel.bat trong thư mục sao lưu, hoặc HOAN_TAC.bat đặt MYX_UNDO_DIR rồi gọi bản mới nhất
+# Hoàn tác: bản HoanTac_FixMyExcel.bat trong thư mục sao lưu, hoặc HOAN_TAC.bat đặt MYX_UNDO_DIR rồi gọi bản mới nhất;
+# HOAN_TAC.bat không có thư mục thì đặt MYX_UNDO_CHON=1: liệt kê bản sao lưu của tài khoản này để chọn
 $script:UndoDir    = if ($env:MYX_UNDO_DIR) { $env:MYX_UNDO_DIR.TrimEnd('\') } elseif ((Split-Path $env:MYX_SELF -Leaf) -like 'HoanTac*') { Split-Path $env:MYX_SELF -Parent } else { $null }
-$script:UndoMode   = [bool]$script:UndoDir
+$script:UndoMode   = [bool]$script:UndoDir -or ($env:MYX_UNDO_CHON -eq '1')
 $script:Changes    = 0
 $script:Problems   = 0
 $script:Warnings   = New-Object System.Collections.Generic.List[string]
@@ -224,9 +225,59 @@ function Save-Manifest {
 function Get-Sha256([string]$Path) {
     try { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash } catch { return $null }
 }
-function Get-ResultDir {
+# Nơi lưu. Sao lưu (có số tài khoản ngân hàng, bản sao file Excel), nhật ký, JSON kết quả: thư mục riêng của tài khoản
+# %LOCALAPPDATA%\MyExcelFix - không đồng bộ OneDrive như Desktop, tài khoản khác không đọc được như Public Documents.
+# MYX_OUT, MYX_DESKTOP chỉ dùng khi test.
+function Get-MyxDataDir([string]$Sub) {
     if ($env:MYX_OUT) { return $env:MYX_OUT }
-    return (Join-Path $env:PUBLIC 'Documents\MyExcelCheck')
+    $base = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $env:USERPROFILE 'AppData\Local' }
+    return (Join-Path (Join-Path $base 'MyExcelFix') $Sub)
+}
+function Get-DesktopDir {
+    if ($env:MYX_DESKTOP) { return $env:MYX_DESKTOP }
+    return [Environment]::GetFolderPath('Desktop')
+}
+function Get-ResultDir { return (Get-MyxDataDir 'BaoCao') }
+function Move-OldResults([string]$To) {
+    # Bản trước 2026.10.2 ghi báo cáo, JSON kết quả vào thư mục chung: chuyển các file của tài khoản này sang thư mục
+    # riêng. File của tài khoản khác để nguyên (chuyển khi tài khoản đó chạy bản mới), snapshot để nguyên.
+    $from = Join-Path $env:PUBLIC 'Documents\MyExcelCheck'
+    if ($env:MYX_OUT -or -not (Test-Path -LiteralPath $from)) { return }
+    $u = ($env:USERNAME -replace '[^\w\.-]', '_'); $c = $env:COMPUTERNAME
+    $mine = @(Get-ChildItem -LiteralPath $from -File -ErrorAction SilentlyContinue | Where-Object {
+            $_.Name -like "BaoCao_MyExcel_$($c)_$($u)_*.txt" -or $_.Name -like "KetQua_MyExcel_*_$($c)_$($u)_*.json" })
+    if ($mine.Count -eq 0) { return }
+    $n = 0
+    try {
+        if (-not (Test-Path -LiteralPath $To)) { New-Item -ItemType Directory -Path $To -Force -ErrorAction Stop | Out-Null }
+        foreach ($f in $mine) {
+            $dest = Join-Path $To $f.Name
+            if (Test-Path -LiteralPath $dest) { continue }
+            try { Move-Item -LiteralPath $f.FullName -Destination $dest -ErrorAction Stop; $n++ } catch {}
+        }
+    } catch {}
+    if ($n) { Say "  Đã chuyển $n báo cáo cũ của tài khoản này từ $from (mọi tài khoản đọc được) sang $To" 'DarkGray' }
+}
+function Get-BackupList {
+    # Bản sao lưu có manifest.json, mới nhất trước: thư mục riêng (từ 2026.10.2) và Desktop (bản cũ hơn)
+    $roots = @(Get-MyxDataDir 'SaoLuu')
+    if (-not $env:MYX_OUT -or $env:MYX_DESKTOP) { $roots += Get-DesktopDir }
+    $seen = @{}
+    $list = foreach ($r in $roots) {
+        if (-not $r -or -not (Test-Path -LiteralPath $r -PathType Container)) { continue }
+        foreach ($d in @(Get-ChildItem -LiteralPath $r -Directory -Filter 'MyExcelFix_SaoLuu_*' -ErrorAction SilentlyContinue)) {
+            if ($seen.ContainsKey($d.FullName) -or -not (Test-Path -LiteralPath (Join-Path $d.FullName 'manifest.json'))) { continue }
+            $seen[$d.FullName] = $true
+            $m = $null
+            try { $m = Get-Content -LiteralPath (Join-Path $d.FullName 'manifest.json') -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop } catch {}
+            [pscustomobject]@{
+                Dir = $d.FullName; Name = $d.Name; Manifest = $m
+                User = $(if ($m) { [string]$m.User } else { '' }); Time = $(if ($m) { [string]$m.Time } else { '' })
+                OnDesktop = (Test-SamePath $r (Get-DesktopDir))
+            }
+        }
+    }
+    return @($list | Sort-Object Name -Descending)   # tên có giờ yyyyMMdd_HHmmss
 }
 function Save-ResultJson([string]$LogPath) {
     # Kết quả máy đọc được cho Trạm Tool: trạng thái, mã lý do ổn định, cảnh báo, nơi sao lưu
@@ -247,6 +298,7 @@ function Save-ResultJson([string]$LogPath) {
     try {
         $dir = Get-ResultDir
         if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null }
+        Move-OldResults $dir
         $path = Join-Path $dir $name
         [IO.File]::WriteAllText($path, ($r | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
         Say "  Kết quả (JSON): $path" 'DarkGray'

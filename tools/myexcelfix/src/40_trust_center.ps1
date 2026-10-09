@@ -178,6 +178,7 @@ try {
             Out-Line ("    [{0}] ({1} giá trị)" -f $short, $vals.Count) 'White'
             foreach ($n in ($vals | Select-Object -First 25)) {
                 $d = Hide-Digits (Format-RegData $k.GetValue($n))
+                if ($n -match '(?i)^Ten.*TK') { $d = Hide-Name $d }   # tên chủ tài khoản ngân hàng (TenTKQRG)
                 if ($d.Length -gt 80) { $d = $d.Substring(0, 80) + '...' }
                 Note ("{0} = {1}" -f $n, $d)
             }

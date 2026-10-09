@@ -116,6 +116,49 @@ function Hide-Digits([string]$s) {
     $ev = [Text.RegularExpressions.MatchEvaluator] { param($m) ('*' * ($m.Value.Length - 4)) + $m.Value.Substring($m.Value.Length - 4) }
     return [regex]::Replace($s, '\d{7,}', $ev)
 }
+function Hide-Name([string]$s) {
+    # Tên chủ tài khoản: chỉ giữ chữ đầu mỗi từ (NGUYEN VAN A -> N*** V** A)
+    if (-not $s) { return '' }
+    $ev = [Text.RegularExpressions.MatchEvaluator] { param($m) '*' * $m.Value.Length }
+    return [regex]::Replace($s, '(?<=\b\w)\w+', $ev)
+}
+
+# Nơi lưu. Báo cáo và JSON kết quả: thư mục riêng của tài khoản (%LOCALAPPDATA%\MyExcelFix\BaoCao) - không đồng bộ
+# OneDrive, tài khoản khác không đọc được. Thư mục chung %PUBLIC%\Documents\MyExcelCheck chỉ giữ snapshot cấu hình
+# (không có dữ liệu ngân hàng) để so sánh giữa các profile. MYX_OUT, MYX_DESKTOP chỉ dùng khi test.
+function Get-MyxDataDir([string]$Sub) {
+    if ($env:MYX_OUT) { return $env:MYX_OUT }
+    $base = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $env:USERPROFILE 'AppData\Local' }
+    return (Join-Path (Join-Path $base 'MyExcelFix') $Sub)
+}
+function Get-SharedDir {
+    if ($env:MYX_OUT) { return $env:MYX_OUT }
+    return (Join-Path $env:PUBLIC 'Documents\MyExcelCheck')
+}
+function Get-DesktopDir {
+    if ($env:MYX_DESKTOP) { return $env:MYX_DESKTOP }
+    return [Environment]::GetFolderPath('Desktop')
+}
+function Move-OldResults([string]$To) {
+    # Bản trước 2026.10.2 ghi báo cáo, JSON kết quả vào thư mục chung: chuyển các file của tài khoản này sang thư mục
+    # riêng. File của tài khoản khác để nguyên (chuyển khi tài khoản đó chạy bản mới), snapshot để nguyên.
+    $from = Join-Path $env:PUBLIC 'Documents\MyExcelCheck'
+    if ($env:MYX_OUT -or -not (Test-Path -LiteralPath $from)) { return }
+    $u = ($env:USERNAME -replace '[^\w\.-]', '_'); $c = $env:COMPUTERNAME
+    $mine = @(Get-ChildItem -LiteralPath $from -File -ErrorAction SilentlyContinue | Where-Object {
+            $_.Name -like "BaoCao_MyExcel_$($c)_$($u)_*.txt" -or $_.Name -like "KetQua_MyExcel_*_$($c)_$($u)_*.json" })
+    if ($mine.Count -eq 0) { return }
+    $n = 0
+    try {
+        if (-not (Test-Path -LiteralPath $To)) { New-Item -ItemType Directory -Path $To -Force -ErrorAction Stop | Out-Null }
+        foreach ($f in $mine) {
+            $dest = Join-Path $To $f.Name
+            if (Test-Path -LiteralPath $dest) { continue }
+            try { Move-Item -LiteralPath $f.FullName -Destination $dest -ErrorAction Stop; $n++ } catch {}
+        }
+    } catch {}
+    if ($n) { Write-Host (Txt "  Đã chuyển $n báo cáo cũ của tài khoản này từ $from (mọi tài khoản đọc được) sang $To") -ForegroundColor DarkGray }
+}
 function Get-ZoneId([string]$File) {
     # $null = không bị chặn; số = ZoneId (3 = Internet)
     try {

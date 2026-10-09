@@ -5,17 +5,17 @@ rem  MyExcel VietQR - script kiem tra loi theo profile Windows (chi DOC, khong s
 rem  Cach dung: copy file nay sang may bi loi, DOUBLE-CLICK trong profile bi loi.
 rem  KHONG "Run as administrator" bang tai khoan khac (se doc sai HKCU).
 rem  Ma thoat: 0 kiem tra xong, 1 khong ghi duoc bao cao, 2 chay sai tai khoan.
-rem  Phien ban: 2026.10.1
+rem  Phien ban: 2026.10.2
 rem ==========================================================================
 chcp 65001 >nul
-title MyExcel VietQR - Kiem tra loi (2026.10.1)
+title MyExcel VietQR - Kiem tra loi (2026.10.2)
 set "MYX_SELF=%~f0"
 set "MYX_PS=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" set "MYX_PS=%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
 "%MYX_PS%" -NoProfile -ExecutionPolicy Bypass -Command "$s=[IO.File]::ReadAllText($env:MYX_SELF,[Text.Encoding]::UTF8); iex $s"
 set "MYX_RC=%ERRORLEVEL%"
 echo.
-if "%MYX_RC%"=="0" echo Da xong. Bao cao da duoc mo bang Notepad va luu trong C:\Users\Public\Documents\MyExcelCheck
+if "%MYX_RC%"=="0" echo Da xong. Bao cao da duoc mo bang Notepad, luu trong "%LOCALAPPDATA%\MyExcelFix\BaoCao" va ban sao tren Desktop.
 if not defined MYX_NOPAUSE pause
 exit /b %MYX_RC%
 #>
@@ -56,7 +56,7 @@ function Test-VietConsole {
 }
 function Txt([string]$Text) { if ($script:NoDau) { return (Remove-Diacritics $Text) }; return $Text }
 $script:NoDau = -not (Test-VietConsole)
-$script:Version  = '2026.10.1'   # build.ps1 thay bằng version trong tool.json
+$script:Version  = '2026.10.2'   # build.ps1 thay bằng version trong tool.json
 $script:Report   = New-Object System.Collections.Generic.List[string]
 $script:Findings = New-Object System.Collections.Generic.List[object]
 $script:Snap     = [ordered]@{}
@@ -136,6 +136,49 @@ function Hide-Digits([string]$s) {
     if ($null -eq $s) { return '' }
     $ev = [Text.RegularExpressions.MatchEvaluator] { param($m) ('*' * ($m.Value.Length - 4)) + $m.Value.Substring($m.Value.Length - 4) }
     return [regex]::Replace($s, '\d{7,}', $ev)
+}
+function Hide-Name([string]$s) {
+    # Tên chủ tài khoản: chỉ giữ chữ đầu mỗi từ (NGUYEN VAN A -> N*** V** A)
+    if (-not $s) { return '' }
+    $ev = [Text.RegularExpressions.MatchEvaluator] { param($m) '*' * $m.Value.Length }
+    return [regex]::Replace($s, '(?<=\b\w)\w+', $ev)
+}
+
+# Nơi lưu. Báo cáo và JSON kết quả: thư mục riêng của tài khoản (%LOCALAPPDATA%\MyExcelFix\BaoCao) - không đồng bộ
+# OneDrive, tài khoản khác không đọc được. Thư mục chung %PUBLIC%\Documents\MyExcelCheck chỉ giữ snapshot cấu hình
+# (không có dữ liệu ngân hàng) để so sánh giữa các profile. MYX_OUT, MYX_DESKTOP chỉ dùng khi test.
+function Get-MyxDataDir([string]$Sub) {
+    if ($env:MYX_OUT) { return $env:MYX_OUT }
+    $base = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $env:USERPROFILE 'AppData\Local' }
+    return (Join-Path (Join-Path $base 'MyExcelFix') $Sub)
+}
+function Get-SharedDir {
+    if ($env:MYX_OUT) { return $env:MYX_OUT }
+    return (Join-Path $env:PUBLIC 'Documents\MyExcelCheck')
+}
+function Get-DesktopDir {
+    if ($env:MYX_DESKTOP) { return $env:MYX_DESKTOP }
+    return [Environment]::GetFolderPath('Desktop')
+}
+function Move-OldResults([string]$To) {
+    # Bản trước 2026.10.2 ghi báo cáo, JSON kết quả vào thư mục chung: chuyển các file của tài khoản này sang thư mục
+    # riêng. File của tài khoản khác để nguyên (chuyển khi tài khoản đó chạy bản mới), snapshot để nguyên.
+    $from = Join-Path $env:PUBLIC 'Documents\MyExcelCheck'
+    if ($env:MYX_OUT -or -not (Test-Path -LiteralPath $from)) { return }
+    $u = ($env:USERNAME -replace '[^\w\.-]', '_'); $c = $env:COMPUTERNAME
+    $mine = @(Get-ChildItem -LiteralPath $from -File -ErrorAction SilentlyContinue | Where-Object {
+            $_.Name -like "BaoCao_MyExcel_$($c)_$($u)_*.txt" -or $_.Name -like "KetQua_MyExcel_*_$($c)_$($u)_*.json" })
+    if ($mine.Count -eq 0) { return }
+    $n = 0
+    try {
+        if (-not (Test-Path -LiteralPath $To)) { New-Item -ItemType Directory -Path $To -Force -ErrorAction Stop | Out-Null }
+        foreach ($f in $mine) {
+            $dest = Join-Path $To $f.Name
+            if (Test-Path -LiteralPath $dest) { continue }
+            try { Move-Item -LiteralPath $f.FullName -Destination $dest -ErrorAction Stop; $n++ } catch {}
+        }
+    } catch {}
+    if ($n) { Write-Host (Txt "  Đã chuyển $n báo cáo cũ của tài khoản này từ $from (mọi tài khoản đọc được) sang $To") -ForegroundColor DarkGray }
 }
 function Get-ZoneId([string]$File) {
     # $null = không bị chặn; số = ZoneId (3 = Internet)
@@ -860,6 +903,7 @@ try {
             Out-Line ("    [{0}] ({1} giá trị)" -f $short, $vals.Count) 'White'
             foreach ($n in ($vals | Select-Object -First 25)) {
                 $d = Hide-Digits (Format-RegData $k.GetValue($n))
+                if ($n -match '(?i)^Ten.*TK') { $d = Hide-Name $d }   # tên chủ tài khoản ngân hàng (TenTKQRG)
                 if ($d.Length -gt 80) { $d = $d.Substring(0, 80) + '...' }
                 Note ("{0} = {1}" -f $n, $d)
             }
@@ -1154,13 +1198,14 @@ try {
 
 # ----------------------------------------------------------------------------
 Section '12. SO SÁNH VỚI PROFILE KHÁC TRÊN CÙNG MÁY'
-$outDir = if ($env:MYX_OUT) { $env:MYX_OUT } else { Join-Path $env:PUBLIC 'Documents\MyExcelCheck' }
+$outDir = Get-MyxDataDir 'BaoCao'    # báo cáo, JSON: riêng tài khoản này
+$snapDir = Get-SharedDir             # snapshot cấu hình: chung để profile khác so sánh được
 $stamp = $script:Started.ToString('yyyyMMdd_HHmmss')
 $safeUser = ($env:USERNAME -replace '[^\w\.-]', '_')
 try {
-    if (-not (Test-Path -LiteralPath $outDir)) { New-Item -ItemType Directory -Path $outDir -Force | Out-Null }
-    $snapFile = Join-Path $outDir ("snapshot_{0}_{1}.json" -f $env:COMPUTERNAME, $safeUser)
-    $others = @(Get-ChildItem -LiteralPath $outDir -Filter ("snapshot_{0}_*.json" -f $env:COMPUTERNAME) -File -ErrorAction SilentlyContinue |
+    if (-not (Test-Path -LiteralPath $snapDir)) { New-Item -ItemType Directory -Path $snapDir -Force | Out-Null }
+    $snapFile = Join-Path $snapDir ("snapshot_{0}_{1}.json" -f $env:COMPUTERNAME, $safeUser)
+    $others = @(Get-ChildItem -LiteralPath $snapDir -Filter ("snapshot_{0}_*.json" -f $env:COMPUTERNAME) -File -ErrorAction SilentlyContinue |
         Where-Object { $_.FullName -ne $snapFile })
     if ($others.Count -eq 0) {
         Note 'Chưa có kết quả của profile nào khác.'
@@ -1233,11 +1278,12 @@ $steps = @(
     '6) Mini Tool > Tạo QR Code: TẮT rồi BẬT lại hàm QR, đóng mở lại Excel.',
     '7) Nếu vẫn lỗi: đóng Excel, xóa cache  del /s /q "%TEMP%\*.exd"  và dọn thư mục %TEMP%.',
     '8) Vẫn lỗi => đặt lại dữ liệu MyExcel của profile (cách đã sửa được lỗi "profile mới chạy, profile cũ không"):',
-    '     reg export "HKCU\Software\VB and VBA Program Settings" "%USERPROFILE%\Desktop\MyExcel_data_backup.reg"',
+    '     reg export "HKCU\Software\VB and VBA Program Settings" "%LOCALAPPDATA%\MyExcelFix\MyExcel_data_backup.reg"',
+    '     (file .reg này có số tài khoản ngân hàng: để trong thư mục riêng của tài khoản, không để trên Desktop/OneDrive)',
     '     rồi trong regedit xóa các nhánh tên chỉ gồm chữ i/l (vd liliiliiliiiliilli, liliiliiliiiliill) dưới key đó,',
     '     mở Excel, TẮT/BẬT hàm QR và khai báo lại tài khoản ngân hàng.',
     '9) Vẫn lỗi => reset riêng cấu hình Excel của profile (giống profile mới, không cần tạo user mới):',
-    '     reg export "HKCU\Software\Microsoft\Office\16.0\Excel" "%USERPROFILE%\Desktop\Excel_backup.reg"',
+    '     reg export "HKCU\Software\Microsoft\Office\16.0\Excel" "%LOCALAPPDATA%\MyExcelFix\Excel_backup.reg"',
     '     rồi đổi tên key HKCU\Software\Microsoft\Office\16.0\Excel thành Excel_old (bằng regedit),',
     '     mở Excel và làm lại các bước cài MyExcel (Trust Center + Add-in). Có thể khôi phục bằng file .reg.'
 )
@@ -1256,20 +1302,22 @@ try {
     Out-Line ''
     Out-Line "  (Thời gian kiểm tra: $elapsed giây)" 'DarkGray'
     if (-not (Test-Path -LiteralPath $outDir)) { New-Item -ItemType Directory -Path $outDir -Force -ErrorAction Stop | Out-Null }
+    Move-OldResults $outDir
     $reportName = "BaoCao_MyExcel_{0}_{1}_{2}.txt" -f $env:COMPUTERNAME, $safeUser, $stamp
     $reportPath = Join-Path $outDir $reportName
     $utf8Bom = New-Object Text.UTF8Encoding $true
     [IO.File]::WriteAllLines($reportPath, $script:Report.ToArray(), $utf8Bom)
+    # Bản sao để gửi kỹ thuật: báo cáo đã che số tài khoản và tên chủ tài khoản
     $deskCopy = $null
-    if (-not $env:MYX_OUT) {
+    if (-not $env:MYX_OUT -or $env:MYX_DESKTOP) {
         try {
-            $deskCopy = Join-Path ([Environment]::GetFolderPath('Desktop')) $reportName
+            $deskCopy = Join-Path (Get-DesktopDir) $reportName
             [IO.File]::WriteAllLines($deskCopy, $script:Report.ToArray(), $utf8Bom)
         } catch { $deskCopy = $null }
     }
     Write-Host ''
-    Write-Host (Txt "  Đã lưu báo cáo: $reportPath") -ForegroundColor Cyan
-    if ($deskCopy) { Write-Host (Txt "  Bản sao trên Desktop: $deskCopy") -ForegroundColor Cyan }
+    Write-Host (Txt "  Đã lưu báo cáo (thư mục riêng của tài khoản này): $reportPath") -ForegroundColor Cyan
+    if ($deskCopy) { Write-Host (Txt "  Bản sao để gửi trên Desktop: $deskCopy") -ForegroundColor Cyan }
     Write-Host (Txt '  => Gửi file báo cáo này (của CẢ profile lỗi và profile mới nếu có) cho kỹ thuật.') -ForegroundColor Cyan
     Write-Host '  (Chu tieng Viet tren man hinh bi loi font? Mo file bao cao bang Notepad - file luon dung chinh ta.)' -ForegroundColor DarkGray
     if (-not $env:MYX_NO_NOTEPAD) { Start-Process notepad.exe -ArgumentList "`"$reportPath`"" }
