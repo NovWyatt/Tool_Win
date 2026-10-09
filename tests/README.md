@@ -93,7 +93,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `may-in-lan` | mã lỗi Windows và cách xử lý, tách UNC, máy in bản sao; nhật ký hoàn tác (registry thử); mỗi phát hiện của Chẩn đoán có mã cố định, nút sửa trỏ tới action có thật, JSON kết quả mà trạm đọc được |
 | `fix-win` | DISM, SFC (CBS.log giả), mạng, tường lửa, ổ đĩa, RAM, Windows Update với lệnh giả; mỗi kết quả có mã, nút gợi ý trỏ tới action có thật, JSON kết quả từng chế độ |
 | các bộ khác | `the-xe-nt` |
-| `mdf2sql` | `1_ChayTool`: hai `.bat` với `python.exe` giả (lối tắt Store, thiếu pyodbc, pip lỗi); `tools\mdf2sql\tests` (unittest): doctor, cổng riêng, `/api/health`, `/api/shutdown`, từ chối khi thiếu mã vẫn trả 403 (không mất câu trả lời), `doctor --ket-qua` theo chuẩn của trạm, hộp thoại chọn file trong tiến trình con, CLI |
+| `mdf2sql` | `1_ChayTool`: hai `.bat` với `python.exe` giả (lối tắt Store, Python cũ; tạo `.venv` riêng và cài pyodbc vào đó, không pip vào Python chung; `.venv` hỏng thì dựng lại; `info`, `doctor` không tự cài; `cai-dat`, `--lam-lai`; pyodbc ghim bản); `tools\mdf2sql\tests` (unittest): doctor, cổng riêng, `/api/health`, `/api/shutdown`, từ chối khi thiếu mã vẫn trả 403 (không mất câu trả lời), `doctor --ket-qua` theo chuẩn của trạm, hộp thoại chọn file trong tiến trình con, CLI |
 
 ## Viết bài thử mới
 
