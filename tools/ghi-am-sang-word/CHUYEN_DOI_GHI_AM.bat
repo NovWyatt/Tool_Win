@@ -12,7 +12,8 @@ if not exist "models\faster-whisper-large-v3\model.bin" goto :thieu
 set "RC=%errorlevel%"
 if not "%RC%"=="0" if not "%RC%"=="1" if not "%RC%"=="2" (
   echo.
-  echo Card do hoa bi loi. Chay lai bang CPU ^(se cham hon nhieu^)...
+  echo Card do hoa bi loi. Chay lai bang CPU ^(se cham hon nhieu^), lam tiep tu khuc chua xong...
+  set "GHI_AM_CHAY_TIEP=1"
   ".venv\Scripts\python.exe" -u "%~dp0chuyen_doi.py" --cpu %*
 )
 echo.

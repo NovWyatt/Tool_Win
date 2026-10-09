@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "ghi-am-sang-word",
   "name": "Ghi âm sang Word (tiếng Việt)",
-  "version": "2026.10.1",
+  "version": "2026.10.2",
   "category": "chuyen-doi",
   "icon": "mic",
   "audience": "all",
@@ -19,7 +19,8 @@
       "risk": "read-only",
       "primary": true,
       "duration": "Khoảng 12-15 phút cho mỗi giờ ghi âm (card đồ hoạ); bằng CPU chậm hơn nhiều lần",
-      "description": "Nhận dạng các file đã chọn; không chọn thì xử lý mọi file ghi âm mới trong thư mục công cụ. File gốc giữ nguyên. Card đồ hoạ lỗi thì tự chạy lại bằng CPU.",
+      "description": "Nhận dạng các file đã chọn; không chọn thì xử lý mọi file ghi âm mới trong thư mục công cụ. File gốc giữ nguyên. Thanh Đang chạy của trạm hiện phần trăm, thời gian còn lại. Làm dở (tắt máy, đóng cửa sổ) thì chạy lại sẽ làm tiếp từ khúc chưa xong; card đồ hoạ hết bộ nhớ thì thử lại khúc đó, vẫn lỗi thì làm tiếp bằng CPU.",
+      "tienDo": { "flag": "--tien-do" },
       "args": [
         { "id": "files", "type": "file", "multiple": true, "label": "File ghi âm hoặc video", "filter": "Ghi âm, video|*.mp3;*.m4a;*.wav;*.aac;*.ogg;*.opus;*.flac;*.wma;*.amr;*.3gp;*.mp4;*.mov;*.mkv;*.webm|Tất cả|*.*", "startIn": "tool", "help": "Bỏ trống: xử lý mọi file ghi âm mới đặt trong thư mục công cụ." },
         { "id": "goi-y", "type": "text", "flag": "--goi-y", "label": "Tên riêng, thuật ngữ có trong ghi âm", "placeholder": "Nguyễn Văn A, hợp đồng ủy quyền", "help": "Giúp máy nghe đúng tên người, tên công ty, thuật ngữ chuyên môn." },
@@ -78,16 +79,14 @@
     "include": ["CHUYEN_DOI_GHI_AM.bat", "DUNG_WORD_TU_BAN_BIEN_TAP.bat", "CAI_DAT.ps1", "chuyen_doi.py", "bien_tap_sang_word.py", "requirements*.txt", "HUONG_DAN_SU_DUNG.txt"]
   },
   "issues": [
-    "Mọi lỗi bất thường (kể cả Ctrl+C lúc nạp mô hình) bị coi là lỗi card đồ hoạ và chạy lại bằng CPU; với --lam-lai thì CPU làm lại cả file GPU đã xong.",
-    "Hết bộ nhớ card (4 GB) thì chuyển cả file sang CPU thay vì thử lại khúc đó với beam nhỏ hơn.",
-    "Không lưu tiến độ giữa chừng: lỗi ở 90% một file 3 giờ là mất hết.",
+    "Mọi lỗi bất thường (kể cả Ctrl+C lúc nạp mô hình) bị coi là lỗi card đồ hoạ và chạy lại bằng CPU; với --lam-lai thì CPU làm lại cả file GPU đã xong (file đang dở thì làm tiếp).",
+    "Lưu phần đã xong mỗi 10 giây: sập đột ngột (mất điện) thì làm lại tối đa khoảng 10 giây ghi âm; thử lại khi hết bộ nhớ card mới kiểm bằng lỗi giả, chưa gặp thật trên card 4 GB.",
     "--goi-y: câu giống phần lớn chuỗi gợi ý bị xoá (chống ảo giác), có thể xoá nhầm câu thật nhắc đúng tên đó.",
     "Mục lục trong file Word hoàn chỉnh chưa tự cập nhật khi mở (phải bấm F9)."
   ],
   "upgrades": [
     "P1: Mã thoát riêng (vd 3) cho 'card đồ hoạ lỗi'; chỉ chạy lại bằng CPU các file chưa xong.",
-    "P1: Lưu tiến độ theo từng khúc để chạy tiếp được; hết bộ nhớ card thì thử lại khúc đó với beam 1-2.",
-    "P2: In tiến độ dạng JSON để Trạm Tool hiện phần trăm; bật updateFields cho mục lục Word.",
+    "P2: Bật updateFields cho mục lục Word.",
     "P2: Bỏ nvidia-cudnn-cu12 (khoảng 1 GB) nếu chạy thật trên GPU xác nhận ctranslate2 4.8 đã kèm cuDNN."
   ]
 }

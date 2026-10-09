@@ -158,11 +158,14 @@ function Start-ToolAction {
         [Parameter(Mandatory)][string]$HistoryPath,
         $Values = $null,   # giá trị form người dùng nhập, lưu lại để lần sau điền sẵn
         # Lan can: @{ RestorePoint = bool; Snapshot = bool; ScriptDir; Log; SnapshotDir } (xem AnToan.ps1)
-        $Safety = $null
+        $Safety = $null,
+        # Thư mục file tiến độ (hub\data\tien-do): action khai tienDo thì nhận thêm "<flag> <thư mục>\<mã>.json".
+        [string]$ProgressDir = ''
     )
     $result = [ordered]@{ ok = $false; cancelled = $false; message = ''; pid = $null; elevated = [bool]$Action.admin; jobId = $null }
     $snapPath = ''
-    $argValues = @(@($Arguments) | Where-Object { $null -ne $_ } | ForEach-Object { if ($_ -is [string]) { $_ } else { [string]$_.Value } })
+    $progPath = ''
+    $argValues =@(@($Arguments) | Where-Object { $null -ne $_ } | ForEach-Object { if ($_ -is [string]) { $_ } else { [string]$_.Value } })
     $entry = [ordered]@{
         time = Get-IsoTime; toolId = $Tool.id; toolName = $Tool.name; actionId = $Action.id; actionLabel = $Action.label
         elevated = [bool]$Action.admin; args = $argValues; ok = $false; cancelled = $false; message = ''
@@ -195,7 +198,16 @@ function Start-ToolAction {
                         if ($snap) { $entry.snapshot = $snap; $snapPath = Join-Path $Safety.SnapshotDir $snap }
                     } catch { Write-HubLog "Không ghi được trạng thái trước khi chạy: $($_.Exception.Message)" 'warn' }
                 }
-                $cmd = Get-LaunchCommand -File $file -Arguments $Arguments -KeepOpen $Action.keepOpen -RestorePoint $rp
+                $launchArgs = @($Arguments)
+                $tienDo = Get-Prop $Action 'tienDo' $null
+                if ($tienDo -and $ProgressDir) {
+                    # Đường dẫn không vào Lịch sử ($argValues tính từ trước): mỗi lần chạy một file, xoá khi cửa sổ đóng.
+                    if (-not (Test-Path -LiteralPath $ProgressDir)) { New-Item -ItemType Directory -Path $ProgressDir -Force | Out-Null }
+                    $progPath = Join-Path $ProgressDir ([guid]::NewGuid().ToString('N') + '.json')
+                    Assert-SafeArgument -Value $progPath -Label 'Thư mục tiến độ'
+                    $launchArgs += @([pscustomobject]@{ Value = [string]$tienDo.flag; IsFlag = $true }, [pscustomobject]@{ Value = $progPath; IsFlag = $false })
+                }
+                $cmd = Get-LaunchCommand -File $file -Arguments $launchArgs -KeepOpen $Action.keepOpen -RestorePoint $rp
                 $sp = @{ FilePath = $cmd.Exe; WorkingDirectory = $cmd.WorkDir; PassThru = $true }
                 if ($cmd.Args) { $sp.ArgumentList = $cmd.Args }
                 if ($Action.admin) { $sp.Verb = 'RunAs' }
@@ -208,7 +220,7 @@ function Start-ToolAction {
                     # Công cụ có tool.json khai selfElevates thì cửa sổ đầu đợi cửa sổ Admin và trả mã thoát của nó
                     # (quy ước, tests\tinh kiểm). Script chưa có tool.json thì không biết nó có đợi không: không theo dõi.
                     if (-not ($Action.selfElevates -and -not $Action.admin -and (Get-Prop $Tool 'auto' $false))) {
-                        $result.jobId = Register-ToolJob -Entry $entry -Process $proc -Snapshot $snapPath -Tool $Tool
+                        $result.jobId = Register-ToolJob -Entry $entry -Process $proc -Snapshot $snapPath -Tool $Tool -Progress $progPath
                     }
                 }
                 if (-not $Action.admin) { Invoke-BringToFront -Process $proc }
@@ -242,15 +254,56 @@ $script:JobProcs = @{}        # id -> @{ Process; Start; Ended } (giữ trong m�
 
 function Register-ToolJob {
     # $Tool: để tìm file kết quả JSON (outputs có ketQua) của lần chạy khi cửa sổ đóng.
-    param([Parameter(Mandatory)]$Entry, [Parameter(Mandatory)][System.Diagnostics.Process]$Process, [string]$Snapshot = '', $Tool = $null)
+    # $Progress: file tiến độ công cụ ghi (action có tienDo), '' nếu không có.
+    param([Parameter(Mandatory)]$Entry, [Parameter(Mandatory)][System.Diagnostics.Process]$Process, [string]$Snapshot = '', $Tool = $null, [string]$Progress = '')
     $id = [guid]::NewGuid().ToString('N').Substring(0, 12)
     $script:Jobs[$id] = [ordered]@{
         id = $id; time = $Entry.time; toolId = $Entry.toolId; toolName = $Entry.toolName; actionId = $Entry.actionId
         actionLabel = $Entry.actionLabel; elevated = $Entry.elevated; selfElevates = [bool](Get-Prop $Entry 'selfElevates' $false); pid = $Process.Id
-        state = 'running'; exitCode = $null; endedAt = $null; durationSec = 0; ketQua = $null
+        state = 'running'; exitCode = $null; endedAt = $null; durationSec = 0; ketQua = $null; tienDo = $null
     }
-    $script:JobProcs[$id] = @{ Process = $Process; Start = Get-Date; Ended = $null; Snapshot = $Snapshot; Tool = $Tool }
+    $script:JobProcs[$id] = @{ Process = $Process; Start = Get-Date; Ended = $null; Snapshot = $Snapshot; Tool = $Tool; Progress = $Progress }
     return $id
+}
+
+function Read-ToolProgress {
+    # Tiến độ công cụ ghi theo chuẩn tramtool.tiendo/1: { chuan, phanTram (0-100), buoc, xong, tong, conLaiGiay }.
+    # $null khi chưa có file, file đang ghi dở, quá lớn hoặc sai chuẩn. Số ngoài khoảng thì kẹp lại, chữ cắt 200 ký tự.
+    param([string]$Path)
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+    try {
+        if ((Get-Item -LiteralPath $Path).Length -gt 65536) { return $null }
+        $o = [IO.File]::ReadAllText($Path, [Text.Encoding]::UTF8) | ConvertFrom-Json
+    } catch { return $null }
+    if ([string](Get-Prop $o 'chuan' '') -ne 'tramtool.tiendo/1') { return $null }
+    $num = {
+        param($v, [double]$Min, [double]$Max)
+        if ($null -eq $v) { return $null }
+        $d = 0.0
+        if (-not [double]::TryParse([string]$v, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$d) -or [double]::IsNaN($d)) { return $null }
+        return [Math]::Min($Max, [Math]::Max($Min, $d))
+    }
+    $pt = & $num (Get-Prop $o 'phanTram' $null) 0 100
+    $buoc = ([string](Get-Prop $o 'buoc' '')) -replace '[\x00-\x1F]+', ' '
+    if ($buoc.Length -gt 200) { $buoc = $buoc.Substring(0, 200) }
+    $xong = & $num (Get-Prop $o 'xong' $null) 0 1e9
+    $tong = & $num (Get-Prop $o 'tong' $null) 0 1e9
+    $con = & $num (Get-Prop $o 'conLaiGiay' $null) 0 864000
+    return [ordered]@{
+        phanTram   = $(if ($null -ne $pt) { [Math]::Round($pt, 1) } else { $null })
+        buoc       = $buoc.Trim()
+        xong       = $(if ($null -ne $xong) { [int64]$xong } else { $null })
+        tong       = $(if ($null -ne $tong) { [int64]$tong } else { $null })
+        conLaiGiay = $(if ($null -ne $con) { [int64]$con } else { $null })
+    }
+}
+
+function Clear-ToolProgressDir {
+    # File tiến độ còn sót (trạm tắt khi công cụ đang chạy) quá 2 ngày thì xoá.
+    param([string]$Dir)
+    if (-not $Dir -or -not (Test-Path -LiteralPath $Dir)) { return }
+    Get-ChildItem -LiteralPath $Dir -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.json', '.tmp' -and $_.LastWriteTime -lt (Get-Date).AddDays(-2) } |
+        Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
 function Get-JobState {
@@ -291,7 +344,15 @@ function Update-ToolJobs {
         $p = $info.Process
         $exited = $false
         try { $exited = $p.HasExited } catch { $exited = -not (Get-Process -Id $job.pid -ErrorAction SilentlyContinue) }
-        if (-not $exited) { $job.durationSec = [int]($now - $info.Start).TotalSeconds; continue }
+        if (-not $exited) {
+            $job.durationSec = [int]($now - $info.Start).TotalSeconds
+            if ($info.Progress) { $tp = Read-ToolProgress -Path $info.Progress; if ($tp) { $job.tienDo = $tp } }   # đang ghi dở: giữ số cũ
+            continue
+        }
+        if ($info.Progress) {
+            $job.tienDo = $null
+            Remove-Item -LiteralPath $info.Progress, ($info.Progress + '.tmp') -Force -ErrorAction SilentlyContinue
+        }
         $code = $null; try { $code = $p.ExitCode } catch { }
         $end = $now; try { $end = $p.ExitTime } catch { }
         $job.exitCode = $code

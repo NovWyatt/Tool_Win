@@ -530,6 +530,12 @@ button.link:hover, .link-btn:hover { text-decoration: underline; text-underline-
 .job.success .job-ic { color: var(--ok); }
 .job.danger .job-ic, .job.danger .job-time { color: var(--danger); }
 .job-shield { display: grid; place-items: center; width: 28px; color: var(--text-3); }
+/* Tiến độ công cụ báo (chuẩn tramtool.tiendo/1): thanh mảnh dưới tên việc */
+.job-prog { display: grid; gap: 3px; min-width: 150px; }
+.job-bar { appearance: none; -webkit-appearance: none; display: block; width: 100%; height: 4px; border: 0; border-radius: 2px; background: var(--line); color: var(--accent); overflow: hidden; }
+.job-bar::-webkit-progress-bar { background: var(--line); border-radius: 2px; }
+.job-bar::-webkit-progress-value { background: var(--accent); border-radius: 2px; }
+.job-bar::-moz-progress-bar { background: var(--accent); border-radius: 2px; }
 .live-mark { position: relative; width: 18px; height: 18px; display: grid; place-items: center; }
 .live-mark::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 .live-mark::after { content: ""; position: absolute; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; }
@@ -677,6 +683,10 @@ select.inp { padding-right: 8px; }
 .srow .t { font-weight: 600; }
 .srow .d { color: var(--text-3); font-size: 13px; overflow-wrap: anywhere; }
 .srow .d .mono { font-size: 11.5px; }
+.srow .d .warn { color: var(--warn); }
+.srow .btn-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.upd-list { margin: 6px 0 0; padding-left: 18px; }
+.upd-list li { margin: 2px 0; }
 .seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: var(--r); background: var(--surface-2); }
 .seg button { border: 0; border-radius: 6px; background: none; color: var(--text-2); padding: 5px 12px; cursor: pointer; font-size: 13px; font-weight: 500; }
 .seg button:hover { color: var(--text); }

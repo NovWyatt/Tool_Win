@@ -77,7 +77,7 @@ cd.NHAN_MO_HINH = ""
 # ---- xử lý một file: ghi đúng tên, không ghi đè file cùng tên khác đuôi (bỏ phần nhận dạng và Word)
 lam_sach(cd.KET_QUA)
 cd.doc_am_thanh = lambda f: f.name
-cd.chuyen_thanh_chu = lambda model, am_thanh, goi_y: (
+cd.chuyen_thanh_chu = lambda model, am_thanh, goi_y, *a, **k: (
     [{"bat_dau": 0.0, "ket_thuc": 2.0, "van_ban": f"nội dung của {am_thanh}"}], 2.0, [{"trang_thai": "tot"}])
 cd.ghi_docx = lambda duong_dan, ten_file, thoi_luong, ds: duong_dan.write_text(ten_file, encoding="utf-8")
 for ten in ("hop.m4a", "hop.mp4"):

@@ -1,10 +1,74 @@
 // Trạm Tool - trang Cài đặt (lưu ở hub\data\settings.json trên máy này).
-import { html } from '../../vendor/lit-html/lit-html.js';
+import { html, nothing } from '../../vendor/lit-html/lit-html.js';
 import { api, icon } from '../core.js';
-import { S, saveSettings } from '../state.js';
+import { S, saveSettings, update } from '../state.js';
 import { toast, confirmDialog, applyTheme, showOverlay } from '../ui.js';
 import { pageHead, btn } from '../parts.js';
 import { reloadCatalog } from '../data.js';
+import { refreshJobs, watchJob } from '../jobs.js';
+
+// ------------------------------------------------------------------ cập nhật từ kho git
+// S.update: undefined = chưa đọc; { loading } = đang đọc; còn lại là kết quả GET /api/update.
+export async function loadUpdate(fetch = false) {
+  S.update = { ...(S.update || {}), loading: true, fetching: fetch };
+  update();
+  try { S.update = await api(`/api/update${fetch ? '?fetch=1' : ''}`); } catch (e) { S.update = { error: e.message }; }
+  update();
+}
+
+async function runUpdate() {
+  const u = S.update || {};
+  const ok = await confirmDialog({
+    title: 'Cập nhật trạm và công cụ?',
+    body: html`<p>Kéo ${u.behind} commit mới từ <span class="mono">${u.upstream}</span> về thư mục trạm (chỉ tiến lên, không gộp). Kết quả, dữ liệu khách trên máy giữ nguyên. Cửa sổ cập nhật hiện danh sách thay đổi và hỏi lại trước khi làm.</p>`,
+    confirmLabel: 'Mở cửa sổ cập nhật',
+    confirmIcon: 'download',
+  });
+  if (!ok) return;
+  const note = toast('info', 'Đang mở cửa sổ cập nhật...', { ms: 0 });
+  try {
+    const r = await api('/api/update/run', { method: 'POST' });
+    if (r.ok) { watchJob(r.jobId); note.update('success', 'Đã mở cửa sổ cập nhật. Trạm tự đọc lại danh sách công cụ khi cửa sổ đóng.', { ms: 6000 }); }
+    else note.update('error', r.message || 'Không mở được cửa sổ cập nhật.', { ms: 12000 });
+    refreshJobs();
+  } catch (e) { note.update('error', e.message, { ms: 12000 }); }
+}
+
+// Cửa sổ cập nhật vừa đóng (jobs.js gọi): đọc lại danh sách công cụ và trạng thái kho.
+export function onUpdateFinished() {
+  reloadCatalog();
+  loadUpdate(false);
+}
+
+const dateVi = (iso) => (iso ? new Date(iso).toLocaleDateString('vi-VN') : '');
+
+function updateRow() {
+  const u = S.update;
+  if (u === undefined) queueMicrotask(() => loadUpdate(false));
+  let desc;
+  let tone = '';
+  if (!u || (u.loading && !u.commit)) desc = u && u.fetching ? 'Đang hỏi kho git...' : 'Đang đọc...';
+  else if (u.error) { desc = u.error; tone = 'warn'; }
+  else if (!u.repo) desc = u.reason;
+  else {
+    const here = html`Đang ở <span class="mono">${u.commit}</span> ${u.subject} (${dateVi(u.commitDate)}), nhánh ${u.branch}.`;
+    let state = nothing;
+    if (u.loading && u.fetching) state = html` Đang hỏi kho git...`;
+    else if (u.fetchError) { state = html` Không hỏi được kho: ${u.fetchError}`; tone = 'warn'; }
+    else if (u.behind > 0) {
+      state = html` <strong>Kho có ${u.behind} commit mới.</strong>${u.reason ? html` ${u.reason}` : nothing}
+        <ul class="upd-list">${(u.incoming || []).slice(0, 5).map((c) => html`<li><span class="mono">${c.commit}</span> ${c.subject}</li>`)}${u.behind > 5 ? html`<li>... và ${u.behind - 5} commit nữa</li>` : nothing}</ul>`;
+    } else if (u.fetched) state = html` Đã là bản mới nhất${u.ahead ? ` (máy có ${u.ahead} commit chưa đẩy lên kho)` : ''}.`;
+    else if (u.reason) state = html` ${u.reason}`;
+    else state = html` Bấm Kiểm tra để hỏi kho có bản mới không.`;
+    desc = html`${here}${state}`;
+  }
+  const busy = !!(u && u.loading);
+  const can = u && u.repo && u.upstream;
+  return setting('download', 'Cập nhật trạm và công cụ', html`<span class=${tone}>${desc}</span>`, html`<div class="btn-row">
+    ${can ? btn('Kiểm tra', () => loadUpdate(true), { ic: 'refresh', disabled: busy }) : nothing}
+    ${u && u.canUpdate ? btn('Cập nhật', runUpdate, { kind: 'primary', ic: 'download', disabled: busy }) : nothing}</div>`);
+}
 
 async function save(patch, msg = 'Đã lưu cài đặt.') {
   try { await saveSettings(patch); applyTheme(); toast('success', msg, { ms: 2000 }); } catch (e) { toast('error', e.message); }
@@ -55,6 +119,7 @@ export function settingsPage() {
       ${setting('tab-desktop', 'Lối tắt trên Desktop', 'Tạo biểu tượng "Trạm Tool" để mở nhanh.',
         btn('Tạo lối tắt', () => api('/api/shortcut', { method: 'POST' }).then((r) => toast('success', `Đã tạo lối tắt: ${r.path}`)).catch((e) => toast('error', e.message))))}`)}
     ${group('Công cụ', html`
+      ${updateRow()}
       ${setting('folder', 'Thư mục trạm', html`<span class="mono">${S.hub ? S.hub.root : ''}</span>`,
         btn('Mở thư mục', () => api('/api/open-root', { method: 'POST' }).catch((e) => toast('error', e.message))))}
       ${setting('puzzle', 'Thêm công cụ mới', 'Thả thư mục công cụ (hoặc 1 file .bat/.ps1) vào tools\\ rồi bấm Làm mới. Xem docs\\THEM-CONG-CU.md để viết tool.json.',

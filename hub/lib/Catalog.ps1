@@ -121,6 +121,15 @@ function ConvertTo-HubAction {
         else { [void]$Problems.Add("Action '$id': webServer cần stateFile và app.") }
     }
 
+    # Tiến độ: trạm truyền "<flag> <file>" và đọc file công cụ ghi (chuẩn tramtool.tiendo/1, Read-ToolProgress).
+    $tienDo = $null
+    $tdRaw = Get-Prop $Raw 'tienDo' $null
+    if ($tdRaw) {
+        $tdFlag = [string](Get-Prop $tdRaw 'flag' '')
+        if ($tdFlag -match '^--?[A-Za-z0-9][A-Za-z0-9_-]*$' -and $type -eq 'console') { $tienDo = [ordered]@{ flag = $tdFlag } }
+        else { [void]$Problems.Add("Action '$id': tienDo cần flag dạng --ten hoặc -Ten và action console.") }
+    }
+
     return [ordered]@{
         id           = $id
         label        = $label
@@ -131,6 +140,7 @@ function ConvertTo-HubAction {
         admin        = $admin
         selfElevates = [bool](Get-Prop $Raw 'selfElevates' $false)
         webServer    = $web
+        tienDo       = $tienDo
         risk         = $risk
         restorePoint = $restorePoint
         primary      = [bool](Get-Prop $Raw 'primary' $false)

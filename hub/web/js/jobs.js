@@ -38,6 +38,10 @@ export async function refreshJobs() {
 }
 
 function onFinished(j) {
+  if (j.toolId === 'tram-tool' && j.actionId === 'cap-nhat') {
+    // Cửa sổ cập nhật đóng: danh sách công cụ, trạng thái kho có thể đã đổi.
+    import('./pages/settings.js').then((m) => m.onUpdateFinished()).catch(() => {});
+  }
   const t = S.byId.get(j.toolId);
   // Kết quả mới có thể đã được tạo: trang công cụ đang mở thì tải lại ngay, trang khác tải lại khi mở.
   S.outputs = null;
@@ -92,18 +96,29 @@ async function focusJob(j) {
   try { await api('/api/jobs/focus', { method: 'POST', body: { id: j.id } }); } catch (e) { toast('warning', e.message); }
 }
 
+// Thời gian ở thanh: đang chạy thì đồng hồ, kèm phần trăm và thời gian còn lại nếu công cụ báo tiến độ.
+function liveTime(j) {
+  const p = j.tienDo;
+  if (!p || p.phanTram == null) return fmtElapsed(elapsed(j));
+  const left = p.conLaiGiay != null && p.phanTram < 100 ? `, còn ~${fmtDuration(p.conLaiGiay)}` : '';
+  return `${Math.floor(p.phanTram)}%${left}`;
+}
+
 function jobItem(j) {
   const t = S.byId.get(j.toolId);
   const st = runState(j);
   const live = j.state === 'running';
+  const p = live ? j.tienDo : null;
+  const sub = p && p.buoc ? p.buoc : j.actionLabel;
   return html`<div class="job ${live ? 'live' : `end ${st.color}`}">
-    <button class="job-main" title="Mở trang công cụ" @click=${() => go(`#/tool/${enc(j.toolId)}`)}>
+    <button class="job-main" title=${p ? `${j.actionLabel}: ${sub} (đã chạy ${fmtElapsed(elapsed(j))})` : 'Mở trang công cụ'} @click=${() => go(`#/tool/${enc(j.toolId)}`)}>
       ${live ? html`<span class="live-mark" role="img" aria-label="Đang chạy"></span>` : html`<span class="job-ic">${icon(st.icon, 'ic-16')}</span>`}
-      <span class="job-text">
+      <span class="job-text ${p ? 'job-prog' : ''}">
         <span class="job-name">${t ? t.name : j.toolName}</span>
-        <span class="job-sub">${j.actionLabel}</span>
+        <span class="job-sub">${sub}</span>
+        ${p && p.phanTram != null ? html`<progress class="job-bar" max="100" .value=${p.phanTram} aria-label="Tiến độ ${Math.floor(p.phanTram)}%"></progress>` : nothing}
       </span>
-      <span class="job-time">${live ? fmtElapsed(elapsed(j)) : `${st.label}${st.dur != null ? ` sau ${fmtDuration(st.dur)}` : ''}`}</span>
+      <span class="job-time">${live ? liveTime(j) : `${st.label}${st.dur != null ? ` sau ${fmtDuration(st.dur)}` : ''}`}</span>
     </button>
     ${live && !j.elevated && !j.selfElevates ? html`<button class="icon-btn sm" title="Hiện cửa sổ công cụ" aria-label="Hiện cửa sổ" @click=${() => focusJob(j)}>${icon('open', 'ic-16')}</button>` : nothing}
     ${live && (j.elevated || j.selfElevates) ? html`<span class="job-shield" title=${j.selfElevates ? 'Công cụ tự xin quyền Admin' : 'Chạy với quyền Admin'}>${icon('shield', 'ic-16')}</span>` : nothing}

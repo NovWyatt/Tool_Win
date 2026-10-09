@@ -117,6 +117,15 @@
             "app": { "description": "Tên ứng dụng; phải khớp app trong stateFile và trong GET /api/health ({ ok, app, pid }).", "type": "string", "minLength": 1 }
           }
         },
+        "tienDo": {
+          "description": "Công cụ báo tiến độ: trạm thêm '<flag> <file .json>' vào cuối tham số, công cụ ghi đè file đó theo chuẩn tramtool.tiendo/1 ({ chuan, phanTram 0-100, buoc, xong, tong, conLaiGiay }, ghi ra file tạm rồi đổi tên). Trạm vẽ thanh tiến độ ở thanh Đang chạy và xoá file khi cửa sổ đóng. Chỉ cho action console.",
+          "type": "object",
+          "required": ["flag"],
+          "additionalProperties": false,
+          "properties": {
+            "flag": { "description": "Cờ nhận đường dẫn file tiến độ, vd --tien-do.", "type": "string", "pattern": "^--?[A-Za-z0-9][A-Za-z0-9_-]*$" }
+          }
+        },
         "risk": {
           "description": "read-only: chỉ đọc. asks-before-change: hỏi trước khi sửa. modifies-system: thay đổi máy (trạm hỏi xác nhận). Thiếu thì coi là modifies-system.",
           "enum": ["read-only", "asks-before-change", "modifies-system"],

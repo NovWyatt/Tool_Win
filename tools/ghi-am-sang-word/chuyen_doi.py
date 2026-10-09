@@ -15,11 +15,16 @@ Kết quả nằm trong thư mục ket_qua\\ (hoặc thư mục chọn bằng --
   _du_lieu\\hop.m4a.json     dữ liệu chi tiết (độ tin cậy từng câu), dùng khi biên tập lại
 Kết quả bản trước đặt tên bỏ đuôi ("hop - ban tho.docx") vẫn được nhận ra nên không bị làm lại.
 
+Đang làm dở (tắt máy, đóng cửa sổ, card đồ hoạ lỗi): các khúc đã xong lưu trong _du_lieu\\hop.m4a.dang_lam.json,
+chạy lại thì làm tiếp từ khúc chưa xong (cùng file ghi âm, cùng mô hình, cùng gợi ý); --lam-lai thì làm từ đầu.
+Card đồ hoạ hết bộ nhớ ở một khúc thì thử lại khúc đó; vẫn hết thì chuyển CPU và làm tiếp, không làm lại từ đầu.
+
 Mã thoát: 0 = xong hết, 1 = có file bị lỗi, 2 = không có file nào để xử lý.
 """
 
 import argparse
 import datetime as dt
+import gc
 import json
 import os
 import re
@@ -95,6 +100,81 @@ def file_ket_qua(file_am_thanh, duoi):
 
 def file_du_lieu(file_am_thanh):
     return DU_LIEU / f"{file_am_thanh.name}{NHAN_MO_HINH}.json"
+
+
+class TienDo:
+    """Ghi tiến độ cho Trạm Tool (chuẩn tramtool.tiendo/1) vào file --tien-do; không có file thì không làm gì.
+
+    Ghi ra file tạm rồi đổi tên để trạm không đọc phải file ghi dở; nhiều nhất 1 lần mỗi giây, trừ khi ep=True.
+    """
+
+    def __init__(self, duong_dan=None):
+        self.p = Path(duong_dan) if duong_dan else None
+        self.t0 = time.monotonic()
+        self.lan_cuoi = -1e9
+
+    def ghi(self, phan_tram, buoc, xong=None, tong=None, ep=False):
+        if not self.p:
+            return
+        bay_gio = time.monotonic()
+        if not ep and bay_gio - self.lan_cuoi < 1.0:
+            return
+        self.lan_cuoi = bay_gio
+        pt = max(0.0, min(100.0, float(phan_tram)))
+        da_chay = bay_gio - self.t0
+        con_lai = round(da_chay * (100 - pt) / pt) if 3 <= pt < 100 and da_chay >= 20 else None
+        du_lieu = {"chuan": "tramtool.tiendo/1", "phanTram": round(pt, 1), "buoc": str(buoc)[:200],
+                   "xong": xong, "tong": tong, "conLaiGiay": con_lai}
+        tam = self.p.with_name(self.p.name + ".tmp")
+        try:
+            tam.write_text(json.dumps(du_lieu, ensure_ascii=False), encoding="utf-8")
+            os.replace(tam, self.p)
+        except OSError:
+            pass  # trạm đọc lỗi thì chỉ mất thanh tiến độ, không dừng việc chính
+
+
+# ---- làm tiếp file đang làm dở
+def file_dang_lam(file_am_thanh):
+    return DU_LIEU / f"{file_am_thanh.name}{NHAN_MO_HINH}.dang_lam.json"
+
+
+def dau_van_tay(file_am_thanh, goi_y, mo_hinh):
+    """Những gì phải giống hệt lần trước thì mới làm tiếp được (file đổi, gợi ý đổi thì làm lại từ đầu)."""
+    st = Path(file_am_thanh).stat()
+    return {"tep": Path(file_am_thanh).name, "kich_thuoc": st.st_size, "sua_doi": int(st.st_mtime),
+            "goi_y": goi_y or "", "mo_hinh": mo_hinh}
+
+
+def doc_dang_lam(file_am_thanh, van_tay):
+    try:
+        d = json.loads(file_dang_lam(file_am_thanh).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(d, dict) or d.get("van_tay") != van_tay or not isinstance(d.get("khuc"), list):
+        return None
+    so_xong = d.get("so_khuc_xong")
+    if not isinstance(so_xong, int) or not 0 < so_xong <= len(d["khuc"]) or not isinstance(d.get("cau"), list):
+        return None
+    return d
+
+
+def ghi_dang_lam(file_am_thanh, van_tay, cac_khuc, so_xong, ds, ngu_canh):
+    p = file_dang_lam(file_am_thanh)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tam = p.with_name(p.name + ".tmp")
+    tam.write_text(json.dumps({
+        "van_tay": van_tay, "khuc": cac_khuc, "so_khuc_xong": so_xong, "cau": ds, "ngu_canh": ngu_canh,
+        "luc": dt.datetime.now().isoformat(timespec="seconds"),
+    }, ensure_ascii=False), encoding="utf-8")
+    os.replace(tam, p)
+
+
+def xoa_dang_lam(file_am_thanh):
+    for p in (file_dang_lam(file_am_thanh), file_dang_lam(file_am_thanh).with_suffix(".json.tmp")):
+        try:
+            p.unlink()
+        except OSError:
+            pass
 
 
 def da_co_ket_qua(file_am_thanh):
@@ -253,7 +333,7 @@ def sang_cau(doan_noi, bd, kt, kem=False):
     } for s in doan_noi]
 
 
-def nhan_dang_khuc(model, am_thanh, bd, kt, giay_noi, ngu_canh, goi_y, do_sau=0):
+def nhan_dang_khuc(model, am_thanh, bd, kt, giay_noi, ngu_canh, goi_y, do_sau=0, so_chum=SO_CHUM):
     """Nhận dạng một khúc, tự thử lại khi mô hình bịa câu hoặc bỏ sót. Trả về (các câu, trạng thái)."""
     doan_am = am_thanh[int(bd * TAN_SO):int(kt * TAN_SO)]
     mac_dinh = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
@@ -267,7 +347,7 @@ def nhan_dang_khuc(model, am_thanh, bd, kt, giay_noi, ngu_canh, goi_y, do_sau=0)
     do_nhat = None
     for loi_nhac, nhiet_do in cac_lan_thu:
         doan_noi, _ = model.transcribe(
-            doan_am, language="vi", beam_size=SO_CHUM, vad_filter=False,
+            doan_am, language="vi", beam_size=so_chum, vad_filter=False,
             condition_on_previous_text=False, initial_prompt=loi_nhac, temperature=nhiet_do,
         )
         giu, dat, diem = danh_gia(list(doan_noi), giay_noi, loi_nhac)
@@ -279,9 +359,9 @@ def nhan_dang_khuc(model, am_thanh, bd, kt, giay_noi, ngu_canh, goi_y, do_sau=0)
     if kt - bd >= 8 and do_sau < 2:
         giua = diem_cat_giua(am_thanh, bd, kt)
         ti_le = (giua - bd) / (kt - bd)
-        trai, _ = nhan_dang_khuc(model, am_thanh, bd, giua, giay_noi * ti_le, ngu_canh, goi_y, do_sau + 1)
+        trai, _ = nhan_dang_khuc(model, am_thanh, bd, giua, giay_noi * ti_le, ngu_canh, goi_y, do_sau + 1, so_chum)
         ngu_canh_moi = cap_nhat_ngu_canh(ngu_canh, trai)
-        phai, _ = nhan_dang_khuc(model, am_thanh, giua, kt, giay_noi * (1 - ti_le), ngu_canh_moi, goi_y, do_sau + 1)
+        phai, _ = nhan_dang_khuc(model, am_thanh, giua, kt, giay_noi * (1 - ti_le), ngu_canh_moi, goi_y, do_sau + 1, so_chum)
         return trai + phai, "chia_doi"
     if do_nhat:
         return sang_cau(do_nhat[0], bd, kt, kem=True), "kem"
@@ -300,30 +380,78 @@ def cap_nhat_ngu_canh(ngu_canh, cau):
     return ghep if len(ghep) <= 200 else ghep[-200:].split(" ", 1)[-1]
 
 
-def chuyen_thanh_chu(model, am_thanh, goi_y):
+def la_het_bo_nho(loi):
+    s = str(loi).lower()
+    return "out of memory" in s or "cuda_error_out_of_memory" in s or "alloc_failed" in s
+
+
+def nhan_dang_khuc_an_toan(model, am_thanh, khuc, ngu_canh, goi_y):
+    """Card đồ hoạ hết bộ nhớ ở một khúc (máy đang chạy việc khác nặng): dọn bộ nhớ, chờ rồi thử lại khúc đó; lần
+    cuối dùng beam 1 cho nhẹ. Vẫn hết thì báo lỗi để chuyển CPU, làm tiếp từ đúng khúc này."""
+    for lan in range(3):
+        try:
+            return nhan_dang_khuc(model, am_thanh, khuc["bd"], khuc["kt"], khuc["noi"], ngu_canh, goi_y,
+                                  so_chum=SO_CHUM if lan < 2 else 1)
+        except RuntimeError as loi:
+            if not la_het_bo_nho(loi) or lan == 2:
+                raise
+            print(f"  Card đồ họa hết bộ nhớ ở {gio(khuc['bd'])}; thử lại khúc này (lần {lan + 2}/3)...", flush=True)
+            gc.collect()
+            time.sleep(3)
+
+
+def chuyen_thanh_chu(model, am_thanh, goi_y, f=None, van_tay=None, bao=None):
+    """Nhận dạng cả file. Có f và van_tay thì lưu các khúc đã xong (làm tiếp được) và đọc lại phần đã làm lần trước.
+    bao(phần trăm của file, mô tả): báo tiến độ cho Trạm Tool."""
     thoi_luong = len(am_thanh) / TAN_SO
-    print("Đang dò các đoạn có tiếng nói...", flush=True)
-    cac_khuc = tim_khuc_tieng_noi(am_thanh)
-    print(f"Có khoảng {gio(sum(k['noi'] for k in cac_khuc))} tiếng nói, chia thành {len(cac_khuc)} khúc. "
-          "Bắt đầu nhận dạng:\n", flush=True)
+    luu = f is not None and van_tay is not None
+    cu = doc_dang_lam(f, van_tay) if luu else None
+    if cu:
+        cac_khuc, tu, ds, ngu_canh = cu["khuc"], cu["so_khuc_xong"], cu["cau"], cu.get("ngu_canh", "")
+        print(f"Làm tiếp lần trước: đã xong {tu}/{len(cac_khuc)} khúc (tới {gio(cac_khuc[tu - 1]['kt'])}).\n", flush=True)
+    else:
+        print("Đang dò các đoạn có tiếng nói...", flush=True)
+        if bao:
+            bao(0, "Đang dò các đoạn có tiếng nói")
+        cac_khuc, tu, ds, ngu_canh = tim_khuc_tieng_noi(am_thanh), 0, [], ""
+        print(f"Có khoảng {gio(sum(k['noi'] for k in cac_khuc))} tiếng nói, chia thành {len(cac_khuc)} khúc. "
+              "Bắt đầu nhận dạng:\n", flush=True)
 
-    ds, ngu_canh = [], ""
-    bat_dau = time.monotonic()
-    for khuc in cac_khuc:
-        cau, trang_thai = nhan_dang_khuc(model, am_thanh, khuc["bd"], khuc["kt"], khuc["noi"], ngu_canh, goi_y)
-        khuc["trang_thai"] = trang_thai
-        ds += cau
-        ngu_canh = cap_nhat_ngu_canh(ngu_canh, cau)
+    goc = cac_khuc[tu - 1]["kt"] if tu else 0.0   # đoạn đã làm ở lần trước, không tính vào tốc độ lần này
+    bat_dau = lan_luu = time.monotonic()
+    so_xong = tu   # số khúc đã nằm trong ds
+    try:
+        for i in range(tu, len(cac_khuc)):
+            khuc = cac_khuc[i]
+            cau, trang_thai = nhan_dang_khuc_an_toan(model, am_thanh, khuc, ngu_canh, goi_y)
+            khuc["trang_thai"] = trang_thai
+            ds += cau
+            ngu_canh = cap_nhat_ngu_canh(ngu_canh, cau)
+            so_xong = i + 1
+            if luu and (time.monotonic() - lan_luu >= 10 or so_xong == len(cac_khuc)):
+                ghi_dang_lam(f, van_tay, cac_khuc, so_xong, ds, ngu_canh)
+                lan_luu = time.monotonic()
 
-        phan_tram = min(100, int(khuc["kt"] / thoi_luong * 100)) if thoi_luong else 100
-        da_chay = time.monotonic() - bat_dau
-        if khuc["kt"] >= 120 and da_chay >= 20:
-            con_lai = (thoi_luong - khuc["kt"]) / (khuc["kt"] / da_chay)
-            uoc_tinh = f"còn ~{max(1, round(con_lai / 60))} phút"
-        else:
-            uoc_tinh = "đang ước tính"
-        for c in cau:
-            print(f"[{phan_tram:3d}% | {uoc_tinh}] {gio(c['bat_dau'])}  {c['van_ban']}", flush=True)
+            phan_tram = min(100, int(khuc["kt"] / thoi_luong * 100)) if thoi_luong else 100
+            da_chay = time.monotonic() - bat_dau
+            if khuc["kt"] - goc >= 120 and da_chay >= 20:
+                con_lai = (thoi_luong - khuc["kt"]) / ((khuc["kt"] - goc) / da_chay)
+                uoc_tinh = f"còn ~{max(1, round(con_lai / 60))} phút"
+            else:
+                uoc_tinh = "đang ước tính"
+            for c in cau:
+                print(f"[{phan_tram:3d}% | {uoc_tinh}] {gio(c['bat_dau'])}  {c['van_ban']}", flush=True)
+            if bao:
+                bao(khuc["kt"] / thoi_luong * 100 if thoi_luong else 100, f"Khúc {i + 1}/{len(cac_khuc)}, tới {gio(khuc['kt'])}")
+    except BaseException:
+        # Lỗi, card đồ hoạ hỏng, Ctrl+C: lưu phần đã xong để lần sau (hoặc lần chạy lại bằng CPU) làm tiếp.
+        if luu and tu < so_xong < len(cac_khuc):
+            try:
+                ghi_dang_lam(f, van_tay, cac_khuc, so_xong, ds, ngu_canh)
+                print(f"\nĐã lưu {so_xong}/{len(cac_khuc)} khúc; chạy lại sẽ làm tiếp từ {gio(cac_khuc[so_xong]['bd'])}.", flush=True)
+            except OSError:
+                pass
+        raise
     return ds, thoi_luong, cac_khuc
 
 
@@ -506,17 +634,23 @@ def ghi_docx(duong_dan, ten_file, thoi_luong, ds):
     doc.save(str(duong_dan))
 
 
-def xu_ly_mot_file(f, model, thiet_bi, goi_y, thu_muc_mo_hinh):
+def xu_ly_mot_file(f, model, thiet_bi, goi_y, thu_muc_mo_hinh, lam_lai=False, bao=None):
     bat_dau = time.monotonic()
+    van_tay = dau_van_tay(f, goi_y, Path(thu_muc_mo_hinh).name)
+    if lam_lai and not os.environ.get("GHI_AM_CHAY_TIEP"):
+        # CHUYEN_DOI_GHI_AM.bat đặt GHI_AM_CHAY_TIEP khi chạy lại bằng CPU sau khi card đồ hoạ làm sập: giữ phần đã xong.
+        xoa_dang_lam(f)
+    if bao:
+        bao(0, "Đang đọc file ghi âm")
     am_thanh = doc_am_thanh(f)
     try:
-        ds, thoi_luong, cac_khuc = chuyen_thanh_chu(model, am_thanh, goi_y)
+        ds, thoi_luong, cac_khuc = chuyen_thanh_chu(model, am_thanh, goi_y, f, van_tay, bao)
     except RuntimeError as loi:
         if thiet_bi == "CPU":
             raise
-        print(f"\nCard đồ họa gặp lỗi ({loi}).\nLàm lại file này bằng CPU — sẽ chậm hơn nhiều.\n")
+        print(f"\nCard đồ họa gặp lỗi ({loi}).\nLàm tiếp file này bằng CPU (từ khúc chưa xong) — sẽ chậm hơn nhiều.\n")
         model, thiet_bi = nap_mo_hinh(True, thu_muc_mo_hinh)
-        ds, thoi_luong, cac_khuc = chuyen_thanh_chu(model, am_thanh, goi_y)
+        ds, thoi_luong, cac_khuc = chuyen_thanh_chu(model, am_thanh, goi_y, f, van_tay, bao)
 
     DU_LIEU.mkdir(parents=True, exist_ok=True)
     file_du_lieu(f).write_text(json.dumps({
@@ -535,10 +669,12 @@ def xu_ly_mot_file(f, model, thiet_bi, goi_y, thu_muc_mo_hinh):
         ghi_docx(docx, f.name, thoi_luong, ds)
     except PermissionError:
         raise RuntimeError(f"không ghi được {docx.name} — file đang mở trong Word? Đóng lại rồi chạy lại.")
+    xoa_dang_lam(f)
 
     dem = {}
     for kh in cac_khuc:
-        dem[kh["trang_thai"]] = dem.get(kh["trang_thai"], 0) + 1
+        tt = kh.get("trang_thai", "?")   # file làm dở của bản khác có thể thiếu trạng thái
+        dem[tt] = dem.get(tt, 0) + 1
     phut = (time.monotonic() - bat_dau) / 60
     print(f"\nXong trong {phut:.1f} phút. {len(cac_khuc)} khúc: {dem.get('tot', 0)} nghe tốt, "
           f"{dem.get('chia_doi', 0)} phải chia nhỏ, {dem.get('kem', 0)} kém chắc chắn (tô vàng), "
@@ -558,7 +694,9 @@ def main():
     ap.add_argument("--lam-lai", action="store_true", help="làm lại cả file đã có kết quả")
     ap.add_argument("--mo-hinh", default=MO_HINH.name, help="tên thư mục mô hình trong models\\")
     ap.add_argument("--ra", metavar="THU_MUC", help="thư mục kết quả (mặc định: ket_qua trong thư mục công cụ)")
+    ap.add_argument("--tien-do", metavar="FILE", help="file tiến độ cho Trạm Tool (chuẩn tramtool.tiendo/1)")
     args = ap.parse_args()
+    td = TienDo(args.tien_do)
 
     global NHAN_MO_HINH
     if args.mo_hinh != MO_HINH.name:
@@ -576,20 +714,28 @@ def main():
 
     nap_thu_vien_cuda()
     print(f"Sẽ xử lý {len(files)} file. Đang nạp mô hình nhận dạng giọng nói...", flush=True)
+    td.ghi(0, "Đang nạp mô hình nhận dạng giọng nói", 0, len(files), ep=True)
     model, thiet_bi = nap_mo_hinh(args.cpu, thu_muc_mo_hinh)
     print(f"Chạy bằng: {thiet_bi}")
 
     so_loi = 0
+    n = len(files)
     for i, f in enumerate(files, 1):
-        print(f"\n{'=' * 70}\n({i}/{len(files)}) {f.name}\n{'=' * 70}", flush=True)
+        print(f"\n{'=' * 70}\n({i}/{n}) {f.name}\n{'=' * 70}", flush=True)
+
+        def bao(pt, buoc, i=i, f=f):
+            # Phần trăm cả lượt: các file trước coi như xong, file này theo vị trí khúc đang nhận dạng.
+            td.ghi(((i - 1) + max(0.0, min(100.0, pt)) / 100) / n * 100, f"File {i}/{n} {f.name}: {buoc}", i - 1, n, ep=pt == 0)
+
         try:
-            model, thiet_bi = xu_ly_mot_file(f, model, thiet_bi, args.goi_y, thu_muc_mo_hinh)
+            model, thiet_bi = xu_ly_mot_file(f, model, thiet_bi, args.goi_y, thu_muc_mo_hinh, args.lam_lai, bao)
         except KeyboardInterrupt:
-            print("\nĐã dừng theo yêu cầu.")
+            print("\nĐã dừng theo yêu cầu. Chạy lại sẽ làm tiếp từ khúc chưa xong.")
             return 1
         except Exception as loi:
             so_loi += 1
             print(f"\nLỖI khi xử lý {f.name}: {loi}")
+    td.ghi(100, f"Xong {n - so_loi}/{n} file", n, n, ep=True)
     return 1 if so_loi else 0
 
 

@@ -71,6 +71,7 @@ Lỗi trạm phát hiện khi đọc (thiếu file, sai mức rủi ro, flag sai
 | `file` | Đường dẫn tương đối trong thư mục công cụ. Trỏ ra ngoài thư mục công cụ thì trạm từ chối. |
 | `admin` | `true`: trạm mở bằng quyền Admin, Windows hỏi UAC. Bấm "Không" thì trạm báo đã huỷ. |
 | `selfElevates` | Script tự xin quyền Admin khi bấm đúp ngoài trạm. Trạm vẫn dựa vào `admin` để quyết định cách mở. Script phải **đợi** cửa sổ Admin và trả đúng mã thoát của nó (xem *Quy ước viết script*), để Lịch sử ghi đúng kết quả. |
+| `tienDo` | Công cụ báo tiến độ: `{ "flag": "--tien-do" }`. Trạm thêm `--tien-do <file .json>` vào cuối tham số, đọc file đó mỗi 2 giây, vẽ thanh phần trăm ở thanh *Đang chạy*. Xem mục *Tiến độ*. |
 | `webServer` | Nút mở giao diện web cục bộ (vd mdf2sql): `{ "stateFile": "%LOCALAPPDATA%\\mdf2sql\\server.json", "app": "mdf2sql" }`. Giao diện đang chạy thì bấm nút là mở lại trang cũ thay vì mở thêm cửa sổ; trang công cụ hiện *Đang chạy ở cổng N* với nút **Mở lại**, **Tắt**. Xem mục *Giao diện web cục bộ*. |
 | `risk` | `read-only` (chỉ đọc), `asks-before-change` (script tự hỏi trước khi sửa), `modifies-system` (thay đổi máy). Thiếu thì coi là `modifies-system`. |
 | `confirm`, `changes` | Cảnh báo riêng và danh sách thay đổi, hiện trong hộp xác nhận. Hộp xác nhận hiện khi `risk` là `modifies-system` hoặc có `confirm`. |
@@ -265,6 +266,23 @@ mở báo cáo chữ. Đã dùng: MyExcelFix (kiểm tra, sửa, hoàn tác), Ch
   Tối đa 2 MB, hiện 300 phát hiện đầu.
 - Trạm đọc tên trường không phân biệt hoa thường, nhận cả cách ghi cũ (`MaThoat`, `Loi`, `LuuY`; `tieu_de`,
   `cach_sua`; mức `bad`, `warn`, `info`), nhưng công cụ mới nên ghi đúng chuẩn.
+
+## Tiến độ (`tienDo`, chuẩn `tramtool.tiendo/1`)
+
+Từ Trạm 1.5.0. Action `console` chạy lâu (vd DWG sang PDF, Ghi âm sang Word) khai `"tienDo": { "flag": "--tien-do" }`.
+Khi chạy từ trạm, công cụ nhận thêm `--tien-do <hub\data\tien-do\<mã>.json>` (cờ đứng sau mọi tham số khác; đường dẫn
+không ghi vào Lịch sử). Công cụ ghi đè file đó trong lúc chạy:
+
+```json
+{ "chuan": "tramtool.tiendo/1", "phanTram": 37.5, "buoc": "Bản vẽ 2/4 KT-02.dwg: đang vẽ trang 3/8", "xong": 1, "tong": 4, "conLaiGiay": 540 }
+```
+
+- `phanTram` 0-100 (bắt buộc để có thanh), `buoc` mô tả ngắn (trạm cắt ở 200 ký tự), `xong`/`tong` số việc, `conLaiGiay`
+  ước lượng (bỏ trống hoặc `null` khi chưa ước được).
+- Ghi ra `<file>.tmp` rồi đổi tên đè lên (`os.replace`, `Move-Item -Force`) để trạm không đọc phải file ghi dở; nhiều
+  nhất khoảng 1 lần mỗi giây. Không có cờ (bấm đúp ngoài trạm) thì không ghi gì.
+- Trạm kẹp số vào khoảng, bỏ file sai chuẩn hoặc quá 64 KB, xoá file khi cửa sổ đóng (và file sót quá 2 ngày khi mở
+  trạm). Ghi file lỗi thì công cụ bỏ qua, không dừng việc chính.
 
 ## Giao diện web cục bộ (`webServer`)
 

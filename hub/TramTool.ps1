@@ -13,7 +13,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$HubVersion = '1.4.0'
+$HubVersion = '1.5.0'
 $HubDir = $PSScriptRoot
 $RootDir = Split-Path $HubDir -Parent
 if (-not $ToolsDir) { $ToolsDir = Join-Path $RootDir 'tools' }
@@ -26,6 +26,8 @@ $SettingsFile = Join-Path $DataDir 'settings.json'
 $SafetyDir = Join-Path $HubDir 'safety'
 $SnapshotDir = Join-Path $DataDir 'snapshots'
 $RestoreLogFile = Join-Path $DataDir 'restore-points.jsonl'
+# File tiến độ công cụ ghi trong lúc chạy (action có tienDo), xoá khi cửa sổ đóng.
+$ProgressDir = Join-Path $DataDir 'tien-do'
 
 . (Join-Path $HubDir 'lib\Common.ps1')
 . (Join-Path $HubDir 'lib\Catalog.ps1')
@@ -33,6 +35,7 @@ $RestoreLogFile = Join-Path $DataDir 'restore-points.jsonl'
 . (Join-Path $HubDir 'lib\Launcher.ps1')
 . (Join-Path $HubDir 'lib\Checks.ps1')
 . (Join-Path $HubDir 'lib\KetQua.ps1')
+. (Join-Path $HubDir 'lib\CapNhat.ps1')
 
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
 $Host.UI.RawUI.WindowTitle = 'Trạm Tool - máy chủ (đóng cửa sổ này để tắt trạm)'
@@ -155,6 +158,7 @@ try {
 } catch { }
 
 Update-Catalog
+Clear-ToolProgressDir -Dir $ProgressDir
 Write-JsonFile -Path $RuntimeFile -InputObject ([ordered]@{ port = $Port; token = $Token; pid = $PID; startedAt = (Get-IsoTime) })
 $BaseUrl = "http://127.0.0.1:$Port"
 Write-HubLog "Trạm Tool $HubVersion đang chạy tại $BaseUrl (đóng cửa sổ này để tắt)." 'ok'
@@ -396,6 +400,17 @@ function Invoke-Api {
             Write-HubLog 'Sửa winget'
             return (Start-ToolAction -Tool $fixTool -Action $fixAction -HistoryPath $HistoryFile)
         }
+        'GET /api/update' {
+            # Trạng thái kho git của trạm; fetch=1 thì hỏi kho trước (cần mạng, không hỏi mật khẩu, tối đa 25 giây).
+            return (Get-RepoUpdateInfo -RootDir $RootDir -Fetch:($q['fetch'] -eq '1'))
+        }
+        'POST /api/update/run' {
+            # Cửa sổ cập nhật (quyền thường): fast-forward, không ghi đè file đang sửa; hỏi lại trước khi kéo.
+            $fixTool = [ordered]@{ id = 'tram-tool'; name = 'Trạm Tool'; dir = (Join-Path $HubDir 'fixes') }
+            $fixAction = [ordered]@{ id = 'cap-nhat'; label = 'Cập nhật trạm và công cụ'; type = 'console'; file = 'CapNhat-TramTool.ps1'; admin = $false; keepOpen = $false }
+            Write-HubLog 'Cập nhật trạm và công cụ (git)'
+            return (Start-ToolAction -Tool $fixTool -Action $fixAction -HistoryPath $HistoryFile)
+        }
         'GET /api/jobs' { Update-ToolJobs -HistoryPath $HistoryFile; return @{ items = @(Get-ToolJobs); now = (Get-IsoTime) } }
         'POST /api/jobs/dismiss' {
             $b = Read-Body $Ctx
@@ -427,7 +442,7 @@ function Invoke-Api {
                 ScriptDir    = $SafetyDir; Log = $RestoreLogFile; SnapshotDir = $SnapshotDir
             }
             Write-HubLog "Chạy: $($tool.name) > $($action.label)$(if ($action.admin) { ' (Admin)' })$(if ($safety.RestorePoint) { ', tạo điểm khôi phục' })"
-            return (Start-ToolAction -Tool $tool -Action $action -Arguments $argv -HistoryPath $HistoryFile -Values $values -Safety $safety)
+            return (Start-ToolAction -Tool $tool -Action $action -Arguments $argv -HistoryPath $HistoryFile -Values $values -Safety $safety -ProgressDir $ProgressDir)
         }
         'POST /api/pick' {
             $b = Read-Body $Ctx
