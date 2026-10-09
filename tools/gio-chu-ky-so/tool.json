@@ -1,0 +1,126 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "gio-chu-ky-so",
+  "name": "Giờ máy và chữ ký số (USB token)",
+  "version": "1.0",
+  "category": "van-phong",
+  "icon": "key",
+  "audience": "all",
+  "summary": "Ký số thuế, hoá đơn điện tử, BHXH báo lỗi: kiểm tra giờ máy, múi giờ, dịch vụ đọc USB token, chứng thư ký số; sửa giờ và dịch vụ token, trả lại được như cũ.",
+  "description": "Chạy Kiểm tra trước (chỉ đọc, không cần quyền Admin): công cụ đo độ lệch giờ với máy chủ giờ (NTP, mạng chặn thì đọc giờ của trang http), xem múi giờ, dịch vụ Windows Time, dịch vụ Smart Card và Certificate Propagation (hay bị phần mềm tối ưu tắt), đầu đọc token Windows thấy, chứng thư ký số hết hạn, sắp hết hạn, chưa tới ngày hiệu lực (giờ máy chậm) hoặc thiếu chứng thư gốc. Không hỏi PIN, không đọc khoá riêng. Trạm hiện từng phát hiện kèm nút sửa. Trước khi sửa, giá trị cũ được lưu vào ket_qua\\TrangThaiGoc_GioChuKySo_<tên máy>.json để Trả lại.",
+  "tags": ["giờ", "đồng hồ", "sai giờ", "múi giờ", "NTP", "w32tm", "chữ ký số", "ký số", "USB token", "token", "smart card", "chứng thư số", "thuế điện tử", "hoá đơn điện tử", "BHXH", "eSigner", "VNPT-CA", "Viettel-CA"],
+  "docs": "HUONG-DAN.md",
+  "actions": [
+    {
+      "id": "kiem-tra",
+      "label": "Kiểm tra",
+      "file": "GioChuKySo.ps1",
+      "fixedArgs": ["-Mode", "kiem-tra"],
+      "admin": false,
+      "risk": "read-only",
+      "primary": true,
+      "duration": "Vài giây",
+      "description": "Chỉ đọc. Độ lệch giờ so với máy chủ giờ, múi giờ, dịch vụ Windows Time và kiểu đồng bộ; dịch vụ Smart Card, Certificate Propagation, đầu đọc token đang cắm, driver token lỗi; chứng thư ký số trong kho của tài khoản (hạn, chứng thư gốc); phần mềm ký số đã cài."
+    },
+    {
+      "id": "sua-gio",
+      "label": "Sửa giờ máy",
+      "file": "GioChuKySo.ps1",
+      "fixedArgs": ["-Mode", "sua-gio"],
+      "admin": true,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Vài giây",
+      "description": "Bật dịch vụ Windows Time nếu đang tắt, bật đặt giờ tự động nếu đang tắt (time.windows.com), đồng bộ ngay; vẫn lệch quá 1 phút thì đặt giờ theo máy chủ giờ vừa đo. Máy trong domain chỉ đồng bộ lại với máy chủ domain.",
+      "changes": [
+        "Lưu kiểu khởi động Windows Time, cấu hình đồng bộ, múi giờ vào ket_qua\\TrangThaiGoc_GioChuKySo_<tên máy>.json",
+        "Dịch vụ Windows Time: Thủ công và chạy (nếu đang tắt)",
+        "Đặt giờ tự động: time.windows.com (nếu đang tắt)",
+        "Múi giờ Việt Nam (nếu đánh dấu)",
+        "Đồng bộ giờ; đặt giờ máy theo máy chủ giờ khi vẫn lệch"
+      ],
+      "args": [
+        { "id": "mui-gio-vn", "type": "bool", "flag": "-MuiGioVN", "default": true, "label": "Đặt múi giờ Việt Nam (UTC+07:00) nếu đang khác" },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "sua-token",
+      "label": "Sửa dịch vụ đọc USB token",
+      "file": "GioChuKySo.ps1",
+      "fixedArgs": ["-Mode", "sua-token"],
+      "admin": true,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Vài giây",
+      "description": "Dịch vụ Smart Card, Certificate Propagation đang tắt thì đặt Thủ công (mặc định của Windows) và chạy; chạy lại Certificate Propagation để chứng thư trong token hiện lại. Không cài driver: token cần driver riêng thì cài phần mềm của nhà cung cấp chữ ký số.",
+      "changes": [
+        "Lưu kiểu khởi động cũ vào ket_qua\\TrangThaiGoc_GioChuKySo_<tên máy>.json",
+        "Smart Card (SCardSvr), Certificate Propagation (CertPropSvc): Thủ công và chạy"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "hoan-tac",
+      "label": "Trả lại như trước khi sửa",
+      "file": "GioChuKySo.ps1",
+      "fixedArgs": ["-Mode", "hoan-tac"],
+      "admin": true,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Vài giây",
+      "description": "Trả kiểu khởi động dịch vụ, cấu hình đồng bộ giờ, múi giờ về giá trị lưu trước lần sửa đầu tiên, rồi xoá file giá trị cũ. Giờ máy đã đồng bộ thì giữ nguyên.",
+      "changes": [
+        "Kiểu khởi động Windows Time, Smart Card, Certificate Propagation như lúc lưu",
+        "Cấu hình đồng bộ giờ, múi giờ như lúc lưu",
+        "Xoá ket_qua\\TrangThaiGoc_GioChuKySo_<tên máy>.json"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "menu",
+      "label": "Mở menu (như bấm đúp GIO_VA_CHU_KY_SO.bat)",
+      "file": "GioChuKySo.ps1",
+      "admin": false,
+      "selfElevates": true,
+      "risk": "asks-before-change",
+      "description": "Menu đủ các mục trên, in việc sẽ làm và hỏi lại trước khi đổi; việc cần quyền Admin mở cửa sổ Admin riêng (UAC)."
+    }
+  ],
+  "probes": [
+    { "type": "service", "name": "W32Time", "label": "Windows Time (W32Time)", "default": "Manual" },
+    { "type": "service", "name": "SCardSvr", "label": "Smart Card (SCardSvr)", "default": "Manual" },
+    { "type": "service", "name": "CertPropSvc", "label": "Certificate Propagation (CertPropSvc)", "default": "Manual" },
+    {
+      "type": "registry", "label": "Kiểu đồng bộ giờ (Type)", "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\W32Time\\Parameters", "name": "Type",
+      "note": "NTP: máy chủ giờ trên Internet; NT5DS: máy chủ domain; NoSync: không đồng bộ."
+    },
+    { "type": "registry", "label": "Máy chủ giờ (NtpServer)", "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\W32Time\\Parameters", "name": "NtpServer" }
+  ],
+  "outputs": [
+    { "label": "Kết quả", "dir": "ket_qua", "glob": "KetQua_GioChuKySo_%COMPUTERNAME%_*.json", "ketQua": true },
+    {
+      "label": "Giá trị cũ để trả lại", "dir": "ket_qua", "glob": "TrangThaiGoc_GioChuKySo_%COMPUTERNAME%.json",
+      "deleteNote": "\"Trả lại như trước khi sửa\" cần file này. Xoá rồi thì không trả lại được dịch vụ, đồng bộ giờ, múi giờ như cũ."
+    }
+  ],
+  "pack": {
+    "name": "GioVaChuKySo",
+    "include": ["GIO_VA_CHU_KY_SO.bat", "GioChuKySo.ps1", "HUONG-DAN.md"]
+  },
+  "issues": [
+    "Mới thử bằng giả lập (dịch vụ, w32tm, tzutil, đặt giờ, đầu đọc thẻ, chứng thư giả) và Kiểm tra thật trên máy phát triển không có USB token; chưa thử với token thật của nhà cung cấp Việt Nam.",
+    "Token dùng driver riêng (chỉ PKCS#11, không qua dịch vụ Smart Card) thì Kiểm tra báo không thấy token dù phần mềm ký vẫn chạy.",
+    "Nhận ra phần mềm ký số theo tên phổ biến trong danh sách phần mềm đã cài; tên lạ thì báo không thấy.",
+    "Máy hay sai giờ sau khi tắt hẳn (pin CMOS yếu) thì sửa giờ chỉ đúng tới lần tắt máy sau: cần thay pin."
+  ],
+  "upgrades": [
+    "P1: Đọc chứng thư trực tiếp trong token (certutil -scinfo -silent) khi kho của tài khoản chưa có, không hỏi PIN.",
+    "P1: Kiểm tra tiện ích ký số của trình duyệt (Chrome, Edge, Cốc Cốc) mà cổng thuế điện tử cần.",
+    "P2: Nhận ra máy hay sai giờ sau khi khởi động (sự kiện Kernel-General 1 lúc mới bật máy) để khuyên thay pin CMOS."
+  ]
+}

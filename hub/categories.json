@@ -2,7 +2,7 @@
   { "id": "chan-doan", "label": "Chẩn đoán", "icon": "stethoscope", "description": "Thu thập thông tin, tìm nguyên nhân máy chậm, sập nguồn, màn hình xanh." },
   { "id": "sua-loi", "label": "Sửa lỗi Windows", "icon": "window-wrench", "description": "Sửa file hệ thống, mạng, Wi-Fi, máy in và chia sẻ trong mạng LAN, Windows Update." },
   { "id": "toi-uu", "label": "Tối ưu", "icon": "gauge", "description": "Dọn ổ C an toàn (xem trước rồi mới dọn); bật, tắt dịch vụ nền và thiết lập hiệu năng." },
-  { "id": "van-phong", "label": "Văn phòng", "icon": "table", "description": "Gỡ sạch, cài Office theo mẫu, kích hoạt; Excel, add-in MyExcel, VietQR." },
+  { "id": "van-phong", "label": "Văn phòng", "icon": "table", "description": "Gỡ sạch, cài Office theo mẫu, kích hoạt; Excel, add-in MyExcel, VietQR; giờ máy và chữ ký số USB token." },
   { "id": "chuyen-doi", "label": "Chuyển đổi dữ liệu", "icon": "swap", "description": "Ghi âm sang Word, bản vẽ DWG sang PDF, cơ sở dữ liệu .mdf sang .sql, danh sách thẻ xe sang file .nt." },
   { "id": "cai-lai-may", "label": "Cài lại máy", "icon": "laptop", "description": "Sao lưu và khôi phục Wi-Fi, máy in, driver, dữ liệu Claude khi cài lại Windows; kiểm tra và lưu khoá BitLocker để không bị khoá ổ." },
   { "id": "tien-ich", "label": "Tiện ích", "icon": "toolbox", "description": "Các công cụ nhỏ khác." },
