@@ -33,11 +33,14 @@ Kiểm tra quyền Admin bằng `fltmc` (không cần dịch vụ Server như `n
 1. Copy **`ThuThapThongTin.bat`** sang máy đang bị chậm (USB / Zalo / email đều được).
    - ⚠️ **Đừng mở bằng Notepad rồi lưu lại** — sẽ hỏng bảng mã và script không chạy.
 2. Chuột phải → **Run as administrator** (nếu bấm đúp, script tự xin quyền Admin, bấm **Yes**).
-3. Script hỏi 2 câu (có thể Enter bỏ qua):
+3. Script hỏi 3 câu (có thể Enter bỏ qua):
    - Máy bắt đầu chậm từ khi nào?
    - Chậm kiểu gì?
+   - Có kiểm tra sâu không (ảnh Windows bằng DISM, lỗi hệ thống file từng ổ, thêm 5–20 phút)?
+   Chạy từ Trạm Tool thì hai câu đầu và ô *Kiểm tra sâu* nằm trong form, cửa sổ không hỏi gì.
 4. Chờ **~1,5–3 phút**. Xong sẽ tự mở Notepad hiện báo cáo.
-5. File kết quả nằm **ngay cạnh file .bat**, tên `LagReport_<TênMáy>_<ngày giờ>.txt` (~70–150 KB).
+5. File kết quả nằm **ngay cạnh file .bat**, tên `LagReport_<TênMáy>_<ngày giờ>.txt` (~70–150 KB), kèm
+   `KetQua_CheckWinFix_ThuThap_<TênMáy>_<ngày giờ>.json` cho Trạm Tool.
 6. Gửi file .txt đó lại cho tôi → tôi phân tích và viết `.bat` sửa đúng bệnh của máy đó.
 
 **Script chỉ ĐỌC. Không xoá, không sửa registry, không cài gì, không gửi dữ liệu đi đâu.**
@@ -71,7 +74,22 @@ Kiểm tra quyền Admin bằng `fltmc` (không cần dịch vụ Server như `n
 | 23 | Chờ khởi động lại, CBS log, System Restore | Update kẹt, file hệ thống hỏng |
 | 24 | Nhiệt độ, quạt | Quá nhiệt |
 
-Đầu báo cáo có mục **“CẢNH BÁO TỰ ĐỘNG”** — script tự chấm ~45 điều kiện và liệt kê nghi phạm, đọc mục này trước.
+Đầu báo cáo có mục **“CẢNH BÁO TỰ ĐỘNG”** — script tự chấm khoảng 60 điều kiện và liệt kê nghi phạm, mục nghiêm trọng lên đầu (`[NGHIEM TRONG]`), đọc mục này trước. Mỗi cảnh báo có mã cố định trong ngoặc cuối dòng (vd `SMART_SAP_HONG`, `O_DIA_IO_THAT_BAI`, `FILE_HE_THONG_HONG`): mã không đổi khi sửa câu chữ.
+
+Lỗi của nguồn `disk` trên ổ USB hoặc ổ đã rút ra (không còn trong danh sách ổ) chỉ là cảnh báo: rút ổ khi đang ghi cũng sinh các lỗi này.
+
+## Kiểm tra sâu (tuỳ chọn)
+
+Thay cho *Báo cáo sức khoẻ máy* cũ (đã gộp vào CheckWinFix). Chỉ đọc, cần quyền Admin:
+
+- Ảnh Windows: `Repair-WindowsImage -Online -ScanHealth` (như `DISM /ScanHealth`, 5–15 phút). Hỏng mà sửa được thì báo `ANH_WINDOWS_HONG` và gợi ý *Sửa lỗi Windows > DISM rồi SFC*.
+- Lỗi hệ thống file từng ổ NTFS: `Repair-Volume -Scan` (như `chkdsk /scan`, không sửa). Có lỗi thì báo `O_DIA_LOI_HE_THONG_FILE` và gợi ý *Sửa lỗi ổ đĩa*.
+
+Cả hai đọc kết quả có cấu trúc nên đúng trên Windows mọi ngôn ngữ (bản cũ in nguyên chữ của `sfc /verifyonly`).
+
+## Kết quả cho Trạm Tool
+
+`KetQua_CheckWinFix_ThuThap_*.json` theo chuẩn `tramtool.ketqua/1` (xem `docs\THEM-CONG-CU.md`): mỗi cảnh báo là một phát hiện có mã, mức (`loi`, `canh-bao`, `thong-tin`) và gợi ý script chạy tiếp khi có (ổ đĩa, màn hình xanh → *Chẩn đoán phần cứng*; WHEA → *Giải mã WHEA*; tắt đột ngột → *Sụp nguồn*; file hệ thống hỏng → *Sửa lỗi Windows*; ổ C đầy → *Dọn ổ C*). Trạm hiện các mục này ở Lịch sử, bấm là chạy tiếp. Mã thoát 0 khi đã ghi báo cáo, kể cả khi có cảnh báo.
 
 ## Kiểm chứng
 

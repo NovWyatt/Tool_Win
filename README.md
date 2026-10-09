@@ -49,14 +49,12 @@ driver...): trạm kiểm tra khi mở trang công cụ và có nút **Cài** ch
 
 | Thư mục | Công cụ | Làm gì |
 |---|---|---|
-| `tools\checkwinfix` | CheckWinFix | Chẩn đoán máy chậm, ổ cứng sắp hỏng, lỗi WHEA, màn hình xanh, sụp nguồn; xuất báo cáo gửi người hỗ trợ; cứu dữ liệu SQL Server. |
-| `tools\health-report` | Báo cáo sức khoẻ máy | Kiểm tra nhanh CPU, RAM, ổ đĩa, SMART, nhật ký lỗi, ghi ra Desktop. |
+| `tools\checkwinfix` | CheckWinFix | Chẩn đoán máy chậm, ổ cứng sắp hỏng, lỗi WHEA, màn hình xanh, sụp nguồn; khoảng 60 cảnh báo tự động có mã, trạm gợi ý script chạy tiếp; tuỳ chọn kiểm tra sâu (DISM, chkdsk /scan, thay *Báo cáo sức khoẻ máy* cũ); xuất báo cáo gửi người hỗ trợ; cứu dữ liệu SQL Server. |
 | `tools\fix-win` | Sửa lỗi Windows | DISM rồi SFC, đặt lại mạng, đặt lại tường lửa (có sao lưu), quét và sửa ổ đĩa, kiểm tra RAM, đặt lại Windows Update. |
 | `tools\wifi-fix` | Kiểm tra và sửa lỗi Wi-Fi | `KET_NOI_WIFI.bat`: sửa lỗi "Can't connect to this network" khi vào mạng mới, xem vì sao Wi-Fi không kết nối (nhật ký 7 ngày), mở trang driver. Menu cũ: đặt lại IP, DNS, Winsock. |
 | `tools\may-in-lan` | Máy in mạng LAN và thư mục chia sẻ | Chẩn đoán in, chia sẻ, SMB; sửa hàng đợi kẹt, máy in trùng, lỗi 0x0000011B, 0x00000709, 0x00000BCB; thêm máy in bằng IP, gắn ổ mạng; có hoàn tác. |
 | `tools\don-o-c` | Dọn ổ C an toàn | Xem ổ C đầy vì đâu; dọn file tạm cũ, bộ nhớ đệm trình duyệt, file tải về của Windows Update, WinSxS. Xem trước rồi mới xoá, không đụng dữ liệu cá nhân, thùng rác. |
-| `tools\service-optimizer` | Tắt/bật dịch vụ nền | DiagTrack, Windows Insider, SysMain, Tối ưu ổ đĩa; lưu kiểu khởi động cũ để bật lại đúng. |
-| `tools\clock-optimizer` | Tối ưu đồng hồ hệ thống | Dynamic Tick, ép HPET trong BCD (`bcdedit`); trả về mặc định của Windows. |
+| `tools\toi-uu` | Tối ưu Windows | Một nút Kiểm tra xem cả dịch vụ nền (DiagTrack, Windows Insider, SysMain, Tối ưu ổ đĩa) lẫn đồng hồ hệ thống (Dynamic Tick, HPET trong BCD), trạm gợi ý nút sửa; tắt dịch vụ có lưu kiểu khởi động cũ để bật lại đúng, đồng hồ trả về mặc định được. |
 | `tools\office` | Gỡ sạch và cài Office theo mẫu | Gỡ mọi bản Office (Click-to-Run, MSI, Microsoft Store, phần sót, khoá cũ), sao lưu mẫu Word, macro, chữ ký; cài theo bộ cài mẫu ODT của bạn, kiểm tra và kích hoạt. Khoá trong mẫu không bao giờ hiện ra. |
 | `tools\myexcelfix` | MyExcel VietQR | Chẩn đoán và sửa add-in MyExcel không bật hoặc không tạo được VietQR; hoàn tác an toàn (giữ bản file Excel đã sửa tiếp), mã thoát và JSON kết quả. |
 | `tools\dwg2pdf` | Bản vẽ DWG sang PDF | Chuyển .dwg sang PDF đen trắng, mỗi khung bản vẽ một trang, không cần AutoCAD. |

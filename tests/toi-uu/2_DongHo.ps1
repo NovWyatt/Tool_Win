@@ -1,9 +1,10 @@
-﻿# Bài thử DongHo.ps1 bằng giả lập: BCD (bảng trong bộ nhớ), BitLocker, quyền Admin, câu trả lời; registry dùng HKCU.
+﻿# Bài thử DongHo.ps1 (phần đồng hồ của "Tối ưu Windows") bằng giả lập: BCD (bảng trong bộ nhớ), BitLocker,
+# quyền Admin, câu trả lời; registry dùng HKCU; phát hiện ghi cho ToiUu.ps1 (-KetQua).
 . "$PSScriptRoot\..\lib\KiemThu.ps1"
 $ErrorActionPreference = 'Stop'
 $env:TRAMTOOL_DONGHO_TEST = '1'
-. "$ToolsDir\clock-optimizer\DongHo.ps1"
-$ChayThu = $false; $KhongDung = $true
+. "$ToolsDir\toi-uu\DongHo.ps1"
+$ChayThu = $false; $KhongDung = $true; $KetQua = ''
 $script:KernelKey = 'HKCU:\Software\TramToolTest\kernel'
 
 # ---- giả lập
@@ -133,6 +134,30 @@ Check 'kiem-tra mã 0' ($c -eq 0)
 Reset-Case; $script:EnumWorks = $false
 $c = @(Invoke-KiemTra 6>$null)[-1]
 Check 'kiem-tra không đọc được BCD (Admin): mã 1' ($c -eq 1)
+
+# 9. phát hiện cho ToiUu.ps1 (-KetQua)
+function Read-Found([string]$Path) { return , @(([IO.File]::ReadAllText($Path) | ConvertFrom-Json).phatHien) }
+$KetQua = Join-Path $TestRoot 'phan_dongho.json'
+Reset-Case -Bcd @{ useplatformclock = 'Yes'; useplatformtick = 'Yes'; disabledynamictick = 'Yes' } -OldReg 'useplatformclock'
+$c = @(Invoke-KiemTra 6>$null)[-1]; $f = Read-Found $KetQua
+$codes = @($f | ForEach-Object { $_.ma })
+Check 'kiem-tra -KetQua: mã 0, ghi file' ($c -eq 0 -and $f.Count -eq 4) ($codes -join ',')
+$h = @($f | Where-Object { $_.ma -eq 'HPET_DANG_EP' })[0]
+Check 'ép HPET: HPET_DANG_EP cảnh báo, gợi ý mac-dinh-dong-ho' ($h -and $h.mucDo -eq 'canh-bao' -and $h.chayTiep.congCu -eq 'toi-uu' -and $h.chayTiep.action -eq 'mac-dinh-dong-ho')
+Check 'ép platform tick: PLATFORM_TICK_DANG_EP cảnh báo' (@($f | Where-Object { $_.ma -eq 'PLATFORM_TICK_DANG_EP' -and $_.mucDo -eq 'canh-bao' }).Count -eq 1)
+Check 'tắt Dynamic Tick: DYNAMIC_TICK_TAT thông tin' (@($f | Where-Object { $_.ma -eq 'DYNAMIC_TICK_TAT' -and $_.mucDo -eq 'thong-tin' }).Count -eq 1)
+$g = @($f | Where-Object { $_.ma -eq 'GIA_TRI_REGISTRY_CU' })[0]
+Check 'registry bản cũ: GIA_TRI_REGISTRY_CU kèm tên giá trị' ($g -and $g.chiTiet -match 'useplatformclock=1')
+Reset-Case -Bcd @{ useplatformclock = 'No' }
+[void](Invoke-KiemTra 6>$null); $f = Read-Found $KetQua
+Check 'useplatformclock No: không cảnh báo, không "mặc định"' ($f.Count -eq 0) (@($f | ForEach-Object { $_.ma }) -join ',')
+Reset-Case
+[void](Invoke-KiemTra 6>$null); $f = Read-Found $KetQua
+Check 'máy mặc định: chỉ DONG_HO_MAC_DINH (ổn)' ($f.Count -eq 1 -and $f[0].ma -eq 'DONG_HO_MAC_DINH' -and $f[0].mucDo -eq 'ok')
+Reset-Case; $script:EnumWorks = $false
+$c = @(Invoke-KiemTra 6>$null)[-1]; $f = Read-Found $KetQua
+Check 'không đọc được BCD: KHONG_DOC_DUOC_BCD (lỗi), vẫn ghi file, mã 1' ($c -eq 1 -and $f.Count -eq 1 -and $f[0].ma -eq 'KHONG_DOC_DUOC_BCD' -and $f[0].mucDo -eq 'loi')
+$KetQua = ''
 
 Clear-TestRegistry
 Complete-Test

@@ -1,10 +1,12 @@
-﻿# Bài thử DichVu.ps1 bằng giả lập: dịch vụ (bảng trong bộ nhớ), sc.exe, Insider, SSD, câu trả lời.
+﻿# Bài thử DichVu.ps1 (phần dịch vụ nền của "Tối ưu Windows") bằng giả lập: dịch vụ (bảng trong bộ nhớ), sc.exe,
+# Insider, SSD, câu trả lời; phát hiện ghi cho ToiUu.ps1 (-KetQua); chuyển file trạng thái gốc từ chỗ cũ.
 . "$PSScriptRoot\..\lib\KiemThu.ps1"
 $ErrorActionPreference = 'Stop'
 $env:TRAMTOOL_DICHVU_TEST = '1'
-. "$ToolsDir\service-optimizer\DichVu.ps1"
-$ChayThu = $false; $KhongDung = $true
+. "$ToolsDir\toi-uu\DichVu.ps1"
+$ChayThu = $false; $KhongDung = $true; $KetQua = ''
 $script:StateFile = Join-Path $TestRoot 'ket_qua\TrangThaiGoc_TEST.json'
+$script:OldStateFile = Join-Path $TestRoot 'service-optimizer\ket_qua\TrangThaiGoc_TEST.json'
 
 # ---- giả lập
 $script:Svc = @{}
@@ -60,7 +62,7 @@ function Reset-Case {
     $script:Calls.Clear(); $script:ConfigFails = @(); $script:ConfigIgnored = @(); $script:StopFails = @(); $script:StartFails = @()
     $script:Insider = $false; $script:Ssd = $true; $script:Answers.Clear()
     $script:DiagTrack = $false; $script:WiSvc = $false; $script:SysMain = $false; $script:DefragSvc = $false
-    if (Test-Path $script:StateFile) { Remove-Item -LiteralPath $script:StateFile -Force }
+    foreach ($f in @($script:StateFile, $script:OldStateFile)) { if (Test-Path $f) { Remove-Item -LiteralPath $f -Force } }
 }
 function Last($x) { return @($x)[-1] }
 function Saved { if (Test-Path $script:StateFile) { return (Read-SavedState) } return @{} }
@@ -173,5 +175,63 @@ Reset-Case; $script:Svc.defragsvc = New-Svc 4 $false
 $c = Last (Invoke-KiemTra 6>$null)
 Check 'kiem-tra mã 0' ($c -eq 0)
 Check 'ConvertTo-ScStart' ((ConvertTo-ScStart 2 1) -eq 'delayed-auto' -and (ConvertTo-ScStart 2 0) -eq 'auto' -and (ConvertTo-ScStart 3) -eq 'demand')
+
+# 12. phát hiện cho ToiUu.ps1 (-KetQua)
+function Read-Found([string]$Path) { return , @(([IO.File]::ReadAllText($Path) | ConvertFrom-Json).phatHien) }
+$KetQua = Join-Path $TestRoot 'phan_dichvu.json'
+Reset-Case; [void](Invoke-Tat @('DiagTrack') 6>$null)
+$script:Svc.defragsvc = New-Svc 4 $false; $script:Svc.wisvc = New-Svc 4 $false; $script:Insider = $true
+$c = Last (Invoke-KiemTra 6>$null)
+$f = Read-Found $KetQua
+$codes = @($f | ForEach-Object { $_.ma })
+Check 'kiem-tra -KetQua: mã 0, ghi file' ($c -eq 0 -and $f.Count -gt 0) "mã $c"
+Check 'ba dịch vụ đang tắt: ba DICH_VU_DA_TAT (thông tin)' (@($f | Where-Object { $_.ma -eq 'DICH_VU_DA_TAT' -and $_.mucDo -eq 'thong-tin' }).Count -eq 3) ($codes -join ',')
+$d = @($f | Where-Object { $_.ma -eq 'DICH_VU_DA_TAT' -and $_.tieuDe -match 'DiagTrack' })[0]
+Check 'DiagTrack: chi tiết có trạng thái gốc đã lưu' ($d -and $d.chiTiet -match 'Trạng thái gốc đã lưu: Tự động')
+$d = @($f | Where-Object { $_.ma -eq 'DICH_VU_DA_TAT' -and $_.tieuDe -match 'defragsvc' })[0]
+Check 'defragsvc chưa lưu gốc: chi tiết nói trả về mặc định' ($d -and $d.chiTiet -match 'Chưa lưu trạng thái gốc')
+$trim = @($f | Where-Object { $_.ma -eq 'TRIM_TAT' })[0]
+Check 'SSD + defragsvc tắt: TRIM_TAT cảnh báo, gợi ý bat-lai-dich-vu' ($trim -and $trim.mucDo -eq 'canh-bao' -and $trim.chayTiep.congCu -eq 'toi-uu' -and $trim.chayTiep.action -eq 'bat-lai-dich-vu')
+Check 'Insider + wisvc tắt: INSIDER_TAT cảnh báo' ($codes -contains 'INSIDER_TAT')
+Check 'có dịch vụ tắt: không có DICH_VU_MAC_DINH' ($codes -notcontains 'DICH_VU_MAC_DINH')
+Reset-Case; $script:Svc.defragsvc = New-Svc 4 $false; $script:Ssd = $false
+[void](Invoke-KiemTra 6>$null); $codes = @(Read-Found $KetQua | ForEach-Object { $_.ma })
+Check 'không SSD: không TRIM_TAT' ($codes -notcontains 'TRIM_TAT' -and $codes -contains 'DICH_VU_DA_TAT') ($codes -join ',')
+Reset-Case
+[void](Invoke-KiemTra 6>$null); $f = Read-Found $KetQua
+Check 'máy mặc định: chỉ một DICH_VU_MAC_DINH (ổn)' ($f.Count -eq 1 -and $f[0].ma -eq 'DICH_VU_MAC_DINH' -and $f[0].mucDo -eq 'ok') (@($f | ForEach-Object { $_.ma }) -join ',')
+Reset-Case; New-Item -ItemType Directory -Path (Split-Path $script:StateFile) -Force | Out-Null
+Set-Content -LiteralPath $script:StateFile -Value '{ hỏng' -Encoding UTF8
+$c = Last (Invoke-KiemTra 6>$null); $f = Read-Found $KetQua
+Check 'file trạng thái hỏng: FILE_TRANG_THAI_HONG (lỗi), vẫn mã 0' ($c -eq 0 -and @($f | Where-Object { $_.ma -eq 'FILE_TRANG_THAI_HONG' -and $_.mucDo -eq 'loi' }).Count -eq 1)
+Reset-Case; $KetQua = Join-Path $TestRoot 'khong-co-thu-muc\phan.json'
+$c = Last (Invoke-KiemTra 6>$null)
+Check 'không ghi được file kết quả: mã 1' ($c -eq 1) "mã $c"
+$KetQua = ''
+
+# 13. file trạng thái gốc ở chỗ cũ (tools\service-optimizer\ket_qua, trước khi gộp)
+function Write-OldState {
+    New-Item -ItemType Directory -Path (Split-Path $script:OldStateFile) -Force | Out-Null
+    $j = '{"may":"TEST","dichVu":{"DiagTrack":{"start":2,"delayed":0,"running":true,"luuLuc":"2026-10-01 08:00:00"}}}'
+    [IO.File]::WriteAllText($script:OldStateFile, $j)
+}
+Reset-Case; $script:Svc.DiagTrack = New-Svc 4 $false; Write-OldState
+$s = Read-SavedState
+Check 'đọc được file cũ' ($s.ContainsKey('DiagTrack') -and $s.DiagTrack.start -eq 2)
+Check 'file cũ chuyển sang chỗ mới' ((Test-Path $script:StateFile) -and -not (Test-Path $script:OldStateFile))
+$c = Last (Invoke-BatLai @() 6>$null)
+Check 'bật lại theo file đã chuyển: Tự động, chạy lại, xoá file' ($c -eq 0 -and $script:Svc.DiagTrack.Start -eq 2 -and $script:Svc.DiagTrack.Running -and -not (Test-Path $script:StateFile))
+Reset-Case; $script:Svc.DiagTrack = New-Svc 4 $false; Write-OldState
+$h = [IO.File]::Open($script:OldStateFile, 'Open', 'Read', 'Read')   # giữ file: không chuyển được
+try { $s = Read-SavedState } finally { $h.Dispose() }
+Check 'không chuyển được: đọc thẳng file cũ' ($s.ContainsKey('DiagTrack') -and (Test-Path $script:OldStateFile) -and -not (Test-Path $script:StateFile))
+$c = Last (Invoke-BatLai @() 6>$null)
+Check 'bật lại hết: xoá cả file cũ, lần sau không đọc lại' ($c -eq 0 -and -not (Test-Path $script:OldStateFile) -and (Read-SavedState).Count -eq 0)
+Reset-Case; Write-OldState; New-Item -ItemType Directory -Path (Split-Path $script:StateFile) -Force | Out-Null
+[IO.File]::WriteAllText($script:StateFile, '{"dichVu":{"SysMain":{"start":2,"delayed":1,"running":true,"luuLuc":"x"}}}')
+$s = Read-SavedState
+Check 'có cả hai file: dùng file mới' ($s.ContainsKey('SysMain') -and -not $s.ContainsKey('DiagTrack'))
+Save-SavedState $s
+Check 'ghi file mới thì bỏ file cũ' (-not (Test-Path $script:OldStateFile))
 
 Complete-Test

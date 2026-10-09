@@ -59,7 +59,8 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `myexcelfix/3_KiemTra` | Kiểm tra MyExcel (chỉ đọc), kết quả ghi vào thư mục tạm; thêm hai bộ MyExcel giả (`MYX_EXTRA_ROOT`) để máy nào cũng có lỗi gợi ý *Sửa lỗi* |
 | `myexcelfix/5_KiemTraNoiLuu` | Kiểm tra MyExcel (chỉ đọc) với `LOCALAPPDATA`, `PUBLIC`, Desktop trỏ vào thư mục tạm |
 | `tram/3_KhoiChay` | Máy in LAN `-ChayThu -KhongDung` dò máy này và 127.0.0.1 |
-| `health-report/1_SuKien` | gọi `Get-WinEvent` thật với bộ lọc không khớp gì (nhật ký Application) để chắc mã "không có sự kiện" |
+| `checkwinfix/3_ThuThap` | chạy thật phần PowerShell của Thu thập thông tin bằng quyền thường (`-KhongHoi`, không mở Notepad), báo cáo và JSON vào thư mục tạm, khoảng 1,5 phút |
+| `toi-uu/3_ToiUu` | Kiểm tra dịch vụ nền thật (chỉ đọc); phần đồng hồ chạy `-ChayThu` nên không hỏi UAC, `bcdedit /enum` bị từ chối khi không có quyền Admin |
 
 `tram/1_LanCanAnToan` cũng đọc trạng thái Bảo vệ hệ thống, winget, dịch vụ SysMain, build Windows (chỉ đọc).
 
@@ -75,9 +76,10 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `bitlocker` | lưu khoá, tạm dừng, bật lại, mở khoá, giải mã, hoàn tác trên ổ giả; khoá không lọt vào báo cáo |
 | `don-o-c` | danh sách cho phép xoá, xoá theo tuổi file, junction, trình duyệt, WinSxS (trong thư mục cát) |
 | `github-logout` | đọc `cmdkey /list` (cả Windows tiếng Việt), chia mục Git / GitHub CLI / ứng dụng khác, xoá, đọc lại, chạy thử (Credential Manager giả) |
-| `health-report` | không có sự kiện thì [OK] thay vì [LOI]; tách phần PowerShell, nâng quyền khi thư mục có dấu `'` (không chạy `.bat` thật) |
+| `checkwinfix` | `3_ThuThap`: mọi cảnh báo có mã và mức, gợi ý chạy tiếp trỏ tới action có thật; lỗi ổ USB hoặc ổ đã rút chỉ là cảnh báo; kiểm tra sâu (DISM, chkdsk /scan giả); tham số từ trạm; JSON theo chuẩn mà trạm đọc được |
+| `toi-uu` | tắt/bật dịch vụ (sc.exe giả), đổi BCD (bcdedit giả), BitLocker; phát hiện có mã cho Kiểm tra chung; chuyển file trạng thái gốc từ chỗ cũ (`service-optimizer`); `ToiUu.ps1` gộp hai phần, mã thoát chung, gọi script con thật trong cùng cửa sổ |
 | `ghi-am-sang-word` | tên kết quả giữ đuôi file gốc, nhận kết quả bản cũ, `--ra` (Python của máy, không nạp mô hình) |
-| các bộ khác | `service-optimizer`, `clock-optimizer`, `fix-win`, `checkwinfix`, `may-in-lan`, `the-xe-nt` |
+| các bộ khác | `fix-win`, `may-in-lan`, `the-xe-nt` |
 | `mdf2sql` | `1_ChayTool`: hai `.bat` với `python.exe` giả (lối tắt Store, thiếu pyodbc, pip lỗi); `tools\mdf2sql\tests` (unittest): doctor, cổng riêng, `/api/health`, `/api/shutdown`, từ chối khi thiếu mã vẫn trả 403 (không mất câu trả lời), `doctor --ket-qua` theo chuẩn của trạm, hộp thoại chọn file trong tiến trình con, CLI |
 
 ## Viết bài thử mới

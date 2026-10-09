@@ -3,15 +3,18 @@
   Bản 1.0 ghi hai giá trị này vào registry (Session Manager\kernel) nên không có tác dụng; bản này dùng bcdedit cho
   mục khởi động hiện tại ({current}), đọc lại để xác nhận, và dọn giá trị registry bản cũ đã ghi.
 
-  Không có -Mode: hiện menu (bấm đúp TOI_UU_DONG_HO.bat). -Mode <chế độ>: chạy thẳng (Trạm Tool dùng cách này).
+  Một phần của công cụ "Tối ưu Windows" (ToiUu.ps1); trước đây là công cụ riêng "Tối ưu đồng hồ hệ thống".
+  Không có -Mode: hiện menu (mục 3 của menu TOI_UU.bat). -Mode <chế độ>: chạy thẳng (Trạm Tool dùng cách này).
   Chế độ: kiem-tra (chỉ đọc), choi-game (tắt Dynamic Tick, bỏ ép HPET), mac-dinh (trả về mặc định của Windows).
   -ChayThu: chỉ in việc sẽ làm, không đổi máy. -KhongDung: không chờ Enter khi xong.
+  -KetQua <file>: kiem-tra ghi thêm các phát hiện (có mã, mức, nút gợi ý) vào file này để ToiUu.ps1 gộp.
   Mã thoát: 0 xong, 1 lỗi, 2 thiếu điều kiện (quyền Admin, BitLocker chưa tạm dừng), 3 làm được một phần.
 #>
 param(
     [string]$Mode = '',
     [switch]$ChayThu,
     [switch]$KhongDung,
+    [string]$KetQua = '',
     [switch]$DaNangQuyen   # đánh dấu cửa sổ đã mở lại bằng quyền Admin, để không hỏi UAC lần nữa
 )
 
@@ -72,6 +75,25 @@ function Wait-Close {
 function Test-IsAdmin {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
     return ([Security.Principal.WindowsPrincipal]$id).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# ---------------------------------------------------------------- phát hiện cho Trạm Tool
+$script:Findings = New-Object System.Collections.ArrayList
+function Add-Finding {
+    # Một phát hiện theo chuẩn tramtool.ketqua/1; $Tiep 'cong-cu/action' là nút gợi ý chạy tiếp trong Trạm.
+    param([string]$Ma, [string]$Muc, [string]$TieuDe, [string]$ChiTiet = '', [string]$CachSua = '', [string]$Tiep = '')
+    $f = [ordered]@{ ma = $Ma; mucDo = $Muc; tieuDe = $TieuDe; chiTiet = $ChiTiet; cachSua = $CachSua }
+    if ($Tiep -match '^([a-z0-9-]+)/([A-Za-z0-9_-]+)$') { $f['chayTiep'] = [ordered]@{ congCu = $Matches[1]; action = $Matches[2] } }
+    [void]$script:Findings.Add($f)
+}
+
+function Save-Findings {
+    # Ghi các phát hiện của lần Kiểm tra ra file cho ToiUu.ps1 gộp (ghi file tạm rồi đổi tên).
+    param([string]$Path)
+    $doc = [ordered]@{ phatHien = @($script:Findings.ToArray()) }
+    $tmp = "$Path.tmp"
+    [IO.File]::WriteAllText($tmp, ($doc | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding $false))
+    Move-Item -LiteralPath $tmp -Destination $Path -Force
 }
 
 # ---------------------------------------------------------------- BCD
@@ -171,27 +193,49 @@ function Show-State {
 
 function Invoke-KiemTra {
     Write-Head 'Thiết lập đồng hồ trong BCD (mục khởi động hiện tại)'
+    $script:Findings.Clear()
     $code = 0
+    $sua = 'Chạy "Trả đồng hồ về mặc định của Windows" rồi khởi động lại máy.'
     try {
         $state = Get-BcdState
         Show-State $state
         Write-Line ''
-        if ($state.useplatformclock.On) { Write-Warn 'Đang ép dùng HPET: trên máy đời mới thường làm game giật hơn. Nên trả về mặc định.' }
-        if ($state.useplatformtick.On) { Write-Warn 'Đang ép dùng đồng hồ nền tảng cho nhịp hẹn giờ: hiếm khi có lợi, nên trả về mặc định.' }
-        if ($state.disabledynamictick.On) { Write-Info 'Đang tắt Dynamic Tick: máy tốn điện hơn một chút khi rảnh (laptop tụt pin nhanh hơn). Không thấy game mượt hơn thì trả về mặc định.' }
-        if (-not ($state.Values | Where-Object { $_.Set })) { Write-Ok 'Đang để mặc định của Windows, hợp với đa số máy.' }
+        if ($state.useplatformclock.On) {
+            Write-Warn 'Đang ép dùng HPET: trên máy đời mới thường làm game giật hơn. Nên trả về mặc định.'
+            Add-Finding 'HPET_DANG_EP' 'canh-bao' 'Đang ép dùng HPET làm đồng hồ chính (useplatformclock)' 'Trên máy đời mới thường làm game giật hơn.' $sua 'toi-uu/mac-dinh-dong-ho'
+        }
+        if ($state.useplatformtick.On) {
+            Write-Warn 'Đang ép dùng đồng hồ nền tảng cho nhịp hẹn giờ: hiếm khi có lợi, nên trả về mặc định.'
+            Add-Finding 'PLATFORM_TICK_DANG_EP' 'canh-bao' 'Đang ép dùng đồng hồ nền tảng cho nhịp hẹn giờ (useplatformtick)' 'Hiếm khi có lợi.' $sua 'toi-uu/mac-dinh-dong-ho'
+        }
+        if ($state.disabledynamictick.On) {
+            Write-Info 'Đang tắt Dynamic Tick: máy tốn điện hơn một chút khi rảnh (laptop tụt pin nhanh hơn). Không thấy game mượt hơn thì trả về mặc định.'
+            Add-Finding 'DYNAMIC_TICK_TAT' 'thong-tin' 'Đang tắt Dynamic Tick (disabledynamictick)' 'Máy tốn điện hơn một chút khi rảnh, laptop tụt pin nhanh hơn.' 'Không thấy game mượt hơn thì chạy "Trả đồng hồ về mặc định của Windows".'
+        }
+        if (-not ($state.Values | Where-Object { $_.Set })) {
+            Write-Ok 'Đang để mặc định của Windows, hợp với đa số máy.'
+            Add-Finding 'DONG_HO_MAC_DINH' 'ok' 'Đồng hồ hệ thống đang để mặc định của Windows'
+        }
     } catch {
-        Write-Bad $_.Exception.Message
-        if (-not (Test-IsAdmin)) { Write-Sub 'Đọc BCD cần quyền Admin.' }
-        $code = $(if (Test-IsAdmin) { 1 } else { 2 })
+        $msg = $_.Exception.Message
+        Write-Bad $msg
+        $admin = Test-IsAdmin
+        if (-not $admin) { Write-Sub 'Đọc BCD cần quyền Admin.' }
+        $code = $(if ($admin) { 1 } else { 2 })
+        Add-Finding 'KHONG_DOC_DUOC_BCD' 'loi' 'Không đọc được thiết lập đồng hồ trong BCD' $msg $(if ($admin) { '' } else { 'Đọc BCD cần quyền Admin: chạy lại bằng quyền Admin.' })
     }
     $old = Get-OldRegistryValues
     if ($old.Count) {
-        Write-Warn ('Còn giá trị bản cũ ghi vào registry (Windows không đọc): {0}. Chế độ "Trả về mặc định" sẽ xoá.' -f (($old.Keys | ForEach-Object { "$_=$($old[$_])" }) -join ', '))
+        $list = ($old.Keys | ForEach-Object { "$_=$($old[$_])" }) -join ', '
+        Write-Warn ('Còn giá trị bản cũ ghi vào registry (Windows không đọc): {0}. Chế độ "Trả về mặc định" sẽ xoá.' -f $list)
+        Add-Finding 'GIA_TRI_REGISTRY_CU' 'thong-tin' 'Còn giá trị bản cũ của công cụ ghi vào registry' "$list trong Session Manager\kernel. Windows không đọc các giá trị này." 'Hai nút đổi thiết lập đồng hồ đều xoá chúng.' 'toi-uu/mac-dinh-dong-ho'
     }
     $bl = Get-OsBitLocker
     if ($bl.On) { Write-Info 'Ổ Windows đang bật BitLocker: khi đổi thiết lập, công cụ tạm dừng BitLocker 1 lần khởi động để máy không hỏi khoá khôi phục.' }
     elseif (-not $bl.Known) { Write-Info "Không đọc được BitLocker: $($bl.Message)" }
+    if ($KetQua) {
+        try { Save-Findings $KetQua } catch { Write-Bad ('Không ghi được file kết quả {0}: {1}' -f $KetQua, $_.Exception.Message.Trim()); return 1 }
+    }
     return $code
 }
 

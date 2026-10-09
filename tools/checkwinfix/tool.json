@@ -2,13 +2,13 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "checkwinfix",
   "name": "CheckWinFix: chẩn đoán máy Windows",
-  "version": "2026.10.2",
+  "version": "2026.10.3",
   "category": "chan-doan",
   "icon": "stethoscope",
   "audience": "all",
   "summary": "Bộ script chẩn đoán máy chậm, ổ cứng sắp hỏng, lỗi phần cứng WHEA, màn hình xanh và sụp nguồn; xuất báo cáo .txt để gửi người hỗ trợ.",
-  "description": "Chạy 'Thu thập thông tin' trước, đọc mục CẢNH BÁO TỰ ĐỘNG ở đầu báo cáo rồi mới chọn script chuyên sâu. Tất cả cần quyền Admin; các script chẩn đoán chỉ đọc.",
-  "tags": ["chẩn đoán", "máy chậm", "ổ cứng", "SMART", "WHEA", "màn hình xanh", "sụp nguồn", "nhật ký sự kiện", "cứu dữ liệu"],
+  "description": "Chạy 'Thu thập thông tin' trước: Trạm hiện các cảnh báo tự động (nghiêm trọng trước) và gợi ý script chuyên sâu nên chạy tiếp. Tất cả cần quyền Admin; các script chẩn đoán chỉ đọc. Báo cáo sức khoẻ máy cũ đã gộp vào đây: đánh dấu Kiểm tra sâu để có thêm DISM và chkdsk /scan.",
+  "tags": ["chẩn đoán", "máy chậm", "ổ cứng", "SMART", "WHEA", "màn hình xanh", "sụp nguồn", "nhật ký sự kiện", "cứu dữ liệu", "sức khoẻ", "báo cáo sức khoẻ", "DISM", "chkdsk", "sfc"],
   "docs": "HUONG-DAN.md",
   "actions": [
     {
@@ -20,8 +20,15 @@
       "selfElevates": true,
       "risk": "read-only",
       "primary": true,
-      "duration": "1,5-3 phút",
-      "description": "Đọc 24 nhóm thông tin (ổ đĩa, SMART, CPU, RAM, khởi động, dịch vụ, nhật ký lỗi, dòng thời gian 90 ngày...) và tự chấm khoảng 45 cảnh báo. Hỏi 2 câu, Enter để bỏ qua. Xuất LagReport_<máy>_<giờ>.txt cạnh file .bat, mở Notepad và chép đường dẫn báo cáo vào clipboard."
+      "duration": "1,5-3 phút; kiểm tra sâu thêm 5-20 phút",
+      "description": "Đọc 24 nhóm thông tin (ổ đĩa, SMART, CPU, RAM, khởi động, dịch vụ, nhật ký lỗi, dòng thời gian 90 ngày...) và tự chấm khoảng 60 cảnh báo, mỗi cảnh báo một mã cố định. Xuất LagReport_<máy>_<giờ>.txt và KetQua_CheckWinFix_ThuThap_<máy>_<giờ>.json cạnh file .bat, mở Notepad. Chạy từ trạm thì hai câu hỏi nằm trong form, cửa sổ không hỏi gì; bấm đúp file .bat thì cửa sổ hỏi 3 câu, Enter để bỏ qua.",
+      "fixedArgs": ["-KhongHoi"],
+      "args": [
+        { "id": "bat-dau", "type": "text", "flag": "-BatDau", "label": "Máy bắt đầu chậm hoặc lỗi từ khi nào?", "placeholder": "vd 10/09/2026 hoặc khoảng 2 tuần trước" },
+        { "id": "trieu-chung", "type": "text", "flag": "-TrieuChung", "label": "Chậm hoặc lỗi thế nào?", "placeholder": "vd mở máy lâu, Excel giật, quạt kêu to" },
+        { "id": "kiem-tra-sau", "type": "bool", "flag": "-KiemTraSau", "label": "Kiểm tra sâu: ảnh Windows (DISM) và lỗi hệ thống file từng ổ (chkdsk /scan), thêm 5-20 phút",
+          "help": "Chỉ đọc, không sửa gì. Thay cho Báo cáo sức khoẻ máy cũ (sfc /verifyonly, chkdsk /scan)." }
+      ]
     },
     {
       "id": "phan-cung",
@@ -94,6 +101,8 @@
   "outputs": [
     { "label": "Báo cáo máy chậm", "glob": "LagReport_%COMPUTERNAME%_*.txt" },
     { "label": "Báo cáo máy chậm (lưu ra Desktop)", "dir": "{Desktop}", "glob": "LagReport_%COMPUTERNAME%_*.txt" },
+    { "label": "Kết quả Thu thập thông tin", "glob": "KetQua_CheckWinFix_ThuThap_%COMPUTERNAME%_*.json", "ketQua": true },
+    { "label": "Kết quả Thu thập thông tin (lưu ra Desktop)", "dir": "{Desktop}", "glob": "KetQua_CheckWinFix_ThuThap_%COMPUTERNAME%_*.json", "ketQua": true },
     { "label": "Báo cáo phần cứng", "glob": "HwDiag_%COMPUTERNAME%_*.txt" },
     { "label": "Giải mã WHEA", "glob": "WheaDecode_%COMPUTERNAME%_*.txt" },
     { "label": "Báo cáo sụp nguồn", "glob": "SupNguon_%COMPUTERNAME%_*.txt" },
@@ -110,11 +119,11 @@
   "issues": [
     "Đọc chữ trong thông điệp sự kiện tiếng Anh ở một số mục (ngoài bảng cảnh báo): Windows ngôn ngữ khác có thể bị bỏ sót; CSV theo dõi sụp nguồn lệch cột khi số thập phân dùng dấu phẩy.",
     "Cứu dữ liệu bản 2.0 mới thử bằng giả lập (dịch vụ SQL, ổ vật lý, robocopy giả); chưa chạy lại trên máy giữ xe thật.",
-    "Bảng cảnh báo đếm cả lỗi của ổ USB bị rút khi đang ghi (disk 51, Ntfs 140); dòng cảnh báo ghi số Disk để đối chiếu với mục ổ đĩa."
+    "Lỗi Ntfs 140 (không ghi được dữ liệu) không ghi số ổ nên vẫn tính cả lần rút ổ USB khi đang ghi. Lỗi của nguồn disk thì đã tách: ổ USB hoặc ổ đã rút ra chỉ là cảnh báo."
   ],
   "upgrades": [
     "P1: Gom phần dùng chung (khởi chạy, đọc SMART, minidump, WHEA) vào một lõi, build ra từng .bat như MyExcelFix.",
-    "P1: Xuất thêm JSON kết quả (máy, thời gian, phát hiện, mức độ) để Trạm Tool hiển thị và gợi ý script tiếp theo.",
+    "P1: JSON kết quả cho các script chuyên sâu (phần cứng, WHEA, sụp nguồn) như Thu thập thông tin.",
     "P1: Đọc trường sự kiện từ EventData thay vì chữ trong thông điệp ở các mục còn lại để chạy đúng trên Windows mọi ngôn ngữ."
   ]
 }

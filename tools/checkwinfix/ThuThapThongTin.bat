@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 chcp 65001 >nul 2>&1
-title CheckWinFix - Thu thap thong tin may Windows bi cham (v1.0)
+title CheckWinFix - Thu thap thong tin may Windows bi cham (v2026.10.3)
 
 set "SELF=%~f0"
 set "OUTDIR=%~dp0"
@@ -9,7 +9,7 @@ if "%OUTDIR:~-1%"=="\" set "OUTDIR=%OUTDIR:~0,-1%"
 
 echo.
 echo  ==========================================================================
-echo    CheckWinFix  ^|  THU THAP THONG TIN MAY WINDOWS BI CHAM  ^|  v1.0
+echo    CheckWinFix  ^|  THU THAP THONG TIN MAY WINDOWS BI CHAM  ^|  v2026.10.3
 echo  --------------------------------------------------------------------------
 echo    Script nay CHI DOC thong tin de chan doan.
 echo    KHONG xoa, KHONG sua, KHONG cai dat gi tren may.
@@ -45,7 +45,9 @@ set "PS1=%TEMP%\CheckWinFix_Collect_%RANDOM%.ps1"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$r=Get-Content -LiteralPath $env:SELF -Raw -Encoding UTF8; $m='#====='+'PS_START'+'====='; $i=$r.IndexOf($m); if($i -lt 0){exit 1}; [IO.File]::WriteAllText($env:PS1, $r.Substring($i+$m.Length), (New-Object Text.UTF8Encoding $true)); exit 0"
 if errorlevel 1 goto :ERR_SPLIT
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PS1%" -OutDir "%OUTDIR%"
+rem Tham so (vd tu Tram Tool: -KhongHoi -BatDau "..." -TrieuChung "..." -KiemTraSau) chuyen nguyen cho PowerShell.
+rem Khi script tu mo lai bang quyen Admin thi tham so khong theo sang (Tram Tool luon mo bang quyen Admin).
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PS1%" -OutDir "%OUTDIR%" %*
 set "RC=%ERRORLEVEL%"
 del /f /q "%PS1%" >nul 2>&1
 echo.
@@ -71,14 +73,22 @@ exit /b 1
 #=====PS_START=====
 <#
   CheckWinFix - Bo thu thap thong tin chan doan may Windows bi cham dot ngot
-  Phien ban : 1.0
+  Phien ban : 2026.10.3
   Tinh chat : CHI DOC (read-only). Khong thay doi bat ky thiet lap nao.
 #>
-param([string]$OutDir = "")
+[CmdletBinding(PositionalBinding = $false)]
+param(
+  [string]$OutDir = "",
+  [string]$BatDau = "",        # cau 1: may bat dau cham tu khi nao (form cua Tram Tool)
+  [string]$TrieuChung = "",    # cau 2: cham the nao
+  [switch]$KhongHoi,           # khong hoi trong cua so (Tram Tool da hoi bang form)
+  [switch]$KiemTraSau,         # them anh Windows (DISM /ScanHealth) va loi he thong file (chkdsk /scan), 5-20 phut
+  [Parameter(ValueFromRemainingArguments = $true)] $ConLai   # /danangquyen cua phan .bat
+)
 
 $ErrorActionPreference = 'SilentlyContinue'
 $ProgressPreference    = 'SilentlyContinue'
-$SCRIPT_VER = '1.0'
+$SCRIPT_VER = '2026.10.3'
 $TOTAL      = 24
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 try { $Host.UI.RawUI.WindowTitle = 'CheckWinFix - dang thu thap thong tin...' } catch {}
@@ -93,7 +103,15 @@ function W  { param([string]$t = '') [void]$script:SB.AppendLine($t) }
 function KV { param($k, $v) W ("  {0,-30}: {1}" -f $k, $v) }
 function HDR { param([string]$t) W ''; W ('=' * 90); W ("  $t"); W ('=' * 90) }
 function SH { param([string]$t) W ''; W ("  --- $t " + ('-' * [Math]::Max(1, 78 - $t.Length))) }
-function FLAG { param([string]$t) if (-not $script:FLAGS.Contains($t)) { [void]$script:FLAGS.Add($t) } }
+function FLAG {
+  # Canh bao tu dong: ma co dinh (khong doi khi sua chu), muc do (loi | canh-bao | thong-tin) va viec nen chay tiep
+  # (<id cong cu>/<id action> trong Tram Tool). Ghi vao bao cao va file KetQua_*.json.
+  param([string]$Ma, [string]$t, [string]$Muc = 'canh-bao', [string]$Tiep = '')
+  foreach ($x in $script:FLAGS) { if ($x.tieuDe -eq $t) { return } }
+  $f = [ordered]@{ ma = $Ma; mucDo = $Muc; tieuDe = $t; chiTiet = ''; cachSua = '' }
+  if ($Tiep -match '^([a-z0-9-]+)/([A-Za-z0-9_-]+)$') { $f['chayTiep'] = [ordered]@{ congCu = $Matches[1]; action = $Matches[2] } }
+  [void]$script:FLAGS.Add($f)
+}
 
 function WL {
   param($o, [int]$Width = 200)
@@ -181,11 +199,20 @@ try {
 $stamp      = Get-Date -Format 'yyyyMMdd_HHmmss'
 $reportPath = Join-Path $OutDir ("LagReport_{0}_{1}.txt" -f $env:COMPUTERNAME, $stamp)
 
-Write-Host ''
-Write-Host '  Tra loi nhanh 2 cau hoi (bam Enter de bo qua):' -ForegroundColor Yellow
-Write-Host ''
-$ansWhen = Read-Host '  1) May bat dau cham tu khi nao? (vd: 10/09/2026 hoac "khoang 2 tuan truoc")'
-$ansWhat = Read-Host '  2) Cham the nao? (vd: mo may lau, Chrome giat, chuot lag, keu quat to...)'
+$ansWhen = $BatDau
+$ansWhat = $TrieuChung
+if (-not $KhongHoi) {
+  Write-Host ''
+  Write-Host '  Tra loi nhanh 3 cau hoi (bam Enter de bo qua):' -ForegroundColor Yellow
+  Write-Host ''
+  if (-not $ansWhen) { $ansWhen = Read-Host '  1) May bat dau cham tu khi nao? (vd: 10/09/2026 hoac "khoang 2 tuan truoc")' }
+  if (-not $ansWhat) { $ansWhat = Read-Host '  2) Cham the nao? (vd: mo may lau, Chrome giat, chuot lag, keu quat to...)' }
+  if (-not $KiemTraSau) {
+    $ansDeep = Read-Host '  3) Kiem tra them anh Windows (DISM) va loi he thong file (chkdsk /scan)? Mat them 5-20 phut. (C/K, Enter = khong)'
+    if ($ansDeep -match '^\s*(c|co|y|yes)\s*$') { $KiemTraSau = [switch]$true }
+  }
+}
+if ($KiemTraSau) { $TOTAL = 25 }
 Write-Host ''
 Write-Host '  Dang thu thap. Vui long cho 1-3 phut, KHONG tat cua so nay.' -ForegroundColor Yellow
 Write-Host ''
@@ -211,7 +238,7 @@ Sec 'Thong tin may va he dieu hanh' {
   KV 'Ten may'             $env:COMPUTERNAME
   KV 'Nguoi dung dang chay' ("{0}\{1}" -f $env:USERDOMAIN, $env:USERNAME)
   KV 'Chay voi quyen Admin' $isAdmin
-  if (-not $isAdmin) { FLAG 'BAO CAO NAY THIEU DU LIEU: script khong chay bang quyen Administrator nen khong doc duoc SMART o dia, nhat ky hieu nang va nhieu muc quan trong. Hay chuot phai file .bat > Run as administrator va chay lai.' }
+  if (-not $isAdmin) { FLAG 'THIEU_QUYEN_ADMIN' 'BAO CAO NAY THIEU DU LIEU: script khong chay bang quyen Administrator nen khong doc duoc SMART o dia, nhat ky hieu nang va nhieu muc quan trong. Hay chuot phai file .bat > Run as administrator va chay lai.' }
   KV 'Hang / Model'        ("{0} / {1}" -f $cs.Manufacturer, $cs.Model)
   $ptype = switch ([int]$cs.PCSystemType) { 1 {'Desktop'} 2 {'Laptop / May di dong'} 3 {'Workstation'} 4 {'Enterprise Server'} default {"Khac ($($cs.PCSystemType))"} }
   KV 'Loai may'            $ptype
@@ -227,7 +254,7 @@ Sec 'Thong tin may va he dieu hanh' {
   if ($boot) {
     $up = (Get-Date) - $boot
     KV 'Da bat lien tuc'   ("{0} ngay {1} gio {2} phut" -f $up.Days, $up.Hours, $up.Minutes)
-    if ($up.TotalDays -ge 7) { FLAG ("May da bat lien tuc {0:N0} ngay chua khoi dong lai - bo nho bi phan manh, nen restart." -f $up.TotalDays) }
+    if ($up.TotalDays -ge 7) { FLAG 'CHUA_KHOI_DONG_LAI' ("May da bat lien tuc {0:N0} ngay chua khoi dong lai - bo nho bi phan manh, nen restart." -f $up.TotalDays) }
   }
   KV 'BIOS'                ("{0} | {1} | ngay {2:yyyy-MM-dd}" -f $bios.Manufacturer, $bios.SMBIOSBIOSVersion, (AsDate $bios.ReleaseDate))
   KV 'Serial may'          $bios.SerialNumber
@@ -257,7 +284,7 @@ Sec 'CPU - xung nhip va dau hieu bop xung (throttle)' {
     if ($c.MaxClockSpeed -gt 0 -and $c.CurrentClockSpeed -gt 0) {
       $pct = [math]::Round(100.0 * $c.CurrentClockSpeed / $c.MaxClockSpeed, 0)
       KV '  Ty le xung/max' ("{0} %" -f $pct)
-      if ($pct -lt 70) { FLAG ("CPU dang chay o {0}% xung toi da ({1}/{2} MHz) - RAT CO THE bi bop xung (nong, pin/sac hong, hoac Power plan gioi han)." -f $pct, $c.CurrentClockSpeed, $c.MaxClockSpeed) }
+      if ($pct -lt 70) { FLAG 'CPU_BOP_XUNG' ("CPU dang chay o {0}% xung toi da ({1}/{2} MHz) - RAT CO THE bi bop xung (nong, pin/sac hong, hoac Power plan gioi han)." -f $pct, $c.CurrentClockSpeed, $c.MaxClockSpeed) }
     }
   }
   SH 'Tan so thuc te theo bo dem hieu nang (Processor Information)'
@@ -273,10 +300,10 @@ Sec 'CPU - xung nhip va dau hieu bop xung (throttle)' {
           @{n='MHz';e={$_.ProcessorFrequency}} | Sort-Object Name | Format-Table -AutoSize)
     $tot = $pi | Where-Object { $_.Name -eq '_Total' } | Select-Object -First 1
     if ($tot -and $tot.PercentofMaximumFrequency -gt 0 -and $tot.PercentofMaximumFrequency -lt 60) {
-      FLAG ("CPU chi chay o {0}% tan so toi da (bo dem hieu nang) - dau hieu bi throttle vi nhiet do / nguon dien." -f $tot.PercentofMaximumFrequency)
+      FLAG 'CPU_BOP_XUNG' ("CPU chi chay o {0}% tan so toi da (bo dem hieu nang) - dau hieu bi throttle vi nhiet do / nguon dien." -f $tot.PercentofMaximumFrequency)
     }
     if ($tot -and ($tot.PercentInterruptTime + $tot.PercentDPCTime) -gt 12) {
-      FLAG ("Thoi gian Interrupt+DPC cao ({0}%) - thuong do DRIVER loi (mang/chipset/card man hinh) gay giat lag." -f ($tot.PercentInterruptTime + $tot.PercentDPCTime))
+      FLAG 'DPC_CAO' ("Thoi gian Interrupt+DPC cao ({0}%) - thuong do DRIVER loi (mang/chipset/card man hinh) gay giat lag." -f ($tot.PercentInterruptTime + $tot.PercentDPCTime))
     }
   } else { W '  (khong doc duoc bo dem ProcessorInformation)' }
 }
@@ -292,8 +319,8 @@ Sec 'Bo nho RAM va bo nho ao (pagefile)' {
   KV 'RAM da dung'       ("{0} %" -f $usedPct)
   KV 'Commit da dung'    (FmtGB ([double]$os.TotalVirtualMemorySize * 1KB - [double]$os.FreeVirtualMemory * 1KB))
   KV 'Commit gioi han'   (FmtGB ([double]$os.TotalVirtualMemorySize * 1KB))
-  if ($totKB -gt 0 -and ($totKB * 1KB) -lt 4.5GB) { FLAG ("May chi co {0} RAM - qua it cho Windows 10/11, day la nguyen nhan cham co ban." -f (FmtGB ($totKB*1KB))) }
-  if ($usedPct -ge 88) { FLAG ("RAM dang day {0}% - may se swap ra o dia va cham nghiem trong." -f $usedPct) }
+  if ($totKB -gt 0 -and ($totKB * 1KB) -lt 4.5GB) { FLAG 'RAM_IT' ("May chi co {0} RAM - qua it cho Windows 10/11, day la nguyen nhan cham co ban." -f (FmtGB ($totKB*1KB))) }
+  if ($usedPct -ge 88) { FLAG 'RAM_DAY' ("RAM dang day {0}% - may se swap ra o dia va cham nghiem trong." -f $usedPct) }
 
   SH 'Thanh RAM dang gan'
   WL (Cim Win32_PhysicalMemory | Select-Object @{n='Khe';e={$_.DeviceLocator}}, @{n='Dung luong';e={FmtGB $_.Capacity}},
@@ -306,7 +333,7 @@ Sec 'Bo nho RAM va bo nho ao (pagefile)' {
   $pfs = @(Cim Win32_PageFileSetting)
   if ($pfs) { WL ($pfs | Select-Object Name, InitialSize, MaximumSize | Format-Table -AutoSize) }
   if (-not (Cim Win32_PageFileUsage) -and -not $cs.AutomaticManagedPagefile) {
-    FLAG 'Pagefile (bo nho ao) dang bi TAT - Windows se treo/cham nang khi het RAM.'
+    FLAG 'PAGEFILE_TAT' 'Pagefile (bo nho ao) dang bi TAT - Windows se treo/cham nang khi het RAM.'
   }
 
   SH 'Pool bo nho nhan (phat hien ro ri driver)'
@@ -316,8 +343,8 @@ Sec 'Bo nho RAM va bo nho ao (pagefile)' {
     KV 'PoolPagedBytes'    (FmtMB $mem.PoolPagedBytes)
     KV 'AvailableMBytes'   ("{0} MB" -f $mem.AvailableMBytes)
     KV '%CommittedInUse'   $mem.PercentCommittedBytesInUse
-    if ([double]$mem.PoolNonpagedBytes -gt 1.2GB) { FLAG ("PoolNonpaged = {0} - RAT CAO, nghi ro ri bo nho do driver." -f (FmtMB $mem.PoolNonpagedBytes)) }
-    if ([double]$mem.PercentCommittedBytesInUse -gt 90) { FLAG ("Bo nho commit da dung {0}% - sap het bo nho ao." -f $mem.PercentCommittedBytesInUse) }
+    if ([double]$mem.PoolNonpagedBytes -gt 1.2GB) { FLAG 'RO_RI_BO_NHO' ("PoolNonpaged = {0} - RAT CAO, nghi ro ri bo nho do driver." -f (FmtMB $mem.PoolNonpagedBytes)) }
+    if ([double]$mem.PercentCommittedBytesInUse -gt 90) { FLAG 'BO_NHO_AO_SAP_HET' ("Bo nho commit da dung {0}% - sap het bo nho ao." -f $mem.PercentCommittedBytesInUse) }
   }
 }
 
@@ -336,7 +363,7 @@ Sec 'O dia vat ly, suc khoe SMART' {
       KV 'Firmware'           $d.FirmwareVersion
       KV 'SpindleSpeed'       $d.SpindleSpeed
       if ("$($d.MediaType)" -eq 'HDD' -or ($d.SpindleSpeed -gt 0 -and $d.SpindleSpeed -lt 65535)) { $anyHDD = $true }
-      if ("$($d.HealthStatus)" -ne 'Healthy') { FLAG ("O dia '{0}' co HealthStatus = {1} - O DIA DANG HONG, sao luu du lieu ngay." -f $d.FriendlyName, $d.HealthStatus) }
+      if ("$($d.HealthStatus)" -ne 'Healthy') { FLAG 'O_DIA_KHONG_KHOE' -Muc 'loi' -Tiep 'checkwinfix/phan-cung' ("O dia '{0}' co HealthStatus = {1} - O DIA DANG HONG, sao luu du lieu ngay." -f $d.FriendlyName, $d.HealthStatus) }
       try {
         $rc = $d | Get-StorageReliabilityCounter -ErrorAction Stop
         if ($rc) {
@@ -347,10 +374,10 @@ Sec 'O dia vat ly, suc khoe SMART' {
           KV 'SMART - Loi ghi'         ("Corrected={0}  Uncorrected={1}" -f $rc.WriteErrorsCorrected, $rc.WriteErrorsUncorrected)
           KV 'SMART - StartStopCycle'  $rc.StartStopCycleCount
           if ([double]$rc.ReadErrorsUncorrected -gt 0 -or [double]$rc.WriteErrorsUncorrected -gt 0) {
-            FLAG ("O dia '{0}' co loi doc/ghi KHONG sua duoc - o dia dang hong, day la nguyen nhan cham hang dau." -f $d.FriendlyName)
+            FLAG 'O_DIA_LOI_DOC_GHI' -Muc 'loi' -Tiep 'checkwinfix/phan-cung' ("O dia '{0}' co loi doc/ghi KHONG sua duoc - o dia dang hong, day la nguyen nhan cham hang dau." -f $d.FriendlyName)
           }
-          if ([double]$rc.Wear -ge 90) { FLAG ("SSD '{0}' da hao mon {1}% - gan het tuoi tho." -f $d.FriendlyName, $rc.Wear) }
-          if ([double]$rc.Temperature -ge 60) { FLAG ("O dia '{0}' nong {1}C - co the bi giam toc do bao ve." -f $d.FriendlyName, $rc.Temperature) }
+          if ([double]$rc.Wear -ge 90) { FLAG 'SSD_HAO_MON' -Tiep 'checkwinfix/phan-cung' ("SSD '{0}' da hao mon {1}% - gan het tuoi tho." -f $d.FriendlyName, $rc.Wear) }
+          if ([double]$rc.Temperature -ge 60) { FLAG 'O_DIA_NONG' ("O dia '{0}' nong {1}C - co the bi giam toc do bao ve." -f $d.FriendlyName, $rc.Temperature) }
         }
       } catch { W '  (khong doc duoc StorageReliabilityCounter - can quyen Admin hoac o dia khong ho tro)' }
     }
@@ -358,7 +385,7 @@ Sec 'O dia vat ly, suc khoe SMART' {
     W '  (Get-PhysicalDisk khong kha dung - dung Win32_DiskDrive)'
     WL (Cim Win32_DiskDrive | Select-Object Model, InterfaceType, @{n='Size';e={FmtGB $_.Size}}, Status, Partitions | Format-Table -AutoSize)
   }
-  if ($anyHDD) { FLAG 'May dang dung o cung co (HDD) lam o he thong - Windows 10/11 tren HDD se rat cham, nang cap SSD la cach sua triet de nhat.' }
+  if ($anyHDD) { FLAG 'O_HE_THONG_HDD' 'May dang dung o cung co (HDD) lam o he thong - Windows 10/11 tren HDD se rat cham, nang cap SSD la cach sua triet de nhat.' }
 
   SH 'Canh bao hong o dia tu driver (SMART FailurePredict)'
   $fps = @(Cim MSStorageDriver_FailurePredictStatus 'root\wmi')
@@ -367,7 +394,7 @@ Sec 'O dia vat ly, suc khoe SMART' {
       KV 'O dia' $f.InstanceName
       KV '  Du doan se hong' $f.PredictFailure
       KV '  Ma ly do'        $f.Reason
-      if ($f.PredictFailure) { FLAG ("SMART bao o dia '{0}' SAP HONG (PredictFailure=TRUE). Sao luu ngay va thay o." -f $f.InstanceName) }
+      if ($f.PredictFailure) { FLAG 'SMART_SAP_HONG' -Muc 'loi' -Tiep 'checkwinfix/phan-cung' ("SMART bao o dia '{0}' SAP HONG (PredictFailure=TRUE). Sao luu ngay va thay o." -f $f.InstanceName) }
     }
   } else { W '  (khong co du lieu - thuong gap voi o NVMe hoac o USB)' }
 
@@ -398,9 +425,9 @@ Sec 'O dia vat ly, suc khoe SMART' {
         if ($names.ContainsKey($id)) { $nm = $names[$id] }
         W ('    {0,-28} {1,-5} {2,-6} {3,-6} {4}' -f $nm, $id, $v[$b+3], $v[$b+4], $raw)
         if ($critical -contains $id -and $raw -gt 0) {
-          FLAG ("SMART: {0} (ID {1}) = {2} tren o '{3}' - O DIA CO BAD SECTOR / LOI PHAN CUNG. Day thuong la nguyen nhan may dot nhien cham." -f $nm, $id, $raw, $disk.InstanceName)
+          FLAG 'SMART_BAD_SECTOR' -Muc 'loi' -Tiep 'checkwinfix/phan-cung' ("SMART: {0} (ID {1}) = {2} tren o '{3}' - O DIA CO BAD SECTOR / LOI PHAN CUNG. Day thuong la nguyen nhan may dot nhien cham." -f $nm, $id, $raw, $disk.InstanceName)
         }
-        if ($id -eq 199 -and $raw -gt 10) { FLAG ("SMART: UDMA_CRC_Error = {0} - CAP SATA long/hong hoac cong SATA kem." -f $raw) }
+        if ($id -eq 199 -and $raw -gt 10) { FLAG 'SATA_CRC' -Tiep 'checkwinfix/phan-cung' ("SMART: UDMA_CRC_Error = {0} - CAP SATA long/hong hoac cong SATA kem." -f $raw) }
       }
     }
   } else { W '  (khong doc duoc bang thuoc tinh SMART)' }
@@ -415,7 +442,7 @@ Sec 'Dung luong o dia va file rac' {
   foreach ($ld in (Cim Win32_LogicalDisk -Filter 'DriveType=3')) {
     if ([double]$ld.Size -gt 0) {
       $fp = [math]::Round(100.0 * [double]$ld.FreeSpace / [double]$ld.Size, 1)
-      if ($fp -lt 10) { FLAG ("O {0} chi con {1}% trong ({2}) - Windows can >10-15% trong de chay muot." -f $ld.DeviceID, $fp, (FmtGB $ld.FreeSpace)) }
+      if ($fp -lt 10) { FLAG 'O_DIA_SAP_DAY' -Tiep $(if ($ld.DeviceID -eq $env:SystemDrive) { 'don-o-c/kiem-tra' } else { '' }) ("O {0} chi con {1}% trong ({2}) - Windows can >10-15% trong de chay muot." -f $ld.DeviceID, $fp, (FmtGB $ld.FreeSpace)) }
     }
   }
 
@@ -423,7 +450,7 @@ Sec 'Dung luong o dia va file rac' {
   foreach ($ld in (Cim Win32_LogicalDisk -Filter 'DriveType=3')) {
     $r = (cmd /c "fsutil dirty query $($ld.DeviceID)" 2>&1) -join ' '
     KV $ld.DeviceID (Trunc $r 120)
-    if ($r -match 'is Dirty|la Dirty|bi Dirty') { FLAG ("O {0} bi danh dau DIRTY - he thong file dang loi, can chay chkdsk." -f $ld.DeviceID) }
+    if ($r -match 'is Dirty|la Dirty|bi Dirty') { FLAG 'O_DIA_DIRTY' -Muc 'loi' -Tiep 'fix-win/o-dia-sua' ("O {0} bi danh dau DIRTY - he thong file dang loi, can chay chkdsk." -f $ld.DeviceID) }
   }
 
   SH 'Thu muc rac / phinh to'
@@ -437,7 +464,7 @@ Sec 'Dung luong o dia va file rac' {
   if (Test-Path -LiteralPath $edb) {
     $sz = (Get-Item -LiteralPath $edb).Length
     KV 'Chi muc tim kiem (.edb)' (FmtMB $sz)
-    if ($sz -gt 4GB) { FLAG ("File chi muc Windows Search = {0} - qua lon, dich vu SearchIndexer co the dang an het CPU/o dia." -f (FmtMB $sz)) }
+    if ($sz -gt 4GB) { FLAG 'CHI_MUC_TIM_KIEM_LON' ("File chi muc Windows Search = {0} - qua lon, dich vu SearchIndexer co the dang an het CPU/o dia." -f (FmtMB $sz)) }
   }
   foreach ($f in @("$env:SystemDrive\pagefile.sys", "$env:SystemDrive\hiberfil.sys", "$env:SystemDrive\swapfile.sys")) {
     try { $fi = Get-Item -LiteralPath $f -Force -ErrorAction Stop; KV (Split-Path $f -Leaf) (FmtMB $fi.Length) } catch { KV (Split-Path $f -Leaf) 'khong co / khong doc duoc' }
@@ -458,13 +485,13 @@ Sec 'Do hieu nang thoi gian thuc (3 lan, moi lan cach 4 giay)' {
     W ("  --- Lan do {0} ---" -f $i)
     if ($p) { W ("    CPU: tong={0}%  kernel={1}%  interrupt={2}%  DPC={3}%  ngat/s={4}" -f $p.PercentProcessorTime, $p.PercentPrivilegedTime, $p.PercentInterruptTime, $p.PercentDPCTime, $p.InterruptsPersec) }
     if ($sy) { W ("    He thong: hang doi CPU={0}  chuyen ngu canh/s={1}  system call/s={2}" -f $sy.ProcessorQueueLength, $sy.ContextSwitchesPersec, $sy.SystemCallsPersec)
-               if ([double]$sy.ProcessorQueueLength -gt (2 * $nlp)) { FLAG ("Hang doi CPU = {0} (nhieu hon 2x so luong CPU) - CPU dang bi qua tai." -f $sy.ProcessorQueueLength) } }
+               if ([double]$sy.ProcessorQueueLength -gt (2 * $nlp)) { FLAG 'CPU_QUA_TAI' ("Hang doi CPU = {0} (nhieu hon 2x so luong CPU) - CPU dang bi qua tai." -f $sy.ProcessorQueueLength) } }
     if ($mm) { W ("    Bo nho: trong={0}MB  page/s={1}  pagefault/s={2}  %commit={3}" -f $mm.AvailableMBytes, $mm.PagesPerSec, $mm.PageFaultsPersec, $mm.PercentCommittedBytesInUse)
-               if ([double]$mm.PagesPerSec -gt 1000) { FLAG ("Pages/sec = {0} - may dang doc/ghi bo nho ao lien tuc (thieu RAM) => cuc ky cham." -f $mm.PagesPerSec) } }
+               if ([double]$mm.PagesPerSec -gt 1000) { FLAG 'THIEU_RAM_PAGING' ("Pages/sec = {0} - may dang doc/ghi bo nho ao lien tuc (thieu RAM) => cuc ky cham." -f $mm.PagesPerSec) } }
     foreach ($d in ($dk | Sort-Object Name)) {
       W ("    O dia [{0,-10}] %Idle={1,-4} %DiskTime={2,-5} Queue={3,-4} Doc={4,8} KB/s Ghi={5,8} KB/s" -f $d.Name, $d.PercentIdleTime, $d.PercentDiskTime, $d.CurrentDiskQueueLength, [math]::Round([double]$d.DiskReadBytesPersec/1KB), [math]::Round([double]$d.DiskWriteBytesPersec/1KB))
       if ($d.Name -eq '_Total' -and [double]$d.PercentIdleTime -lt 15 -and $i -ge 2) {
-        FLAG ("O dia dang ban gan 100% (%Idle={0}) ngay ca luc khong lam gi - kinh dien cua loi '100% disk'." -f $d.PercentIdleTime)
+        FLAG 'O_DIA_100' ("O dia dang ban gan 100% (%Idle={0}) ngay ca luc khong lam gi - kinh dien cua loi '100% disk'." -f $d.PercentIdleTime)
       }
     }
     if ($i -lt 3) { Start-Sleep -Seconds 4 }
@@ -489,12 +516,12 @@ Sec 'Tien trinh dang an CPU / RAM / o dia' {
     $cpuP = [math]::Round([double]$x.PercentProcessorTime / $nlp, 1)
     W ('  {0,7} {1,10} {2,11} {3,8}  {4,-26} {5}' -f $cpuP, [math]::Round([double]$x.WorkingSetPrivate/1MB), [math]::Round([double]$x.IODataBytesPersec/1KB), $pid2, (Trunc $x.Name 26), (Trunc $path 70))
     if ($cpuP -ge 25 -and $x.Name -notmatch '^(System|Registry|MsMpEng|TiWorker|SearchIndexer|explorer)') {
-      FLAG ("Tien trinh '{0}' (PID {1}) dang an {2}% CPU lien tuc. Duong dan: {3}" -f $x.Name, $pid2, $cpuP, $path)
+      FLAG 'TIEN_TRINH_AN_CPU' ("Tien trinh '{0}' (PID {1}) dang an {2}% CPU lien tuc. Duong dan: {3}" -f $x.Name, $pid2, $cpuP, $path)
     }
-    if ($x.Name -match 'MsMpEng' -and $cpuP -ge 20) { FLAG ("Windows Defender (MsMpEng) an {0}% CPU - dang quet hoac bi xung dot voi phan mem diet virus khac." -f $cpuP) }
-    if ($x.Name -match 'TiWorker|TrustedInstaller' -and $cpuP -ge 15) { FLAG 'TiWorker/TrustedInstaller dang an CPU - Windows Update dang cai dat nen (hoac bi ket).' }
-    if ($x.Name -match 'SearchIndexer|SearchProtocolHost|SearchFilterHost' -and $cpuP -ge 15) { FLAG 'Windows Search dang lap chi muc lai toan bo o dia - cham tam thoi hoac bi ket.' }
-    if ($path -match '\\AppData\\|\\Temp\\|\\ProgramData\\' -and $cpuP -ge 10) { FLAG ("NGHI NGO: '{0}' chay tu thu muc tam/AppData va an {1}% CPU - can kiem tra ma doc/dao tien ao. {2}" -f $x.Name, $cpuP, $path) }
+    if ($x.Name -match 'MsMpEng' -and $cpuP -ge 20) { FLAG 'DEFENDER_AN_CPU' ("Windows Defender (MsMpEng) an {0}% CPU - dang quet hoac bi xung dot voi phan mem diet virus khac." -f $cpuP) }
+    if ($x.Name -match 'TiWorker|TrustedInstaller' -and $cpuP -ge 15) { FLAG 'WINDOWS_UPDATE_CHAY_NEN' 'TiWorker/TrustedInstaller dang an CPU - Windows Update dang cai dat nen (hoac bi ket).' }
+    if ($x.Name -match 'SearchIndexer|SearchProtocolHost|SearchFilterHost' -and $cpuP -ge 15) { FLAG 'WINDOWS_SEARCH_LAP_CHI_MUC' 'Windows Search dang lap chi muc lai toan bo o dia - cham tam thoi hoac bi ket.' }
+    if ($path -match '\\AppData\\|\\Temp\\|\\ProgramData\\' -and $cpuP -ge 10) { FLAG 'NGHI_MA_DOC' -Muc 'loi' ("NGHI NGO: '{0}' chay tu thu muc tam/AppData va an {1}% CPU - can kiem tra ma doc/dao tien ao. {2}" -f $x.Name, $cpuP, $path) }
   }
 
   SH 'TOP 15 theo RAM'
@@ -523,7 +550,7 @@ Sec 'Tien trinh dang an CPU / RAM / o dia' {
   if ($chrome.Count -gt 0) {
     KV 'So tien trinh trinh duyet' $chrome.Count
     KV 'RAM trinh duyet dang dung' (FmtMB (($chrome | Measure-Object -Property WorkingSetPrivate -Sum).Sum))
-    if ($chrome.Count -gt 40) { FLAG ("Co {0} tien trinh trinh duyet dang chay (qua nhieu tab/extension) - an rat nhieu RAM." -f $chrome.Count) }
+    if ($chrome.Count -gt 40) { FLAG 'NHIEU_TIEN_TRINH_TRINH_DUYET' ("Co {0} tien trinh trinh duyet dang chay (qua nhieu tab/extension) - an rat nhieu RAM." -f $chrome.Count) }
   }
 
   SH 'svchost dang an CPU chua dich vu gi ben trong'
@@ -535,7 +562,7 @@ Sec 'Tien trinh dang an CPU / RAM / o dia' {
     $nms = @($svcAll | Where-Object { [int]$_.ProcessId -eq $pid2 } | ForEach-Object { $_.Name })
     $cpuP = [math]::Round([double]$x.PercentProcessorTime / $nlp, 1)
     W ('  PID {0,-7} CPU {1,6}%  ->  {2}' -f $pid2, $cpuP, ($nms -join ', '))
-    if ($cpuP -ge 15 -and $nms.Count -gt 0) { FLAG ("svchost PID {0} an {1}% CPU, chua dich vu: {2}" -f $pid2, $cpuP, ($nms -join ', ')) }
+    if ($cpuP -ge 15 -and $nms.Count -gt 0) { FLAG 'SVCHOST_AN_CPU' ("svchost PID {0} an {1}% CPU, chua dich vu: {2}" -f $pid2, $cpuP, ($nms -join ', ')) }
   }
 
   SH 'Kiem tra chu ky so cua cac tien trinh dang an CPU'
@@ -554,7 +581,7 @@ Sec 'Tien trinh dang an CPU / RAM / o dia' {
     if ($sig) { $st = $sig.Status }
     W ("  [{0,-14}] {1,-52} {2}" -f $st, (Trunc $path 52), (Trunc $subj 50))
     if ($sig -and $sig.Status -ne 'Valid' -and $path -notmatch '\\Windows\\') {
-      FLAG ("File '{0}' KHONG co chu ky so hop le (Status={1}) nhung dang chiem CPU - can kiem tra." -f $path, $sig.Status)
+      FLAG 'FILE_KHONG_CHU_KY' ("File '{0}' KHONG co chu ky so hop le (Status={1}) nhung dang chiem CPU - can kiem tra." -f $path, $sig.Status)
     }
   }
 }
@@ -590,12 +617,12 @@ Sec 'Chuong trinh khoi dong cung Windows' {
   $wl = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
   KV 'Winlogon Shell'    (Reg $wl 'Shell')
   KV 'Winlogon Userinit' (Reg $wl 'Userinit')
-  if ((Reg $wl 'Shell') -and (Reg $wl 'Shell') -notmatch '^explorer\.exe,?\s*$') { FLAG ("Winlogon Shell bi doi thanh: " + (Reg $wl 'Shell')) }
-  if ((Reg $wl 'Userinit') -and (Reg $wl 'Userinit') -notmatch '^C:\\Windows\\system32\\userinit\.exe,?\s*$') { FLAG ("Winlogon Userinit bi doi thanh: " + (Reg $wl 'Userinit')) }
+  if ((Reg $wl 'Shell') -and (Reg $wl 'Shell') -notmatch '^explorer\.exe,?\s*$') { FLAG 'WINLOGON_SHELL_BI_DOI' -Muc 'loi' ("Winlogon Shell bi doi thanh: " + (Reg $wl 'Shell')) }
+  if ((Reg $wl 'Userinit') -and (Reg $wl 'Userinit') -notmatch '^C:\\Windows\\system32\\userinit\.exe,?\s*$') { FLAG 'WINLOGON_USERINIT_BI_DOI' -Muc 'loi' ("Winlogon Userinit bi doi thanh: " + (Reg $wl 'Userinit')) }
   $ai = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows'
   KV 'AppInit_DLLs'      (Reg $ai 'AppInit_DLLs')
   KV 'LoadAppInit_DLLs'  (Reg $ai 'LoadAppInit_DLLs')
-  if ((Reg $ai 'AppInit_DLLs')) { FLAG ("AppInit_DLLs co gia tri: " + (Reg $ai 'AppInit_DLLs') + " - DLL nay bi nap vao MOI ung dung, rat hay gay cham/treo.") }
+  if ((Reg $ai 'AppInit_DLLs')) { FLAG 'APPINIT_DLLS' ("AppInit_DLLs co gia tri: " + (Reg $ai 'AppInit_DLLs') + " - DLL nay bi nap vao MOI ung dung, rat hay gay cham/treo.") }
 
   SH 'Image File Execution Options bi gan Debugger'
   $ifeo = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options'
@@ -603,7 +630,7 @@ Sec 'Chuong trinh khoi dong cung Windows' {
   foreach ($sub in (Get-ChildItem -LiteralPath $ifeo -ErrorAction SilentlyContinue)) {
     $dbg = Reg $sub.PSPath 'Debugger'
     if ($dbg) { W ("  {0,-34} -> {1}" -f $sub.PSChildName, $dbg); $cnt++
-      FLAG ("IFEO: '{0}' bi gan Debugger '{1}' - co the la ma doc hoac phan mem chan chuong trinh." -f $sub.PSChildName, $dbg) }
+      FLAG 'IFEO_DEBUGGER' ("IFEO: '{0}' bi gan Debugger '{1}' - co the la ma doc hoac phan mem chan chuong trinh." -f $sub.PSChildName, $dbg) }
   }
   if ($cnt -eq 0) { W '  (khong co - binh thuong)' }
 }
@@ -691,7 +718,7 @@ Sec 'Nguon dien, Power Plan, pin' {
   KV 'Processor boost mode'    (PwrVal $SUBPROC 'be337238-0d82-4146-a960-4f3749d470c7')
   if ($vmax -match 'AC=(\d+)') {
     $acv = [int]$Matches[1]
-    if ($acv -lt 100 -and $acv -gt 0) { FLAG ("Power plan dang gioi han CPU toi da o {0}% khi cam dien - day la nguyen nhan kinh dien lam may dot nhien cham." -f $acv) }
+    if ($acv -lt 100 -and $acv -gt 0) { FLAG 'POWER_PLAN_GIOI_HAN_CPU' ("Power plan dang gioi han CPU toi da o {0}% khi cam dien - day la nguyen nhan kinh dien lam may dot nhien cham." -f $acv) }
   }
 
   SH 'Pin (neu la laptop)'
@@ -703,7 +730,7 @@ Sec 'Nguon dien, Power Plan, pin' {
       KV '  Phan tram con'   $b.EstimatedChargeRemaining
       $bs = switch ([int]$b.BatteryStatus) { 1 {'Dang dung pin (khong cam sac)'} 2 {'Dang cam dien (AC)'} 3 {'Da sac day'} 4 {'Yeu'} 5 {'Rat yeu'} default {"Ma $($b.BatteryStatus)"} }
       KV '  Trang thai'      $bs
-      if ([int]$b.BatteryStatus -eq 1) { FLAG 'May dang chay bang PIN - Windows tu dong giam hieu nang. Neu dang cam sac ma van bao dung pin => sac/pin loi.' }
+      if ([int]$b.BatteryStatus -eq 1) { FLAG 'DANG_CHAY_PIN' 'May dang chay bang PIN - Windows tu dong giam hieu nang. Neu dang cam sac ma van bao dung pin => sac/pin loi.' }
     }
     try {
       $des = (Cim BatteryStaticData 'root\wmi'   | Select-Object -First 1).DesignedCapacity
@@ -711,7 +738,7 @@ Sec 'Nguon dien, Power Plan, pin' {
       if ($des -gt 0 -and $ful -gt 0) {
         $h = [math]::Round(100.0 * $ful / $des, 1)
         KV 'Suc khoe pin' ("{0}%  (thiet ke {1} mWh / thuc te {2} mWh)" -f $h, $des, $ful)
-        if ($h -lt 60) { FLAG ("Pin chi con {0}% dung luong thiet ke - pin chai. Nhieu laptop se TU BOP XUNG CPU khi pin hong." -f $h) }
+        if ($h -lt 60) { FLAG 'PIN_CHAI' ("Pin chi con {0}% dung luong thiet ke - pin chai. Nhieu laptop se TU BOP XUNG CPU khi pin hong." -f $h) }
       }
     } catch {}
   }
@@ -733,8 +760,8 @@ Sec 'Phan mem diet virus / Windows Defender' {
   }
   if ($avs.Count -gt 1) {
     $nonDef = @($avs | Where-Object { $_.displayName -notmatch 'Windows Defender|Microsoft Defender' })
-    if ($nonDef.Count -ge 1) { FLAG ("Co {0} phan mem diet virus cung cai ({1}) - xung dot AV la nguyen nhan cham/treo rat pho bien." -f $avs.Count, (($avs | ForEach-Object { $_.displayName }) -join ', ')) }
-    if ($nonDef.Count -ge 2) { FLAG 'Co TU 2 phan mem diet virus ben thu ba tro len - bat buoc go bot 1 cai.' }
+    if ($nonDef.Count -ge 1) { FLAG 'NHIEU_DIET_VIRUS' ("Co {0} phan mem diet virus cung cai ({1}) - xung dot AV la nguyen nhan cham/treo rat pho bien." -f $avs.Count, (($avs | ForEach-Object { $_.displayName }) -join ', ')) }
+    if ($nonDef.Count -ge 2) { FLAG 'HAI_DIET_VIRUS_BEN_THU_BA' 'Co TU 2 phan mem diet virus ben thu ba tro len - bat buoc go bot 1 cai.' }
   }
 
   SH 'Trang thai Microsoft Defender'
@@ -748,7 +775,7 @@ Sec 'Phan mem diet virus / Windows Defender' {
     KV 'Quet day du lan cuoi'   ("{0:yyyy-MM-dd HH:mm} (cach day {1} ngay)" -f $mp.FullScanEndTime, $mp.FullScanAge)
     KV 'Tamper Protection'      $mp.IsTamperProtected
     KV 'Phien ban engine'       $mp.AMEngineVersion
-    if ([int]$mp.AntivirusSignatureAge -gt 14) { FLAG ("Dinh nghia virus cu {0} ngay - may co the dang bi nhiem hoac Update bi hong." -f $mp.AntivirusSignatureAge) }
+    if ([int]$mp.AntivirusSignatureAge -gt 14) { FLAG 'DINH_NGHIA_VIRUS_CU' ("Dinh nghia virus cu {0} ngay - may co the dang bi nhiem hoac Update bi hong." -f $mp.AntivirusSignatureAge) }
   } catch { W '  (khong doc duoc Get-MpComputerStatus)' }
 
   try {
@@ -761,7 +788,7 @@ Sec 'Phan mem diet virus / Windows Defender' {
     KV 'ExclusionProcess'          ((@($pref.ExclusionProcess)) -join ' | ')
     KV 'ExclusionExtension'        ((@($pref.ExclusionExtension)) -join ' | ')
     if ($pref.ExclusionPath -contains 'C:\' -or $pref.ExclusionPath -contains 'C:\Windows') {
-      FLAG 'Defender dang loai tru ca o C: - dau hieu ma doc da tu them ngoai le.'
+      FLAG 'DEFENDER_LOAI_TRU_O_C' -Muc 'loi' 'Defender dang loai tru ca o C: - dau hieu ma doc da tu them ngoai le.'
     }
   } catch {}
 }
@@ -777,8 +804,8 @@ Sec 'Bao mat ao hoa (VBS / Core Isolation / Hyper-V)' {
     foreach ($r in $run) { $names += switch ([int]$r) { 1 {'Credential Guard'} 2 {'HVCI / Memory Integrity'} 3 {'System Guard'} default {"Svc$r"} } }
     KV 'Dich vu bao mat dang chay' (($names) -join ', ')
     KV 'Dich vu duoc cau hinh'     (($dg.SecurityServicesConfigured) -join ', ')
-    if ($run -contains 2) { FLAG 'Memory Integrity (HVCI) dang BAT - tren CPU doi cu (truoc Intel gen 8 / AMD Zen2) no lam may cham thay ro. Day la mot nghi pham lon neu may dot nhien cham sau khi cap nhat Windows.' }
-    if ([int]$dg.VirtualizationBasedSecurityStatus -eq 2) { FLAG 'VBS dang chay - giam hieu nang 5-15% (nhieu hon tren may cu / may choi game).' }
+    if ($run -contains 2) { FLAG 'HVCI_BAT' 'Memory Integrity (HVCI) dang BAT - tren CPU doi cu (truoc Intel gen 8 / AMD Zen2) no lam may cham thay ro. Day la mot nghi pham lon neu may dot nhien cham sau khi cap nhat Windows.' }
+    if ([int]$dg.VirtualizationBasedSecurityStatus -eq 2) { FLAG 'VBS_BAT' -Muc 'thong-tin' 'VBS dang chay - giam hieu nang 5-15% (nhieu hon tren may cu / may choi game).' }
   }
   KV 'HVCI registry Enabled' (Reg 'HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity' 'Enabled')
   $hv = (bcdedit /enum '{current}' 2>&1) -join "`n"
@@ -802,10 +829,10 @@ Sec 'Card man hinh va driver hien thi' {
       @{n='Trang thai';e={$_.Status}} | Format-List)
   foreach ($v in (Cim Win32_VideoController)) {
     if ($v.Name -match 'Basic Display|Standard VGA') {
-      FLAG ("Dang dung '{0}' - MAY KHONG CO DRIVER CARD MAN HINH that. Giao dien se giat, video cham. Can cai lai driver GPU." -f $v.Name)
+      FLAG 'THIEU_DRIVER_MAN_HINH' ("Dang dung '{0}' - MAY KHONG CO DRIVER CARD MAN HINH that. Giao dien se giat, video cham. Can cai lai driver GPU." -f $v.Name)
     }
     $dd = AsDate $v.DriverDate
-    if ($dd -and $dd -lt (Get-Date).AddYears(-5)) { FLAG ("Driver card man hinh '{0}' rat cu (ngay {1:yyyy-MM-dd})." -f $v.Name, $dd) }
+    if ($dd -and $dd -lt (Get-Date).AddYears(-5)) { FLAG 'DRIVER_MAN_HINH_CU' ("Driver card man hinh '{0}' rat cu (ngay {1:yyyy-MM-dd})." -f $v.Name, $dd) }
   }
   SH 'Thiet lap do hoa'
   KV 'HwSchMode (GPU scheduling)' (Reg 'HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers' 'HwSchMode')
@@ -820,12 +847,12 @@ Sec 'Thiet bi bi loi trong Device Manager' {
   try { $bad = @(Get-PnpDevice -PresentOnly -ErrorAction Stop | Where-Object { $_.Status -ne 'OK' -and $_.Status -ne 'Unknown' }) } catch {}
   if ($bad.Count -gt 0) {
     WL ($bad | Select-Object Status, Class, FriendlyName, InstanceId | Format-Table -AutoSize -Wrap)
-    foreach ($b in $bad) { FLAG ("Thiet bi loi: [{0}] {1} (Status={2}) - thieu driver hoac phan cung loi." -f $b.Class, $b.FriendlyName, $b.Status) }
+    foreach ($b in $bad) { FLAG 'THIET_BI_LOI' ("Thiet bi loi: [{0}] {1} (Status={2}) - thieu driver hoac phan cung loi." -f $b.Class, $b.FriendlyName, $b.Status) }
   } else {
     $bad2 = @(Cim Win32_PnPEntity | Where-Object { $_.ConfigManagerErrorCode -ne 0 })
     if ($bad2.Count -gt 0) {
       WL ($bad2 | Select-Object Name, ConfigManagerErrorCode, DeviceID | Format-Table -AutoSize -Wrap)
-      foreach ($b in $bad2) { FLAG ("Thiet bi loi: {0} (ma loi {1})" -f $b.Name, $b.ConfigManagerErrorCode) }
+      foreach ($b in $bad2) { FLAG 'THIET_BI_LOI' ("Thiet bi loi: {0} (ma loi {1})" -f $b.Name, $b.ConfigManagerErrorCode) }
     } else { W '  (khong co thiet bi nao bao loi - tot)' }
   }
   SH 'Driver ben thu ba moi nhat theo ngay (20 dong)'
@@ -855,8 +882,8 @@ Sec 'Mang, proxy, file hosts, o dia mang' {
   KV 'ProxyEnable'   (Reg $ist 'ProxyEnable')
   KV 'ProxyServer'   (Reg $ist 'ProxyServer')
   KV 'AutoConfigURL' (Reg $ist 'AutoConfigURL')
-  if ((Reg $ist 'ProxyEnable') -eq 1) { FLAG ("Proxy dang BAT: " + (Reg $ist 'ProxyServer') + " - neu ban khong tu dat, day co the la ma doc/adware lam mang cham.") }
-  if ((Reg $ist 'AutoConfigURL')) { FLAG ("Co AutoConfigURL (PAC): " + (Reg $ist 'AutoConfigURL') + " - rat hay lam trinh duyet cham; kiem tra xem co phai ban dat khong.") }
+  if ((Reg $ist 'ProxyEnable') -eq 1) { FLAG 'PROXY_BAT' ("Proxy dang BAT: " + (Reg $ist 'ProxyServer') + " - neu ban khong tu dat, day co the la ma doc/adware lam mang cham.") }
+  if ((Reg $ist 'AutoConfigURL')) { FLAG 'PROXY_PAC' ("Co AutoConfigURL (PAC): " + (Reg $ist 'AutoConfigURL') + " - rat hay lam trinh duyet cham; kiem tra xem co phai ban dat khong.") }
   WL ((netsh winhttp show proxy 2>&1) -join "`n")
 
   SH 'File hosts (dong co hieu luc)'
@@ -865,7 +892,7 @@ Sec 'Mang, proxy, file hosts, o dia mang' {
   try { $hl = @(Get-Content -LiteralPath $hostsFile -ErrorAction Stop | Where-Object { $_.Trim() -ne '' -and $_.Trim() -notmatch '^#' }) } catch {}
   KV 'So dong co hieu luc' $hl.Count
   foreach ($l in ($hl | Select-Object -First 40)) { W ('    ' + $l) }
-  if ($hl.Count -gt 15) { FLAG ("File hosts co {0} dong - thuong do phan mem be khoa (crack) chan may chu ban quyen; nhom nay hay di kem ma doc." -f $hl.Count) }
+  if ($hl.Count -gt 15) { FLAG 'HOSTS_NHIEU_DONG' ("File hosts co {0} dong - thuong do phan mem be khoa (crack) chan may chu ban quyen; nhom nay hay di kem ma doc." -f $hl.Count) }
 
   SH 'O dia mang da anh xa'
   WL ((net use 2>&1) -join "`n")
@@ -885,32 +912,46 @@ function Ev {
 # Loi da biet: so theo NGUON + MA (cung mot ma o nguon khac la chuyen khac, vd ID 1 cua Kernel-General la doi gio).
 # L = cac muc can dem (1 Critical, 2 Error, 3 Warning); bo trong = ca 3 muc. Nhieu loi o dia, man hinh chi ghi muc Warning.
 $WATCH = @(
-  @{ P = '^Microsoft-Windows-Kernel-Power$'; Id = 41; T = 'Kernel-Power: may tat/treo dot ngot (mat dien, nguon yeu, treo cung)' }
-  @{ P = '^(Microsoft-Windows-WER-SystemErrorReporting|BugCheck)$'; Id = 1001; T = 'BugCheck: man hinh xanh' }
-  @{ P = '^EventLog$'; Id = 6008; T = 'Lan truoc may tat khong dung cach' }
-  @{ P = '^(storahci|stornvme|storport|Microsoft-Windows-StorPort|iaStor\w*|amd_sata|amdsata|nvstor\w*|LSI_SAS\w*)$'; Id = 129; T = 'Bo dieu khien RESET o dia - O DIA hoac CAP/DRIVER dang loi (gay dung hinh vai giay)' }
-  @{ P = '^disk$'; Id = 153; T = 'Disk: IO tren o dia phai thu lai (retry) - o dia yeu' }
-  @{ P = '^disk$'; Id = 154; T = 'Disk: IO tren o dia THAT BAI do loi phan cung - O DIA DANG HONG, cuu du lieu ngay' }
-  @{ P = '^disk$'; Id = 11; T = 'Disk: controller error - cap SATA/o dia loi' }
-  @{ P = '^disk$'; Id = 51; T = 'Disk: loi khi doc/ghi bo nho ao (paging) - o dia sap hong' }
-  @{ P = '^disk$'; Id = 7; T = 'Disk: co bad block' }
-  @{ P = '^(Ntfs|Microsoft-Windows-Ntfs)$'; Id = 55; T = 'NTFS hong cau truc - can chkdsk' }
-  @{ P = '^(Ntfs|Microsoft-Windows-Ntfs)$'; Id = 98; T = 'NTFS: o can quet loi ngoai tuyen (chkdsk)' }
-  @{ P = '^(Ntfs|Microsoft-Windows-Ntfs)$'; Id = 140; T = 'NTFS khong ghi duoc du lieu len o dia' }
-  @{ P = '^Display$'; Id = 4101; T = 'Driver card man hinh treo va phai khoi dong lai (TDR) - giat/den man hinh' }
-  @{ P = '^Microsoft-Windows-Kernel-PnP$'; Id = 219; L = @(1, 2); T = 'Nap driver that bai' }
-  @{ P = '^Service Control Manager$'; Id = 7031; T = 'Dich vu bi crash bat ngo' }
-  @{ P = '^Service Control Manager$'; Id = 7034; T = 'Dich vu bi crash bat ngo (khong tu khoi dong lai)' }
-  @{ P = '^Service Control Manager$'; Id = 7000; T = 'Dich vu khong khoi dong duoc' }
-  @{ P = '^Service Control Manager$'; Id = 7009; T = 'Dich vu khoi dong qua lau (timeout)' }
-  @{ P = '^Service Control Manager$'; Id = 7011; T = 'Dich vu khong phan hoi trong thoi gian cho - DAU HIEU MAY BI DUNG HINH' }
-  @{ P = '^Microsoft-Windows-Resource-Exhaustion-Detector$'; Id = 2004; T = 'Het bo nho ao (Resource-Exhaustion) - Windows phai dong ung dung' }
-  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 1; T = 'WHEA: loi phan cung NGHIEM TRONG o lan chay truoc (thuong kem man hinh xanh 0x124)' }
-  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 17; T = 'WHEA: loi phan cung duoc sua (CPU/RAM/PCIe)' }
-  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 18; T = 'WHEA: loi phan cung NGHIEM TRONG' }
-  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 19; T = 'WHEA: loi phan cung duoc sua' }
-  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 47; T = 'WHEA: loi RAM/PCIe duoc sua' }
+  @{ P = '^Microsoft-Windows-Kernel-Power$'; Id = 41; M = 'TAT_DOT_NGOT'; Tiep = 'checkwinfix/sup-nguon'; T = 'Kernel-Power: may tat/treo dot ngot (mat dien, nguon yeu, treo cung)' }
+  @{ P = '^(Microsoft-Windows-WER-SystemErrorReporting|BugCheck)$'; Id = 1001; M = 'MAN_HINH_XANH'; Tiep = 'checkwinfix/phan-cung'; T = 'BugCheck: man hinh xanh' }
+  @{ P = '^EventLog$'; Id = 6008; M = 'TAT_KHONG_DUNG_CACH'; Tiep = 'checkwinfix/sup-nguon'; T = 'Lan truoc may tat khong dung cach' }
+  @{ P = '^(storahci|stornvme|storport|Microsoft-Windows-StorPort|iaStor\w*|amd_sata|amdsata|nvstor\w*|LSI_SAS\w*)$'; Id = 129; M = 'O_DIA_RESET'; Tiep = 'checkwinfix/phan-cung'; T = 'Bo dieu khien RESET o dia - O DIA hoac CAP/DRIVER dang loi (gay dung hinh vai giay)' }
+  @{ P = '^disk$'; Id = 153; M = 'O_DIA_THU_LAI'; Tiep = 'checkwinfix/phan-cung'; T = 'Disk: IO tren o dia phai thu lai (retry) - o dia yeu' }
+  @{ P = '^disk$'; Id = 154; M = 'O_DIA_IO_THAT_BAI'; Muc = 'loi'; Tiep = 'checkwinfix/phan-cung'; T = 'Disk: IO tren o dia THAT BAI do loi phan cung - O DIA DANG HONG, cuu du lieu ngay' }
+  @{ P = '^disk$'; Id = 11; M = 'O_DIA_CONTROLLER'; Tiep = 'checkwinfix/phan-cung'; T = 'Disk: controller error - cap SATA/o dia loi' }
+  @{ P = '^disk$'; Id = 51; M = 'O_DIA_LOI_PAGING'; Muc = 'loi'; Tiep = 'checkwinfix/phan-cung'; T = 'Disk: loi khi doc/ghi bo nho ao (paging) - o dia sap hong' }
+  @{ P = '^disk$'; Id = 7; M = 'O_DIA_BAD_BLOCK'; Muc = 'loi'; Tiep = 'checkwinfix/phan-cung'; T = 'Disk: co bad block' }
+  @{ P = '^(Ntfs|Microsoft-Windows-Ntfs)$'; Id = 55; M = 'NTFS_HONG'; Muc = 'loi'; Tiep = 'fix-win/o-dia-sua'; T = 'NTFS hong cau truc - can chkdsk' }
+  @{ P = '^(Ntfs|Microsoft-Windows-Ntfs)$'; Id = 98; M = 'NTFS_CAN_QUET'; Tiep = 'fix-win/o-dia-quet'; T = 'NTFS: o can quet loi ngoai tuyen (chkdsk)' }
+  @{ P = '^(Ntfs|Microsoft-Windows-Ntfs)$'; Id = 140; M = 'NTFS_KHONG_GHI_DUOC'; Tiep = 'checkwinfix/phan-cung'; T = 'NTFS khong ghi duoc du lieu len o dia' }
+  @{ P = '^Display$'; Id = 4101; M = 'DRIVER_MAN_HINH_TREO'; T = 'Driver card man hinh treo va phai khoi dong lai (TDR) - giat/den man hinh' }
+  @{ P = '^Microsoft-Windows-Kernel-PnP$'; Id = 219; L = @(1, 2); M = 'NAP_DRIVER_THAT_BAI'; T = 'Nap driver that bai' }
+  @{ P = '^Service Control Manager$'; Id = 7031; M = 'DICH_VU_CRASH'; T = 'Dich vu bi crash bat ngo' }
+  @{ P = '^Service Control Manager$'; Id = 7034; M = 'DICH_VU_CRASH'; T = 'Dich vu bi crash bat ngo (khong tu khoi dong lai)' }
+  @{ P = '^Service Control Manager$'; Id = 7000; M = 'DICH_VU_KHONG_CHAY'; T = 'Dich vu khong khoi dong duoc' }
+  @{ P = '^Service Control Manager$'; Id = 7009; M = 'DICH_VU_KHOI_DONG_LAU'; T = 'Dich vu khoi dong qua lau (timeout)' }
+  @{ P = '^Service Control Manager$'; Id = 7011; M = 'DICH_VU_KHONG_PHAN_HOI'; T = 'Dich vu khong phan hoi trong thoi gian cho - DAU HIEU MAY BI DUNG HINH' }
+  @{ P = '^Microsoft-Windows-Resource-Exhaustion-Detector$'; Id = 2004; M = 'HET_BO_NHO'; T = 'Het bo nho ao (Resource-Exhaustion) - Windows phai dong ung dung' }
+  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 1; M = 'WHEA_NGHIEM_TRONG'; Muc = 'loi'; Tiep = 'checkwinfix/giai-ma-whea'; T = 'WHEA: loi phan cung NGHIEM TRONG o lan chay truoc (thuong kem man hinh xanh 0x124)' }
+  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 17; M = 'WHEA_DUOC_SUA'; Tiep = 'checkwinfix/giai-ma-whea'; T = 'WHEA: loi phan cung duoc sua (CPU/RAM/PCIe)' }
+  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 18; M = 'WHEA_NGHIEM_TRONG'; Muc = 'loi'; Tiep = 'checkwinfix/giai-ma-whea'; T = 'WHEA: loi phan cung NGHIEM TRONG' }
+  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 19; M = 'WHEA_DUOC_SUA'; Tiep = 'checkwinfix/giai-ma-whea'; T = 'WHEA: loi phan cung duoc sua' }
+  @{ P = '^Microsoft-Windows-WHEA-Logger$'; Id = 47; M = 'WHEA_DUOC_SUA'; Tiep = 'checkwinfix/giai-ma-whea'; T = 'WHEA: loi RAM/PCIe duoc sua' }
 )
+
+$script:DiskBus = $null
+function Get-DiskBus {
+  # Kieu ket noi cua o vat ly so N ('USB', 'NVMe', 'SATA'...); 'KHONG_CON' neu o khong con gan vao may (o rut ra);
+  # '' neu khong doc duoc danh sach o.
+  param([int]$Number)
+  if ($null -eq $script:DiskBus) {
+    $script:DiskBus = @{}
+    try { foreach ($d in @(Get-Disk -ErrorAction Stop)) { $script:DiskBus[[int]$d.Number] = [string]$d.BusType } } catch { $script:DiskBus = @{ 'loi' = $true } }
+  }
+  if ($script:DiskBus.ContainsKey('loi')) { return '' }
+  if ($script:DiskBus.ContainsKey($Number)) { return $script:DiskBus[$Number] }
+  return 'KHONG_CON'
+}
 
 function Find-WatchHits {
   # Doc nhat ky System 14 ngay theo cac ma trong $WATCH (moi muc), roi giu su kien dung nguon va dung muc.
@@ -929,11 +970,19 @@ function Find-WatchHits {
       $levels = if ($w.L) { $w.L } else { @(1, 2, 3) }
       if ($levels -notcontains [int]$e.Level) { continue }
       # Su kien cua nguon 'disk' ghi \Device\HarddiskN\... o truong dau: tach theo tung o (o USB rut ra cung ghi loi nay).
-      $dev = ''
-      if ([string]$e.ProviderName -eq 'disk') { try { if ([string]$e.Properties[0].Value -match 'Harddisk(\d+)') { $dev = 'Disk ' + $Matches[1] } } catch {} }
+      $dev = ''; $rut = $false
+      if ([string]$e.ProviderName -eq 'disk') {
+        try { if ([string]$e.Properties[0].Value -match 'Harddisk(\d+)') { $dev = 'Disk ' + $Matches[1]; $rut = (Get-DiskBus ([int]$Matches[1])) -in 'USB', 'KHONG_CON' } } catch {}
+      }
       $k = '{0}|{1}|{2}' -f $e.ProviderName, $e.Id, $dev
       $txt = if ($dev) { "$($w.T) [$dev, xem muc o dia de biet la o nao]" } else { $w.T }
-      if (-not $groups.Contains($k)) { $groups[$k] = [pscustomobject]@{ Provider = [string]$e.ProviderName; Id = [int]$e.Id; Count = 0; Last = $e.TimeCreated; Text = $txt } }
+      # O USB rut ra khi dang ghi cung ghi cac loi nay: chi la canh bao, khong goi y chan doan o trong may.
+      if ($rut) { $txt = "$($w.T) [$dev la o USB hoac o da rut ra: thuong do rut o khi dang ghi, khong phai o trong may]" }
+      if (-not $groups.Contains($k)) {
+        $groups[$k] = [pscustomobject]@{ Provider = [string]$e.ProviderName; Id = [int]$e.Id; Count = 0; Last = $e.TimeCreated; Text = $txt
+          M = $(if ($w.M) { $w.M } else { 'SU_KIEN_LAP_LAI' }); Muc = $(if ($w.Muc -and -not $rut) { $w.Muc } else { 'canh-bao' })
+          Tiep = $(if ($rut) { '' } else { [string]$w.Tiep }) }
+      }
       $g = $groups[$k]; $g.Count++
       if ($e.TimeCreated -gt $g.Last) { $g.Last = $e.TimeCreated }
       break
@@ -981,7 +1030,7 @@ Sec 'Nhat ky HIEU NANG cua Windows (muc quan trong nhat)' {
       $x = [xml]$last100.ToXml(); $d = @{}
       foreach ($n in $x.Event.EventData.Data) { $d[$n.Name] = $n.'#text' }
       $sec = [math]::Round([int]$d['BootTime'] / 1000, 1)
-      if ($sec -gt 90) { FLAG ("Lan khoi dong gan nhat mat {0} giay - qua cham (binh thuong 15-40s tren SSD)." -f $sec) }
+      if ($sec -gt 90) { FLAG 'KHOI_DONG_CHAM' ("Lan khoi dong gan nhat mat {0} giay - qua cham (binh thuong 15-40s tren SSD)." -f $sec) }
     } catch {}
   }
 
@@ -992,7 +1041,7 @@ Sec 'Nhat ky HIEU NANG cua Windows (muc quan trong nhat)' {
   $slow = @($dp | Where-Object { $_.Id -in 101,102,103,109,110 })
   if ($slow.Count -gt 0) {
     $topSlow = $slow | Group-Object { (Trunc $_.Message 60) } | Sort-Object Count -Descending | Select-Object -First 3
-    foreach ($t in $topSlow) { FLAG ("Lam cham khoi dong ({0} lan): {1}" -f $t.Count, (Trunc $t.Name 180)) }
+    foreach ($t in $topSlow) { FLAG 'LAM_CHAM_KHOI_DONG' ("Lam cham khoi dong ({0} lan): {1}" -f $t.Count, (Trunc $t.Name 180)) }
   }
 }
 
@@ -1002,7 +1051,7 @@ Sec 'Nhat ky SYSTEM - loi va canh bao nghiem trong (14 ngay)' {
   $hits = @(Find-WatchHits)
   foreach ($h in $hits) {
     W ('  >> {0} ID {1} x{2} lan (gan nhat {3:yyyy-MM-dd HH:mm}) - {4}' -f $h.Provider, $h.Id, $h.Count, $h.Last, $h.Text)
-    FLAG ("Su kien {0} ID {1} xuat hien {2} lan trong 14 ngay: {3}" -f $h.Provider, $h.Id, $h.Count, $h.Text)
+    FLAG $h.M -Muc $h.Muc -Tiep $h.Tiep ("Su kien {0} ID {1} xuat hien {2} lan trong 14 ngay: {3}" -f $h.Provider, $h.Id, $h.Count, $h.Text)
   }
   if (-not $hits.Count) { W '  (khong trung loi da biet nao - tot)' }
   $ev = Ev 'System' @(1, 2) $since14 2000
@@ -1044,7 +1093,7 @@ Sec 'Nhat ky APPLICATION - ung dung crash / treo (14 ngay)' {
   if ($rex) {
     SH 'Canh bao HET BO NHO (Resource Exhaustion)'
     foreach ($e in ($rex | Select-Object -First 8)) { W (('  [{0:yyyy-MM-dd HH:mm}] ' -f $e.TimeCreated) + (Trunc $e.Message 320)) }
-    FLAG ("Windows da ghi nhan {0} lan HET BO NHO trong 30 ngay - can them RAM hoac dong bot ung dung." -f $rex.Count)
+    FLAG 'HET_BO_NHO' ("Windows da ghi nhan {0} lan HET BO NHO trong 30 ngay - can them RAM hoac dong bot ung dung." -f $rex.Count)
   }
 }
 
@@ -1065,7 +1114,7 @@ Sec 'Lich su bat / tat / man hinh xanh' {
   $mini = @(Get-ChildItem -LiteralPath "$env:SystemRoot\Minidump" -Filter *.dmp -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
   KV 'So file minidump' $mini.Count
   foreach ($m in ($mini | Select-Object -First 10)) { W ('    {0:yyyy-MM-dd HH:mm}  {1}  ({2})' -f $m.LastWriteTime, $m.Name, (FmtMB $m.Length)) }
-  if ($mini.Count -gt 0) { FLAG ("Co {0} file minidump (man hinh xanh). Gan nhat: {1:yyyy-MM-dd}. Phan cung hoac driver dang loi." -f $mini.Count, $mini[0].LastWriteTime) }
+  if ($mini.Count -gt 0) { FLAG 'MAN_HINH_XANH' -Tiep 'checkwinfix/phan-cung' ("Co {0} file minidump (man hinh xanh). Gan nhat: {1:yyyy-MM-dd}. Phan cung hoac driver dang loi." -f $mini.Count, $mini[0].LastWriteTime) }
 }
 
 # =============================== 21. TIMELINE =================================
@@ -1131,7 +1180,7 @@ Sec 'Phan mem da cai dat va tien ich mo rong trinh duyet' {
     W ('  {0,-10} {1,-52} {2,-18} {3}' -f $a.Ngay, (Trunc $a.Ten 52), (Trunc "$($a.Ver)" 18), (Trunc "$($a.NhaSX)" 34))
   }
   $risky = @($apps | Where-Object { $_.Ten -match '(?i)driver *booster|advanced *systemcare|iobit|pc *(cleaner|optimizer|accelerat)|speedup|onesafe|reimage|wondershare|baidu|360 *(total|safe)|hao123|toolbar|ask *toolbar|mysearch|webdiscover|opencandy|uniblue|smart *defrag' })
-  foreach ($r in $risky) { FLAG ("Phan mem 'don dep/toi uu' hoac adware da cai: '{0}' - nhom nay thuong TU LAM CHAM may (chay nen, quang cao, doi thiet lap)." -f $r.Ten) }
+  foreach ($r in $risky) { FLAG 'PHAN_MEM_DON_DEP' ("Phan mem 'don dep/toi uu' hoac adware da cai: '{0}' - nhom nay thuong TU LAM CHAM may (chay nen, quang cao, doi thiet lap)." -f $r.Ten) }
 
   SH 'Tien ich mo rong trinh duyet'
   $brs = @{
@@ -1156,7 +1205,7 @@ Sec 'Phan mem da cai dat va tien ich mo rong trinh duyet' {
       }
     }
     if ($n -eq 0) { W '    (khong co / khong doc duoc)' }
-    if ($n -gt 12) { FLAG ("Trinh duyet {0} co {1} tien ich mo rong - qua nhieu, an RAM va lam trinh duyet cham." -f $b.Key, $n) }
+    if ($n -gt 12) { FLAG 'NHIEU_TIEN_ICH_TRINH_DUYET' ("Trinh duyet {0} co {1} tien ich mo rong - qua nhieu, an RAM va lam trinh duyet cham." -f $b.Key, $n) }
   }
 }
 
@@ -1172,7 +1221,7 @@ Sec 'Toan ven he thong, cho khoi dong lai, che do bao tri' {
   if (Test-Path "$env:SystemRoot\WinSxS\pending.xml") { $pr += 'WinSxS\pending.xml TON TAI' }
   if ($pr.Count -gt 0) {
     foreach ($x in $pr) { W ('  - ' + $x) }
-    FLAG ('May DANG CHO KHOI DONG LAI de hoan tat cap nhat (' + ($pr -join ', ') + '). Trong luc nay Windows chay nen lien tuc va rat cham.')
+    FLAG 'CHO_KHOI_DONG_LAI' ('May DANG CHO KHOI DONG LAI de hoan tat cap nhat (' + ($pr -join ', ') + '). Trong luc nay Windows chay nen lien tuc va rat cham.')
   } else { W '  (khong - tot)' }
 
   SH 'Trang thai Windows Update'
@@ -1190,7 +1239,7 @@ Sec 'Toan ven he thong, cho khoi dong lai, che do bao tri' {
     $bad = @(Get-Content -LiteralPath $cbs -Tail 4000 -ErrorAction SilentlyContinue | Where-Object { $_ -match '(?i)cannot repair|corrupt|CSI.*Failed|Hashes for file member .* do not match' } | Select-Object -Last 12)
     if ($bad.Count -gt 0) {
       foreach ($l in $bad) { W ('  ' + (Trunc $l 180)) }
-      FLAG 'Nhat ky CBS co dau hieu FILE HE THONG BI HONG - can chay DISM /RestoreHealth roi sfc /scannow.'
+      FLAG 'FILE_HE_THONG_HONG' -Muc 'loi' -Tiep 'fix-win/dism-sfc' 'Nhat ky CBS co dau hieu FILE HE THONG BI HONG - can chay DISM /RestoreHealth roi sfc /scannow.'
     } else { W '  (khong thay dau hieu hong trong 4000 dong cuoi)' }
   } else { W '  (khong co CBS.log)' }
 
@@ -1198,6 +1247,48 @@ Sec 'Toan ven he thong, cho khoi dong lai, che do bao tri' {
   KV 'VisualFXSetting' (Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' 'VisualFXSetting')
   KV 'Transparency'    (Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' 'EnableTransparency')
   KV 'Animations'      (Reg 'HKCU:\Control Panel\Desktop\WindowMetrics' 'MinAnimate')
+}
+
+# =============================== KIEM TRA SAU (chi khi chon) ==================
+# Thay cho sfc /verifyonly va chkdsk /scan cua "Bao cao suc khoe" cu: doc ket qua co cau truc (khong phu thuoc ngon ngu).
+function Get-AnhWindows {
+  # DISM /ScanHealth, chi doc, 5-15 phut. Tra Healthy | Repairable | NonRepairable, hoac 'LOI: ...'.
+  try { return [string](Repair-WindowsImage -Online -ScanHealth -ErrorAction Stop).ImageHealthState } catch { return 'LOI: ' + $_.Exception.Message }
+}
+function Get-ODiaCanQuet {
+  @(Get-Volume -ErrorAction SilentlyContinue | Where-Object { $_.DriveType -eq 'Fixed' -and $_.FileSystemType -eq 'NTFS' -and $_.DriveLetter } |
+    ForEach-Object { [string]$_.DriveLetter } | Sort-Object)
+}
+function Get-QuetODia {
+  # Nhu chkdsk X: /scan: quet truc tuyen, khong sua. Tra NoErrorsFound | ErrorsFound | ..., hoac 'LOI: ...'.
+  param([string]$Letter)
+  try { return [string](Repair-Volume -DriveLetter $Letter -Scan -ErrorAction Stop) } catch { return 'LOI: ' + $_.Exception.Message }
+}
+
+if ($KiemTraSau) {
+Sec 'Kiem tra sau: anh Windows (DISM) va loi he thong file (chkdsk /scan)' {
+  if (-not $isAdmin) { W '  (bo qua: can quyen Administrator)'; return }
+  SH 'Anh Windows (Repair-WindowsImage -Online -ScanHealth, chi doc)'
+  Write-Host '        Dang kiem tra anh Windows (DISM), thuong 5-15 phut...' -ForegroundColor DarkGray
+  $st = Get-AnhWindows
+  KV 'Trang thai' $st
+  switch -Regex ($st) {
+    '^Healthy$' { W '  (anh Windows khong hong - tot)' }
+    '^Repairable$' { FLAG 'ANH_WINDOWS_HONG' -Muc 'loi' -Tiep 'fix-win/dism-sfc' 'Anh Windows (kho thanh phan) bi hong nhung sua duoc - chay DISM RestoreHealth roi sfc /scannow.' }
+    '^NonRepairable$' { FLAG 'ANH_WINDOWS_HONG_NANG' -Muc 'loi' 'Anh Windows hong nang, DISM khong sua duoc - nen cai lai Windows giu du lieu (Repair install bang ISO cung phien ban).' }
+    '^LOI: ' { W '  (khong kiem tra duoc anh Windows)' }
+  }
+  SH 'Loi he thong file tung o (Repair-Volume -Scan, nhu chkdsk /scan, khong sua)'
+  $vols = @(Get-ODiaCanQuet)
+  if (-not $vols.Count) { W '  (khong thay o NTFS co ky tu)' }
+  foreach ($d in $vols) {
+    Write-Host ("        Dang quet o {0}:..." -f $d) -ForegroundColor DarkGray
+    $r = Get-QuetODia $d
+    KV ("O {0}:" -f $d) $r
+    if ($r -eq 'NoErrorsFound' -or $r -like 'LOI: *') { continue }
+    FLAG 'O_DIA_LOI_HE_THONG_FILE' -Muc 'loi' -Tiep 'fix-win/o-dia-sua' ("O {0}: co loi he thong file ({1}) - chay chkdsk {0}: /f de sua (o Windows thi hen khi khoi dong lai)." -f $d, $r)
+  }
+}
 }
 
 # =============================== 24. NHIET DO =================================
@@ -1208,7 +1299,7 @@ Sec 'Nhiet do va tong ket' {
     foreach ($t in $tz) {
       $c = [math]::Round(([double]$t.CurrentTemperature / 10) - 273.15, 1)
       W ('  {0,-46} {1} C' -f $t.InstanceName, $c)
-      if ($c -ge 85) { FLAG ("Nhiet do vung '{0}' = {1}C - QUA NONG. May se tu bop xung CPU. Can ve sinh quat/tan nhiet, thay keo tan nhiet." -f $t.InstanceName, $c) }
+      if ($c -ge 85) { FLAG 'QUA_NONG' ("Nhiet do vung '{0}' = {1}C - QUA NONG. May se tu bop xung CPU. Can ve sinh quat/tan nhiet, thay keo tan nhiet." -f $t.InstanceName, $c) }
     }
   } else { W '  (may khong bao cao nhiet do qua WMI - can dung HWiNFO64 / HWMonitor de do)' }
 
@@ -1242,18 +1333,21 @@ $head = New-Object System.Text.StringBuilder
 [void]$head.AppendLine('=' * 90)
 [void]$head.AppendLine('  CANH BAO TU DONG - DOC MUC NAY TRUOC')
 [void]$head.AppendLine('=' * 90)
-if ($script:FLAGS.Count -eq 0) {
+# Nghiem trong (loi) truoc, roi canh bao, thong tin; giu thu tu phat hien trong tung muc.
+$sorted = @(foreach ($lv in 'loi', 'canh-bao', 'thong-tin') { foreach ($f in $script:FLAGS) { if ($f.mucDo -eq $lv) { $f } } })
+$nLoi = @($sorted | Where-Object { $_.mucDo -eq 'loi' }).Count
+if ($sorted.Count -eq 0) {
   [void]$head.AppendLine('  Khong phat hien dau hieu bat thuong ro rang nao qua cac phep kiem tu dong.')
   [void]$head.AppendLine('  Hay doc ky muc 6 (do hieu nang), muc 7 (tien trinh) va muc 17 (nhat ky hieu nang).')
 } else {
   $i = 0
-  foreach ($f in $script:FLAGS) {
+  foreach ($f in $sorted) {
     $i++
-    [void]$head.AppendLine(('  [{0,2}] {1}' -f $i, $f))
+    [void]$head.AppendLine(('  [{0,2}] {1}{2}  ({3})' -f $i, $(if ($f.mucDo -eq 'loi') { '[NGHIEM TRONG] ' } else { '' }), $f.tieuDe, $f.ma))
   }
 }
 [void]$head.AppendLine('')
-[void]$head.AppendLine('  Tong so canh bao: ' + $script:FLAGS.Count)
+[void]$head.AppendLine(('  Tong so canh bao: {0} (nghiem trong: {1})' -f $sorted.Count, $nLoi))
 
 $final = $head.ToString() + $script:SB.ToString()
 try {
@@ -1267,15 +1361,39 @@ Write-Host ''
 Write-Host ('  ' + ('=' * 74)) -ForegroundColor Green
 Write-Host '   DA XONG. Bao cao luu tai:' -ForegroundColor Green
 Write-Host ('   ' + $reportPath) -ForegroundColor White
-Write-Host ('   Kich thuoc: {0:N0} KB   |   So canh bao tu dong: {1}' -f ((Get-Item -LiteralPath $reportPath).Length / 1KB), $script:FLAGS.Count) -ForegroundColor Green
+Write-Host ('   Kich thuoc: {0:N0} KB   |   So canh bao tu dong: {1} (nghiem trong: {2})' -f ((Get-Item -LiteralPath $reportPath).Length / 1KB), $sorted.Count, $nLoi) -ForegroundColor Green
 Write-Host ('  ' + ('=' * 74)) -ForegroundColor Green
 Write-Host ''
-if ($script:FLAGS.Count -gt 0) {
+if ($sorted.Count -gt 0) {
   Write-Host '   CANH BAO TU DONG:' -ForegroundColor Yellow
   $i = 0
-  foreach ($f in $script:FLAGS) { $i++; Write-Host ('    [{0}] {1}' -f $i, $f) -ForegroundColor Yellow }
+  foreach ($f in $sorted) { $i++; Write-Host ('    [{0}] {1}' -f $i, $f.tieuDe) -ForegroundColor $(if ($f.mucDo -eq 'loi') { 'Red' } else { 'Yellow' }) }
   Write-Host ''
 }
-try { Set-Clipboard -Value $reportPath -ErrorAction SilentlyContinue } catch {}
-try { Start-Process notepad.exe -ArgumentList ('"' + $reportPath + '"') } catch {}
+
+# =============================== KET QUA JSON =================================
+# Chuan ket qua cua Tram Tool (tramtool.ketqua/1): Tram hien cac canh bao, goi y script chay tiep. Canh file bao cao.
+$jsonPath = Join-Path (Split-Path -Parent $reportPath) ("KetQua_CheckWinFix_ThuThap_{0}_{1}.json" -f $env:COMPUTERNAME, $stamp)
+$cnt = { param($lv) @($sorted | Where-Object { $_.mucDo -eq $lv }).Count }
+$result = [ordered]@{
+  chuan = 'tramtool.ketqua/1'; congCu = 'checkwinfix'; cheDo = 'thu-thap'; phienBan = $SCRIPT_VER
+  may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
+  batDau = $T0.ToString('s'); ketThuc = (Get-Date).ToString('s')
+  maThoat = 0; trangThai = 'xong'; chayThu = $false
+  ma = $(if ($sorted.Count) { 'CO_CANH_BAO' } else { 'KHONG_CO_CANH_BAO' })
+  thongDiep = $(if ($sorted.Count) { "Thu thập xong: $nLoi nghiêm trọng, $($sorted.Count - $nLoi) cảnh báo khác. Đọc mục CẢNH BÁO TỰ ĐỘNG ở đầu báo cáo." } else { 'Thu thập xong: không thấy dấu hiệu bất thường rõ ràng qua các phép kiểm tự động.' })
+  tomTat = [ordered]@{ loi = (& $cnt 'loi'); canhBao = (& $cnt 'canh-bao'); thongTin = (& $cnt 'thong-tin') }
+  phatHien = $sorted
+  tep = @([ordered]@{ nhan = 'Báo cáo'; duongDan = $reportPath })
+  baoCao = $reportPath; quyenAdmin = [bool]$isAdmin; kiemTraSau = [bool]$KiemTraSau
+}
+try {
+  [IO.File]::WriteAllText($jsonPath + '.tmp', ($result | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding $false))
+  Move-Item -LiteralPath ($jsonPath + '.tmp') -Destination $jsonPath -Force -ErrorAction Stop
+} catch { Write-Host ('  [!] Khong ghi duoc file ket qua JSON: ' + $_.Exception.Message) -ForegroundColor Yellow }
+
+if (-not $env:CWF_KHONG_MO) {   # bai thu dat CWF_KHONG_MO: khong mo Notepad, khong doi clipboard
+  try { Set-Clipboard -Value $reportPath -ErrorAction SilentlyContinue } catch {}
+  try { Start-Process notepad.exe -ArgumentList ('"' + $reportPath + '"') } catch {}
+}
 exit 0

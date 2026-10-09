@@ -4,10 +4,12 @@
   Bản này xét kiểu khởi động (Services\<tên>\Start), lưu kiểu khởi động gốc ra ket_qua\TrangThaiGoc_<máy>.json
   trước khi tắt, "bật lại" trả đúng giá trị đó, và đọc lại sau mỗi lần đổi thay vì tin mã thoát.
 
-  Không có -Mode: hiện menu (bấm đúp TAT_BAT_DICH_VU.bat). -Mode <chế độ>: chạy thẳng (Trạm Tool dùng cách này).
+  Một phần của công cụ "Tối ưu Windows" (ToiUu.ps1); trước đây là công cụ riêng "Tắt/bật dịch vụ nền".
+  Không có -Mode: hiện menu (mục 2 của menu TOI_UU.bat). -Mode <chế độ>: chạy thẳng (Trạm Tool dùng cách này).
   Chế độ: kiem-tra (chỉ đọc, không cần Admin), tat, bat-lai.
   Chọn dịch vụ: -DiagTrack -WiSvc -SysMain -DefragSvc. Không chọn: "tat" hỏi từng dịch vụ, "bat-lai" xét cả bốn.
   -ChayThu: chỉ in việc sẽ làm, không đổi máy. -KhongDung: không chờ Enter khi xong.
+  -KetQua <file>: kiem-tra ghi thêm các phát hiện (có mã, mức, nút gợi ý) vào file này để ToiUu.ps1 gộp.
   Mã thoát: 0 xong, 1 lỗi, 2 thiếu điều kiện (quyền Admin), 3 làm được một phần.
 #>
 param(
@@ -18,6 +20,7 @@ param(
     [switch]$DefragSvc,
     [switch]$ChayThu,
     [switch]$KhongDung,
+    [string]$KetQua = '',
     [switch]$DaNangQuyen   # đánh dấu cửa sổ đã mở lại bằng quyền Admin, để không hỏi UAC lần nữa
 )
 
@@ -25,6 +28,8 @@ $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
 $script:ServicesKey = 'HKLM:\SYSTEM\CurrentControlSet\Services'
 $script:StateFile = Join-Path $PSScriptRoot ("ket_qua\TrangThaiGoc_{0}.json" -f $env:COMPUTERNAME)
+# Trước khi gộp vào "Tối ưu Windows" công cụ nằm ở tools\service-optimizer: gặp file cũ thì chuyển sang chỗ mới.
+$script:OldStateFile = Join-Path (Split-Path -Parent $PSScriptRoot) ("service-optimizer\ket_qua\TrangThaiGoc_{0}.json" -f $env:COMPUTERNAME)
 # Default: kiểu khởi động mặc định của Windows 10/11 (2 tự động, 3 thủ công), dùng khi chưa lưu trạng thái gốc.
 $script:Services = [ordered]@{
     DiagTrack = @{ Switch = 'DiagTrack'; Label = 'Gửi dữ liệu chẩn đoán cho Microsoft (DiagTrack, telemetry)'; Default = 2; Suggest = $true
@@ -147,13 +152,45 @@ function Test-HasSsd {
     catch { return $false }
 }
 
+# ---------------------------------------------------------------- phát hiện cho Trạm Tool
+$script:Findings = New-Object System.Collections.ArrayList
+function Add-Finding {
+    # Một phát hiện theo chuẩn tramtool.ketqua/1; $Tiep 'cong-cu/action' là nút gợi ý chạy tiếp trong Trạm.
+    param([string]$Ma, [string]$Muc, [string]$TieuDe, [string]$ChiTiet = '', [string]$CachSua = '', [string]$Tiep = '')
+    $f = [ordered]@{ ma = $Ma; mucDo = $Muc; tieuDe = $TieuDe; chiTiet = $ChiTiet; cachSua = $CachSua }
+    if ($Tiep -match '^([a-z0-9-]+)/([A-Za-z0-9_-]+)$') { $f['chayTiep'] = [ordered]@{ congCu = $Matches[1]; action = $Matches[2] } }
+    [void]$script:Findings.Add($f)
+}
+
+function Save-Findings {
+    # Ghi các phát hiện của lần Kiểm tra ra file cho ToiUu.ps1 gộp (ghi file tạm rồi đổi tên).
+    param([string]$Path)
+    $doc = [ordered]@{ phatHien = @($script:Findings.ToArray()) }
+    $tmp = "$Path.tmp"
+    [IO.File]::WriteAllText($tmp, ($doc | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding $false))
+    Move-Item -LiteralPath $tmp -Destination $Path -Force
+}
+
 # ---------------------------------------------------------------- trạng thái gốc
+function Get-StateFilePath {
+    # File trạng thái gốc để đọc: chỗ mới; chỉ có file ở chỗ cũ (bản trước khi gộp) thì chuyển sang chỗ mới,
+    # chuyển không được thì đọc thẳng file cũ (Save-SavedState ghi chỗ mới rồi xoá file cũ).
+    if ((Test-Path -LiteralPath $script:StateFile) -or -not $script:OldStateFile -or -not (Test-Path -LiteralPath $script:OldStateFile)) { return $script:StateFile }
+    try {
+        $dir = Split-Path -Parent $script:StateFile
+        if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+        Move-Item -LiteralPath $script:OldStateFile -Destination $script:StateFile -ErrorAction Stop
+        return $script:StateFile
+    } catch { return $script:OldStateFile }
+}
+
 function Read-SavedState {
     # Trả name -> @{ start; delayed; running; luuLuc }. File hỏng thì báo lỗi, không ghi đè.
     $map = @{}
-    if (-not (Test-Path -LiteralPath $script:StateFile)) { return $map }
-    try { $json = [IO.File]::ReadAllText($script:StateFile) | ConvertFrom-Json }
-    catch { throw "File trạng thái gốc bị hỏng: $script:StateFile. Đổi tên hoặc chép file đó đi chỗ khác rồi chạy lại." }
+    $path = Get-StateFilePath
+    if (-not (Test-Path -LiteralPath $path)) { return $map }
+    try { $json = [IO.File]::ReadAllText($path) | ConvertFrom-Json }
+    catch { throw "File trạng thái gốc bị hỏng: $path. Đổi tên hoặc chép file đó đi chỗ khác rồi chạy lại." }
     if ($json -and $json.dichVu) {
         foreach ($p in $json.dichVu.PSObject.Properties) {
             $v = $p.Value
@@ -166,7 +203,7 @@ function Read-SavedState {
 function Save-SavedState {
     param([hashtable]$Map)
     if (-not $Map.Count) {
-        if (Test-Path -LiteralPath $script:StateFile) { Remove-Item -LiteralPath $script:StateFile -Force }
+        foreach ($f in @($script:StateFile, $script:OldStateFile)) { if ($f -and (Test-Path -LiteralPath $f)) { Remove-Item -LiteralPath $f -Force } }
         return
     }
     $dir = Split-Path -Parent $script:StateFile
@@ -177,6 +214,8 @@ function Save-SavedState {
     $tmp = "$script:StateFile.tmp"
     [IO.File]::WriteAllText($tmp, ($doc | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
     Move-Item -LiteralPath $tmp -Destination $script:StateFile -Force
+    # Đã đọc từ file cũ mà không chuyển được: bỏ file cũ để lần sau không đọc lại mục đã bật lại.
+    if ($script:OldStateFile -and (Test-Path -LiteralPath $script:OldStateFile)) { Remove-Item -LiteralPath $script:OldStateFile -Force -ErrorAction SilentlyContinue }
 }
 
 # ---------------------------------------------------------------- chế độ
@@ -191,8 +230,12 @@ function Get-SelectedNames {
 
 function Invoke-KiemTra {
     Write-Head 'Trạng thái dịch vụ nền'
+    $script:Findings.Clear()
     $saved = @{}
-    try { $saved = Read-SavedState } catch { Write-Warn $_.Exception.Message }
+    try { $saved = Read-SavedState } catch {
+        Write-Warn $_.Exception.Message
+        Add-Finding 'FILE_TRANG_THAI_HONG' 'loi' 'File trạng thái gốc của dịch vụ bị hỏng' $_.Exception.Message 'Đổi tên hoặc chép file đó đi chỗ khác rồi chạy lại. Không có file thì Bật lại dùng mặc định của Windows.'
+    }
     $changed = 0
     foreach ($n in $script:Services.Keys) {
         $s = $script:Services[$n]; $c = Get-SvcConfig $n
@@ -201,15 +244,34 @@ function Invoke-KiemTra {
         if (-not $c.Exists) { Write-Info 'Máy này không có dịch vụ này.'; continue }
         $line = 'Kiểu khởi động: {0} (mặc định Windows: {1}); {2}.' -f (Format-Start $c.Start $c.Delayed), (Format-Start $s.Default), $(if ($c.Running) { 'đang chạy' } else { 'đang dừng' })
         if ($c.Start -eq 4) { Write-Warn $line; $changed++ } else { Write-Ok $line }
-        if ($saved.ContainsKey($n)) { Write-Sub ('Trạng thái gốc đã lưu: {0} (lưu lúc {1}). "Bật lại" trả về giá trị này.' -f (Format-Start $saved[$n].start $saved[$n].delayed), $saved[$n].luuLuc) }
-        elseif ($c.Start -eq 4) { Write-Sub ('Chưa lưu trạng thái gốc: "Bật lại" sẽ trả về mặc định của Windows ({0}).' -f (Format-Start $s.Default)) }
+        $goc = ''
+        if ($saved.ContainsKey($n)) {
+            $goc = 'Trạng thái gốc đã lưu: {0} (lưu lúc {1}). "Bật lại" trả về giá trị này.' -f (Format-Start $saved[$n].start $saved[$n].delayed), $saved[$n].luuLuc
+            Write-Sub $goc
+        } elseif ($c.Start -eq 4) {
+            $goc = 'Chưa lưu trạng thái gốc: "Bật lại" sẽ trả về mặc định của Windows ({0}).' -f (Format-Start $s.Default)
+            Write-Sub $goc
+        }
         Write-Sub $s.Note
+        if ($c.Start -eq 4) { Add-Finding 'DICH_VU_DA_TAT' 'thong-tin' ('Đang tắt: {0}' -f $s.Label) ("$goc $($s.Note)").Trim() }
     }
     Write-Line ''
-    if ((Get-SvcConfig 'defragsvc').Start -eq 4 -and (Test-HasSsd)) { Write-Warn 'Máy có SSD mà Tối ưu ổ đĩa đang tắt: SSD không được TRIM định kỳ. Nên bật lại.' }
-    if ((Get-SvcConfig 'wisvc').Start -eq 4 -and (Test-Insider)) { Write-Warn 'Máy đang nhận bản Windows Insider mà wisvc đang tắt: có thể ngừng nhận bản mới.' }
-    if ($changed) { Write-Info "$changed dịch vụ đang tắt." } else { Write-Info 'Không dịch vụ nào đang tắt.' }
+    if ((Get-SvcConfig 'defragsvc').Start -eq 4 -and (Test-HasSsd)) {
+        Write-Warn 'Máy có SSD mà Tối ưu ổ đĩa đang tắt: SSD không được TRIM định kỳ. Nên bật lại.'
+        Add-Finding 'TRIM_TAT' 'canh-bao' 'Máy có SSD mà Tối ưu ổ đĩa (defragsvc) đang tắt' 'SSD không được TRIM định kỳ nên chậm dần.' 'Chạy "Bật lại dịch vụ như trước khi tắt", đánh dấu Tối ưu ổ đĩa.' 'toi-uu/bat-lai-dich-vu'
+    }
+    if ((Get-SvcConfig 'wisvc').Start -eq 4 -and (Test-Insider)) {
+        Write-Warn 'Máy đang nhận bản Windows Insider mà wisvc đang tắt: có thể ngừng nhận bản mới.'
+        Add-Finding 'INSIDER_TAT' 'canh-bao' 'Máy đang nhận bản Windows Insider mà wisvc đang tắt' 'Có thể ngừng nhận bản Windows thử nghiệm mới.' 'Chạy "Bật lại dịch vụ như trước khi tắt", đánh dấu Windows Insider.' 'toi-uu/bat-lai-dich-vu'
+    }
+    if ($changed) { Write-Info "$changed dịch vụ đang tắt." } else {
+        Write-Info 'Không dịch vụ nào đang tắt.'
+        Add-Finding 'DICH_VU_MAC_DINH' 'ok' 'Không dịch vụ nền nào trong bốn dịch vụ đang tắt'
+    }
     Write-Info "File trạng thái gốc: $script:StateFile"
+    if ($KetQua) {
+        try { Save-Findings $KetQua } catch { Write-Bad ('Không ghi được file kết quả {0}: {1}' -f $KetQua, $_.Exception.Message.Trim()); return 1 }
+    }
     return 0
 }
 

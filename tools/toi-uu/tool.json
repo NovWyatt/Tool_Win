@@ -1,0 +1,164 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "toi-uu",
+  "name": "Tối ưu Windows: dịch vụ nền, đồng hồ hệ thống",
+  "version": "1.0",
+  "category": "toi-uu",
+  "icon": "gauge",
+  "audience": "tech",
+  "summary": "Một nút Kiểm tra xem cả dịch vụ nền (DiagTrack, Windows Insider, SysMain, Tối ưu ổ đĩa) lẫn đồng hồ hệ thống (Dynamic Tick, HPET); tắt hay đổi đều lưu lại để trả về đúng như cũ.",
+  "description": "Gộp hai công cụ cũ Tắt/bật dịch vụ nền và Tối ưu đồng hồ hệ thống. Chạy Kiểm tra trước: công cụ đọc kiểu khởi động thật của từng dịch vụ (không nhầm \"đang dừng\" với \"đã tắt\") và thiết lập đồng hồ trong BCD, Trạm hiện các điều nên sửa kèm nút chạy tiếp. Tắt dịch vụ lưu kiểu khởi động cũ vào ket_qua\\TrangThaiGoc_<tên máy>.json để Bật lại trả đúng như trước. Đổi đồng hồ đọc lại BCD sau khi đổi và cần khởi động lại máy; ổ Windows đang bật BitLocker thì công cụ hỏi trước rồi tạm dừng BitLocker đúng 1 lần khởi động.",
+  "tags": ["tối ưu", "dịch vụ", "service", "telemetry", "diagtrack", "sysmain", "superfetch", "defrag", "trim", "insider", "game", "timer", "HPET", "dynamic tick", "useplatformclock", "disabledynamictick", "bcdedit", "BCD", "giật lag"],
+  "docs": "HUONG-DAN.md",
+  "actions": [
+    {
+      "id": "kiem-tra",
+      "label": "Kiểm tra",
+      "file": "ToiUu.ps1",
+      "fixedArgs": ["-Mode", "kiem-tra"],
+      "admin": true,
+      "risk": "read-only",
+      "primary": true,
+      "duration": "Vài giây",
+      "description": "Chỉ đọc. Kiểu khởi động, đang chạy hay dừng và trạng thái gốc đã lưu của bốn dịch vụ; Dynamic Tick, HPET, đồng hồ nền tảng trong BCD và giá trị registry bản cũ còn sót. Cảnh báo khi máy có SSD mà Tối ưu ổ đĩa đang tắt, hoặc đang ép HPET. Cần quyền Admin vì đọc BCD."
+    },
+    {
+      "id": "tat-dich-vu",
+      "label": "Tắt dịch vụ nền",
+      "file": "DichVu.ps1",
+      "fixedArgs": ["-Mode", "tat"],
+      "admin": true,
+      "risk": "modifies-system",
+      "duration": "Vài giây",
+      "description": "Tắt các dịch vụ đã chọn (kiểu khởi động Đã tắt) và dừng nếu đang chạy. Kiểu khởi động cũ được lưu trước để Bật lại. Không chọn dịch vụ nào thì cửa sổ công cụ hỏi từng cái.",
+      "confirm": "Tắt SysMain thường làm mở ứng dụng chậm hơn trên máy RAM đủ dùng. Tắt Tối ưu ổ đĩa thì SSD không được TRIM định kỳ; cửa sổ công cụ còn hỏi lại.",
+      "changes": [
+        "Lưu kiểu khởi động hiện tại vào ket_qua\\TrangThaiGoc_<tên máy>.json",
+        "Đặt kiểu khởi động Đã tắt và dừng các dịch vụ đã chọn"
+      ],
+      "args": [
+        { "id": "diagtrack", "type": "bool", "flag": "-DiagTrack", "default": true, "label": "DiagTrack: gửi dữ liệu chẩn đoán cho Microsoft (telemetry)" },
+        { "id": "wisvc", "type": "bool", "flag": "-WiSvc", "default": true, "label": "Windows Insider (wisvc): chỉ cần khi nhận bản Windows thử nghiệm" },
+        { "id": "sysmain", "type": "bool", "flag": "-SysMain", "label": "SysMain: chỉ nên tắt khi HDD thường chạy 100% hoặc RAM 4 GB trở xuống" },
+        { "id": "defragsvc", "type": "bool", "flag": "-DefragSvc", "label": "Tối ưu ổ đĩa (defragsvc): không nên tắt, chạy TRIM cho SSD" },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "bat-lai-dich-vu",
+      "label": "Bật lại dịch vụ như trước khi tắt",
+      "file": "DichVu.ps1",
+      "fixedArgs": ["-Mode", "bat-lai"],
+      "admin": true,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Vài giây",
+      "description": "Trả kiểu khởi động đã lưu lúc tắt (kể cả Tự động trễ); dịch vụ chưa lưu thì trả về mặc định của Windows. Chạy lại dịch vụ đã chạy trước đó. Không đánh dấu dịch vụ nào thì bật lại mọi dịch vụ đang tắt trong bốn dịch vụ.",
+      "changes": [
+        "Đặt lại kiểu khởi động các dịch vụ đang tắt",
+        "Chạy lại dịch vụ Tự động",
+        "Xoá mục đã bật lại khỏi ket_qua\\TrangThaiGoc_<tên máy>.json"
+      ],
+      "args": [
+        { "id": "diagtrack", "type": "bool", "flag": "-DiagTrack", "label": "Chỉ bật lại DiagTrack (telemetry)", "help": "Không đánh dấu dịch vụ nào thì bật lại cả bốn (dịch vụ nào đang tắt)." },
+        { "id": "wisvc", "type": "bool", "flag": "-WiSvc", "label": "Chỉ bật lại Windows Insider (wisvc)" },
+        { "id": "sysmain", "type": "bool", "flag": "-SysMain", "label": "Chỉ bật lại SysMain" },
+        { "id": "defragsvc", "type": "bool", "flag": "-DefragSvc", "label": "Chỉ bật lại Tối ưu ổ đĩa (defragsvc, TRIM cho SSD)" },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "choi-game",
+      "label": "Tối ưu đồng hồ cho chơi game",
+      "file": "DongHo.ps1",
+      "fixedArgs": ["-Mode", "choi-game"],
+      "admin": true,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Vài giây, cần khởi động lại máy",
+      "description": "Tắt Dynamic Tick (bcdedit /set {current} disabledynamictick yes) và bỏ ép HPET nếu đang ép. Không thấy game mượt hơn sau khi khởi động lại thì chạy \"Trả đồng hồ về mặc định\".",
+      "confirm": "Laptop có thể hao pin hơn một chút khi tắt Dynamic Tick. Điểm khôi phục hệ thống không lưu BCD; muốn quay lại thì dùng nút \"Trả đồng hồ về mặc định của Windows\".",
+      "changes": [
+        "BCD mục khởi động hiện tại: disabledynamictick = yes",
+        "BCD: xoá useplatformclock nếu đang đặt",
+        "Xoá useplatformclock, disabledynamictick bản 1.0 ghi trong HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel",
+        "Ổ Windows đang bật BitLocker: tạm dừng 1 lần khởi động (hỏi trước)"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "mac-dinh-dong-ho",
+      "label": "Trả đồng hồ về mặc định của Windows",
+      "file": "DongHo.ps1",
+      "fixedArgs": ["-Mode", "mac-dinh"],
+      "admin": true,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Vài giây, cần khởi động lại máy",
+      "description": "Xoá disabledynamictick, useplatformclock, useplatformtick khỏi BCD (Windows tự chọn đồng hồ như lúc mới cài) và dọn giá trị registry bản cũ.",
+      "changes": [
+        "BCD mục khởi động hiện tại: xoá disabledynamictick, useplatformclock, useplatformtick nếu đang đặt",
+        "Xoá useplatformclock, disabledynamictick bản 1.0 ghi trong HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel",
+        "Ổ Windows đang bật BitLocker: tạm dừng 1 lần khởi động (hỏi trước)"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "menu",
+      "label": "Mở menu (như bấm đúp TOI_UU.bat)",
+      "file": "ToiUu.ps1",
+      "admin": false,
+      "selfElevates": true,
+      "risk": "asks-before-change",
+      "description": "Menu chung: kiểm tra tất cả, menu dịch vụ nền, menu đồng hồ; hỏi từng dịch vụ và hỏi lại trước khi đổi. Cửa sổ tự hỏi UAC để có quyền Admin."
+    }
+  ],
+  "probes": [
+    { "type": "service", "name": "DiagTrack", "label": "DiagTrack (telemetry)", "default": "Automatic" },
+    { "type": "service", "name": "wisvc", "label": "Windows Insider (wisvc)", "default": "Manual" },
+    { "type": "service", "name": "SysMain", "label": "SysMain (SuperFetch)", "default": "Automatic" },
+    { "type": "service", "name": "defragsvc", "label": "Tối ưu ổ đĩa (defragsvc)", "default": "Manual" },
+    {
+      "type": "registry",
+      "label": "useplatformclock bản 1.0 ghi (còn sót)",
+      "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel",
+      "name": "useplatformclock",
+      "snapshot": false,
+      "note": "Windows không đọc giá trị này; hai nút đổi đồng hồ sẽ xoá. Thiết lập thật xem bằng nút Kiểm tra."
+    },
+    {
+      "type": "registry",
+      "label": "disabledynamictick bản 1.0 ghi (còn sót)",
+      "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel",
+      "name": "disabledynamictick",
+      "snapshot": false,
+      "note": "Windows không đọc giá trị này; hai nút đổi đồng hồ sẽ xoá. Thiết lập thật xem bằng nút Kiểm tra."
+    }
+  ],
+  "outputs": [
+    { "label": "Kết quả Kiểm tra", "dir": "ket_qua", "glob": "KetQua_ToiUu_KiemTra_%COMPUTERNAME%_*.json", "ketQua": true },
+    {
+      "label": "Trạng thái gốc để bật lại dịch vụ", "dir": "ket_qua", "glob": "TrangThaiGoc_%COMPUTERNAME%.json",
+      "deleteNote": "\"Bật lại dịch vụ như trước khi tắt\" cần file này để trả đúng kiểu khởi động cũ. Xoá rồi thì Bật lại dùng mặc định của Windows."
+    }
+  ],
+  "pack": {
+    "name": "ToiUuWindows",
+    "include": ["TOI_UU.bat", "ToiUu.ps1", "DichVu.ps1", "DongHo.ps1", "HUONG-DAN.md"]
+  },
+  "issues": [
+    "Mới thử bằng giả lập (dịch vụ, sc.exe, bcdedit, BitLocker, registry giả), Kiểm tra dịch vụ thật và chạy thử trên máy phát triển; chưa đổi dịch vụ hay BCD thật.",
+    "Kiểm tra cần quyền Admin (đọc BCD) nên Windows hỏi UAC kể cả khi chỉ muốn xem dịch vụ.",
+    "Dịch vụ đã bị tắt trước khi dùng công cụ thì không biết kiểu khởi động cũ: Bật lại dùng mặc định của Windows.",
+    "Đồng hồ: chỉ đổi mục khởi động hiện tại ({current}); máy cài song song nhiều Windows thì mục kia giữ nguyên.",
+    "Đồng hồ: lợi ích không chắc chắn. Trên Windows 10/11 hiện đại hai tinh chỉnh này thường không làm game mượt hơn, tắt Dynamic Tick có thể tăng điện năng tiêu thụ."
+  ],
+  "upgrades": [
+    "P1: Kiểm tra TRIM thật bằng 'Optimize-Volume -ReTrim -WhatIf' hoặc lịch tác vụ ScheduledDefrag thay vì chỉ cảnh báo.",
+    "P1: Đo trước/sau (độ trễ DPC bằng LatencyMon hoặc thời gian khung hình) rồi mới khuyên tối ưu đồng hồ."
+  ]
+}
