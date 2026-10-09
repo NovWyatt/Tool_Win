@@ -30,8 +30,8 @@ Cả lượt mất khoảng 6 phút. Bộ chậm nhất: `new-windows/4_TienTrin
 ## Cần gì
 
 - Windows PowerShell 5.1 (có sẵn). Không cần Pester.
-- Python 3 cho `mdf2sql` (`tools\mdf2sql\tests`, dùng pyodbc và tkinter giả, không cần SQL Server) và
-  `ghi-am-sang-word` (không cần `.venv` hay mô hình). Không có Python thì bỏ qua. `mdf2sql/1_ChayTool` không cần Python:
+- Python 3 cho `mdf2sql` (`tools\mdf2sql\tests`, dùng pyodbc và tkinter giả, không cần SQL Server),
+  `ghi-am-sang-word` (không cần `.venv` hay mô hình), `dwg2pdf`, `tieng-viet/1_ChuyenUnicode` (Python 3.9 trở lên). Không có Python thì bỏ qua. `mdf2sql/1_ChayTool` không cần Python:
   bài này biên dịch một `python.exe` giả.
 - Excel cho `the-xe-nt` (tạo file `.xls` mẫu), PowerShell 32 bit (Jet) do trình chạy tự gọi. Không có Excel thì bỏ qua.
 - Node.js cho `tinh/4_LuocDo` (kiểm `tool.json` theo lược đồ bằng Ajv, kiểm cú pháp JavaScript của giao diện). Cài Ajv
@@ -68,6 +68,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `office/2_KiemTraThat` | Kiểm tra Office thật (chỉ đọc: Office, giấy phép, ứng dụng đang mở) với thư mục mẫu rỗng nên không đọc tới bộ cài mẫu thật; Gỡ sạch ở chế độ chạy thử (không hỏi UAC, không gỡ gì); báo cáo và JSON kết quả vào thư mục tạm (`OFFICE_KET_QUA`), không có chuỗi dạng khoá sản phẩm |
 | `gio-chu-ky-so/2_ChayThat` | Kiểm tra thật (hỏi máy chủ giờ qua mạng, đọc dịch vụ, đầu đọc thẻ, kho chứng thư của tài khoản; không hỏi PIN); Sửa giờ, Sửa token, Trả lại ở chế độ chạy thử; so cấu hình giờ, dịch vụ trước và sau |
 | `bo-ung-dung/2_ChayThat` | Kiểm tra thật (`winget export`, chỉ đọc); Cài, Cập nhật ở chế độ chạy thử (không hỏi UAC, không cài gì); cờ lạ, chế độ sai; so danh sách phần mềm đã cài trước và sau |
+| `tieng-viet/3_ChayThat` | Kiểm tra thật (tiến trình bộ gõ, khởi động cùng Windows, danh sách ngôn ngữ, font, định dạng, Excel, bảng mã); Đặt định dạng, Trả lại ở chế độ chạy thử trên cài đặt thật; đổi rồi trả lại thật trên registry thử (`TV_REG_GOC`, bản chép định dạng thật); so định dạng thật, tuỳ chọn Excel trước và sau |
 | `toi-uu/3_ToiUu` | Kiểm tra dịch vụ nền thật (chỉ đọc); phần đồng hồ chạy `-ChayThu` nên không hỏi UAC, `bcdedit /enum` bị từ chối khi không có quyền Admin |
 
 `tram/1_LanCanAnToan` cũng đọc trạng thái Bảo vệ hệ thống, winget, dịch vụ SysMain, build Windows (chỉ đọc).
@@ -89,6 +90,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `gio-chu-ky-so` | độ lệch giờ, múi giờ, dịch vụ, token, chứng thư (giả lập); sửa giờ (đặt giờ khi đồng bộ xong vẫn lệch, máy trong domain không đổi cấu hình), sửa dịch vụ token, trả lại như cũ, giữ giá trị của lần sửa đầu; JSON kết quả mà trạm đọc được |
 | `bo-ung-dung` | danh sách `DanhSach.json` khớp ô chọn trong `tool.json`, khoá không trùng tiền tố tham số của script; chọn bằng cờ; cài (bỏ qua ứng dụng đã có, bộ gõ cùng nhóm chỉ cài một, đọc lại danh sách đã cài thay vì tin mã thoát, cần khởi động lại), cập nhật (đã mới nhất, lỗi); winget giả; JSON kết quả mà trạm đọc được |
 | `ghi-am-sang-word` | tên kết quả giữ đuôi file gốc, nhận kết quả bản cũ, `--ra` (Python của máy, không nạp mô hình); `2_TienDoLamTiep`: file tiến độ, làm tiếp từ khúc đã xong khi bị ngắt, file gốc đổi thì làm lại, hết bộ nhớ card thì thử lại (lần cuối beam 1), chuyển sang CPU làm tiếp (mô hình giả) |
+| `tieng-viet` | `1_ChuyenUnicode`: chuyển `.docx`, `.xlsx` dựng tại chỗ (font đặt thẳng, kiểu ký tự, kiểu đoạn, kế thừa, chủ đề, khung chữ, đầu trang; ô Excel theo font, chữ dùng chung tách bản, chữ nhiều định dạng, kết quả công thức, ghi chú; file hỏng, tên bản sao, chỉ xem, JSON kết quả, tiến độ), `vni.py`, `tcvn3.py` giống hệt bản của dwg2pdf, `.bat` thiếu Python; `2_TiengViet`: bộ gõ, khởi động, bàn phím Windows, font, bảng mã (giả lập), định dạng số, ngày, Excel đọc ghi trong registry thử; đặt định dạng, trả lại, giữ giá trị lần đổi đầu, Excel đang mở, ghi hỏng một mục; JSON kết quả, nút chạy tiếp, cờ trong `tool.json` |
 | `dwg2pdf` | `1_TienDo`: đọc bước từ nhật ký `convert.py` (đọc, khung, vẽ từng tờ), gộp phần trăm cả lô, chạy `main()` với hai bản vẽ giả (bộ đổi DXF và `convert.py` giả, không cần `.venv` hay LibreDWG), bản vẽ đã có PDF vẫn tính là xong |
 | `may-in-lan` | mã lỗi Windows và cách xử lý, tách UNC, máy in bản sao; nhật ký hoàn tác (registry thử); mỗi phát hiện của Chẩn đoán có mã cố định, nút sửa trỏ tới action có thật, JSON kết quả mà trạm đọc được |
 | `fix-win` | DISM, SFC (CBS.log giả), mạng, tường lửa, ổ đĩa, RAM, Windows Update với lệnh giả; mỗi kết quả có mã, nút gợi ý trỏ tới action có thật, JSON kết quả từng chế độ |

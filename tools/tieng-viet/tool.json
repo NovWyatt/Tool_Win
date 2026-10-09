@@ -1,0 +1,129 @@
+{
+  "$schema": "../../hub/schema/tool.schema.json",
+  "id": "tieng-viet",
+  "name": "Gói tiếng Việt",
+  "version": "1.0",
+  "category": "van-phong",
+  "icon": "document-text",
+  "audience": "all",
+  "summary": "Gõ sai dấu, số và ngày lệch trong Excel, tài liệu cũ font VNI, TCVN3 hiện sai chữ: kiểm tra bộ gõ, font, định dạng số và ngày; đặt định dạng kiểu Việt Nam (trả lại được); chuyển bản sao tài liệu sang Unicode.",
+  "description": "Chạy Kiểm tra trước (chỉ đọc, không cần quyền Admin): hai bộ gõ cùng chạy hoặc một bộ chạy hai lần, bộ gõ khởi động cùng Windows ở nhiều chỗ, bàn phím tiếng Việt của Windows bật cùng UniKey, EVKey; font VNI, TCVN3 đã cài; dấu thập phân trùng dấu nghìn, ngày kiểu tháng trước, Excel dùng dấu riêng; chế độ UTF-8 (Beta) và ngôn ngữ cho phần mềm cũ. Đặt định dạng chỉ đổi cài đặt của tài khoản đang dùng, lưu giá trị cũ vào ket_qua\\TrangThaiGoc_TiengViet_<máy>_<tài khoản>.json để Trả lại. Chuyển tài liệu tạo bản sao <tên>_Unicode cạnh file gốc, không đụng file gốc; cần Python 3.9 trở lên.",
+  "tags": ["tiếng Việt", "bộ gõ", "gõ sai dấu", "UniKey", "EVKey", "OpenKey", "font", "VNI", "TCVN3", "ABC", ".VnTime", "VNI-Times", "Unicode", "lỗi font", "định dạng số", "dấu phẩy", "dấu chấm", "dấu thập phân", "định dạng ngày", "Excel", "Word"],
+  "docs": "HUONG-DAN.md",
+  "actions": [
+    {
+      "id": "kiem-tra",
+      "label": "Kiểm tra",
+      "file": "TiengViet.ps1",
+      "fixedArgs": ["-Mode", "kiem-tra"],
+      "admin": false,
+      "risk": "read-only",
+      "primary": true,
+      "duration": "Vài giây",
+      "description": "Chỉ đọc. Bộ gõ đang chạy và quyền chạy, bộ gõ khởi động cùng Windows (khoá Run, thư mục Startup, Task Scheduler), bàn phím tiếng Việt của Windows; font VNI, TCVN3 đã cài; dấu thập phân, dấu nghìn, dấu ngăn danh sách, mẫu ngày, định dạng tiền; Excel dùng dấu riêng; ngôn ngữ cho chương trình không Unicode, chế độ UTF-8 (Beta)."
+    },
+    {
+      "id": "dinh-dang",
+      "label": "Đặt định dạng số và ngày",
+      "file": "TiengViet.ps1",
+      "fixedArgs": ["-Mode", "dinh-dang"],
+      "admin": false,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Vài giây",
+      "description": "Đặt dấu thập phân, dấu nghìn, dấu ngăn danh sách (cũng là dấu ngăn tham số công thức Excel), định dạng tiền và ngày dd/MM/yyyy cho tài khoản đang dùng, như chỉnh ở Control Panel > Region. Excel, Word, phần mềm kế toán đang mở cần mở lại.",
+      "changes": [
+        "Lưu giá trị cũ vào ket_qua\\TrangThaiGoc_TiengViet_<tên máy>_<tài khoản>.json",
+        "Định dạng số, tiền, ngày ngắn của tài khoản đang dùng (HKCU\\Control Panel\\International, qua SetLocaleInfo)",
+        "Excel dùng dấu của Windows (Use system separators) nếu đánh dấu và Excel đang dùng dấu riêng; Excel phải đang tắt"
+      ],
+      "args": [
+        { "id": "mau", "type": "choice", "flag": "-Mau", "label": "Kiểu định dạng", "default": "vn", "options": [
+          { "value": "vn", "label": "Việt Nam: 1.234.567,89; công thức =SUM(A1;B1); ngày 31/12/2026" },
+          { "value": "quoc-te", "label": "Quốc tế: 1,234,567.89; công thức =SUM(A1,B1); ngày 31/12/2026" }
+        ], "help": "Công ty dùng phần mềm kế toán, file Excel chung thì chọn giống các máy khác trong công ty." },
+        { "id": "excel", "type": "bool", "flag": "-ExcelTheoWindows", "default": true, "label": "Excel đang dùng dấu riêng thì cho dùng dấu của Windows" },
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "chuyen",
+      "label": "Chuyển tài liệu sang Unicode",
+      "file": "CHUYEN_UNICODE.bat",
+      "type": "console",
+      "risk": "read-only",
+      "duration": "Vài giây mỗi file",
+      "description": "Tạo bản sao <tên>_Unicode cạnh file gốc (.docx, .docm, .xlsx, .xlsm): chữ gõ bằng font VNI (VNI-Times...) hoặc TCVN3 (.VnTime...) đổi sang Unicode, font đổi sang Times New Roman, Arial, Courier New. File gốc không bị đổi. File .doc, .xls cũ thì mở bằng Word, Excel và lưu lại dạng .docx, .xlsx trước.",
+      "tienDo": { "flag": "--tien-do" },
+      "args": [
+        { "id": "files", "type": "file", "multiple": true, "label": "File Word, Excel", "filter": "Word, Excel|*.docx;*.docm;*.xlsx;*.xlsm|Tất cả|*.*", "help": "Chọn file, hoặc chọn cả thư mục ở ô dưới." },
+        { "id": "thu-muc", "type": "folder", "flag": "--thu-muc", "label": "Hoặc cả thư mục tài liệu" },
+        { "id": "de-quy", "type": "bool", "flag": "--de-quy", "label": "Tìm cả trong thư mục con" },
+        { "id": "ra", "type": "folder", "flag": "--ra", "label": "Lưu bản Unicode vào thư mục (không bắt buộc)", "help": "Bỏ trống: cạnh file gốc." },
+        { "id": "chi-xem", "type": "bool", "flag": "--chi-xem", "label": "Chỉ xem file nào có chữ font cũ, chưa tạo bản sao" }
+      ]
+    },
+    {
+      "id": "tra-lai",
+      "label": "Trả định dạng như trước khi đổi",
+      "file": "TiengViet.ps1",
+      "fixedArgs": ["-Mode", "tra-lai"],
+      "admin": false,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Vài giây",
+      "description": "Trả định dạng số, tiền, ngày và tuỳ chọn dấu của Excel về giá trị lưu trước lần đổi đầu tiên, rồi xoá file giá trị cũ.",
+      "changes": [
+        "Định dạng số, tiền, ngày ngắn của tài khoản đang dùng như lúc lưu",
+        "Tuỳ chọn Use system separators của Excel như lúc lưu",
+        "Xoá ket_qua\\TrangThaiGoc_TiengViet_<tên máy>_<tài khoản>.json"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ làm gì, không đổi máy" }
+      ]
+    },
+    {
+      "id": "menu",
+      "label": "Mở menu (như bấm đúp TIENG_VIET.bat)",
+      "file": "TiengViet.ps1",
+      "admin": false,
+      "risk": "asks-before-change",
+      "description": "Menu đủ các mục trên (chuyển tài liệu bằng cách kéo thả file vào cửa sổ), in việc sẽ làm và hỏi lại trước khi đổi."
+    }
+  ],
+  "requires": [
+    { "id": "python", "type": "python", "min": "3.9", "optional": true, "label": "Python 3.9 trở lên (chỉ cần cho Chuyển tài liệu sang Unicode)", "fix": { "label": "Cài Python 3.12", "winget": "Python.Python.3.12", "args": "--scope user" } }
+  ],
+  "probes": [
+    { "type": "registry", "label": "Dấu thập phân", "path": "HKCU:\\Control Panel\\International", "name": "sDecimal", "badge": false, "snapshot": false },
+    { "type": "registry", "label": "Dấu phân cách nghìn", "path": "HKCU:\\Control Panel\\International", "name": "sThousand", "badge": false, "snapshot": false },
+    { "type": "registry", "label": "Dấu ngăn danh sách (ngăn tham số công thức Excel)", "path": "HKCU:\\Control Panel\\International", "name": "sList", "badge": false, "snapshot": false },
+    { "type": "registry", "label": "Ngày dạng ngắn", "path": "HKCU:\\Control Panel\\International", "name": "sShortDate", "badge": false, "snapshot": false }
+  ],
+  "outputs": [
+    { "label": "Kết quả kiểm tra, đặt định dạng", "dir": "ket_qua", "glob": "KetQua_TiengViet_%COMPUTERNAME%_*.json", "ketQua": true },
+    { "label": "Kết quả chuyển tài liệu", "dir": "ket_qua", "glob": "KetQua_TiengViet_ChuyenUnicode_%COMPUTERNAME%_*.json", "ketQua": true },
+    {
+      "label": "Giá trị cũ để trả lại", "dir": "ket_qua", "glob": "TrangThaiGoc_TiengViet_%COMPUTERNAME%_%USERNAME%.json",
+      "deleteNote": "\"Trả định dạng như trước khi đổi\" cần file này. Xoá rồi thì không trả lại được định dạng số, ngày như cũ."
+    }
+  ],
+  "pack": {
+    "name": "GoiTiengViet",
+    "include": ["TIENG_VIET.bat", "TiengViet.ps1", "CHUYEN_UNICODE.bat", "chuyen_unicode.py", "vni.py", "tcvn3.py", "HUONG-DAN.md"]
+  },
+  "issues": [
+    "Đặt định dạng mới chạy thật trên khoá registry thử (HKCU\\Software\\TramToolTest) và bằng giả lập; chưa gọi SetLocaleInfo thật trên máy phát triển (để không đổi cài đặt của máy), cần thử trên máy ảo.",
+    "Chuyển tài liệu nhận chữ font cũ theo tên font của đoạn chữ: chữ VNI, TCVN3 mà đặt font Unicode (Arial, Calibri) thì giữ nguyên. Chưa đổi chữ trong biểu đồ, hình vẽ, SmartArt, tên trang tính, đầu trang Excel, chuỗi trong công thức.",
+    "Chỉ nhận ra bộ gõ UniKey, EVKey, OpenKey, Vietkey, GoTiengViet, Laban Key, VPSKeys theo tên file chạy.",
+    "Chạy bằng quyền thường thì không đọc được quyền của bộ gõ đang chạy bằng quyền Admin, chỉ đoán.",
+    "Excel bị chính sách nhóm (Group Policy) khoá Use system separators thì đổi tuỳ chọn của Excel không có tác dụng."
+  ],
+  "upgrades": [
+    "P1: Chuyển cả .doc, .xls cũ: mở bằng Word, Excel (COM) lưu dạng mới rồi chuyển, khi máy có Office.",
+    "P1: Đổi chữ trong hộp văn bản, hình, biểu đồ của Excel và SmartArt của Word.",
+    "P2: Tìm tài liệu font cũ trong Desktop, Documents để gợi ý chuyển.",
+    "P2: Bỏ bàn phím tiếng Việt của Windows trùng bộ gõ ngay trong công cụ (có trả lại).",
+    "P2: Chuyển cả file .txt, .csv mã TCVN3, VNI."
+  ]
+}
