@@ -58,6 +58,12 @@ Mức ưu tiên:
   tra pyodbc, driver ODBC, SQL Server (kết nối thử, quyền tạo database), database tạm và thư mục làm việc còn sót, in
   cách sửa; máy chủ giao diện giữ cổng riêng, cổng 8760 bận thì tự lùi, nhận `--port 0`; `/api/health`,
   `/api/shutdown` và `server.json` để trạm quản lý. `doctor` đã chạy thật với SQL Server Express của máy phát triển.
+- **Đợt sửa nhanh P1 (09/10/2026)**: Đăng xuất GitHub 1.1 xoá mọi mục GitHub của Git (cả mục lưu kèm tên tài khoản),
+  hỏi trước với mục của ứng dụng khác, có Chạy thử; Báo cáo sức khoẻ 1.1 không có sự kiện thì in [OK] thay vì [LOI],
+  tự nâng quyền đúng khi thư mục có dấu `'`; Ghi âm sang Word 2026.10.1 giữ đuôi file gốc trong tên kết quả (vẫn nhận
+  kết quả bản cũ), thêm `--ra`; mdf2sql 1.1.1 mở hộp thoại chọn file trong tiến trình riêng, `Chay_tool.bat` chạy thử
+  Python thật. Thử bằng giả lập (cmdkey, `Get-WinEvent`, `python.exe`, tkinter giả); trên máy thật mới đọc
+  Credential Manager (chỉ đếm), nhật ký Application và kết quả ghi âm có sẵn, chưa xoá đăng nhập thật.
 
 ## Đã sửa trong đợt này
 
@@ -89,13 +95,18 @@ Mức ưu tiên:
 | `330017a` | MyExcelFix | 2026.10.1: hết đầu vào thì dừng; hoàn tác lưu cấu hình hiện tại trước, so SHA-256 từng file Excel, giữ bản đã sửa tiếp; mã thoát và JSON kết quả có mã phát hiện cố định. |
 | `72eb0f2` | Chuyển dữ liệu khi cài lại Windows | Bản 2.0: chọn nơi lưu (USB trước, không cho thư mục Trạm Tool); tuỳ chọn mã hoá mật khẩu Wi-Fi, cấu hình Claude vào `BiMat.aes`; `manifest.json` đánh dấu đang làm/xong, bước nhập bỏ bản dở, hỏi trước bản `_cu_`; tham số, chạy thử, mã thoát, JSON kết quả. |
 | `48f44a8` (submodule) | Khôi phục .mdf sang .sql | mdf2sql 1.1.0: lệnh `doctor`; máy chủ giao diện giữ cổng riêng (`SO_EXCLUSIVEADDRUSE`), cổng bận thì tự lùi, `--port 0`, in URL thật; `/api/health`, `/api/shutdown`, `server.json`; gợi ý cài ODBC 18 khi chỉ có driver cũ. |
+| `5db1af3`, `4d636be` (submodule) | Tất cả | Bài thử giả lập vào repo: `tests\ChayTatCa.ps1`, mỗi bộ một thư mục, unittest cho mdf2sql (xem *Vấn đề chung* số 9). |
+| `1ee6752` | Đăng xuất GitHub | Bản 1.1: đọc `cmdkey /list` theo phần `target=` (không phụ thuộc ngôn ngữ), xoá mọi mục GitHub của Git kể cả mục kèm tên tài khoản, mục của VS Code, GitHub Desktop hỏi trước, GitHub CLI qua `gh auth logout`; đọc lại sau khi xoá, không có gì thì nói rõ; Chạy thử, mã thoát 0/1/3. |
+| `15bedfb` | Báo cáo sức khoẻ | Bản 1.1: không có sự kiện thì in [OK] thay vì [LOI]; tự nâng quyền bằng `fltmc`, đường dẫn qua biến môi trường (thư mục có dấu `'` chạy được), đợi cửa sổ Admin để trả mã thoát; bỏ lời khuyên gửi file cho ChatGPT. |
+| `e198820` | Ghi âm sang Word | 2026.10.1: tên kết quả giữ đuôi file gốc (`hop.m4a - ban tho.docx`), `hop.m4a` và `hop.mp4` không ghi đè nhau; kết quả bản cũ vẫn được nhận nên không làm lại; `--ra` chọn thư mục kết quả. |
+| `2bfd956`, `d0e8d92` (submodule) | Khôi phục .mdf sang .sql | mdf2sql 1.1.1: hộp thoại chọn file (Tk) chạy trong tiến trình riêng thay vì trên luồng HTTP (có thể làm sập máy chủ); `Chay_tool.bat` chạy thử Python thay cho `where python` (lối tắt Microsoft Store không còn qua được); pyodbc 5.x theo `requirements.txt`. |
 
 ## Bảng tổng quan
 
 | Công cụ | Dành cho | Đánh giá | Việc nên làm trước |
 |---|---|---|---|
 | CheckWinFix | Mọi người | Bộ chẩn đoán đầy đủ nhất: 24 nhóm thông tin, khoảng 45 cảnh báo tự động (lỗi sự kiện so theo nguồn + mã, cả mức Warning), chạy đúng với mọi đường dẫn. *Cứu dữ liệu* bản 2.0 an toàn hơn (ổ vật lý khác, MD5 khi SQL dừng, luôn bật lại dịch vụ), mới thử bằng giả lập. | P1: lõi dùng chung, JSON kết quả, đọc EventData ở các mục còn lại. |
-| Báo cáo sức khoẻ | Mọi người | Chạy được, nhưng trùng phần lớn với *Thu thập thông tin* của CheckWinFix. | P1: gộp vào CheckWinFix thành chế độ nhanh. |
+| Báo cáo sức khoẻ | Mọi người | Bản 1.1 chạy được, không có sự kiện thì báo [OK]; nhưng trùng phần lớn với *Thu thập thông tin* của CheckWinFix. | P1: gộp vào CheckWinFix thành chế độ nhanh. |
 | Sửa lỗi Windows | Kỹ thuật | Bản 2.0: DISM rồi SFC, đặt lại mạng (ghi lại IP/DNS đặt tay trước), đặt lại tường lửa (sao lưu `.wfw`, hỏi lại, khôi phục được), quét và sửa ổ đĩa (xem sức khoẻ ổ trước), kiểm tra RAM, đặt lại Windows Update (đổi tên có thời gian); mỗi lệnh kiểm tra kết quả thật. Mới thử bằng giả lập. | P1: nhật ký tóm tắt CBS/DISM; DISM dùng ISO khi Windows Update không tải được. |
 | Kiểm tra và sửa lỗi Wi-Fi | Mọi người | Bản 1.1 thêm `KET_NOI_WIFI.bat`: gọi thẳng API Wi-Fi (không phụ thuộc ngôn ngữ Windows), sửa lỗi *Can't connect to this network* khi vào mạng mới sau khi máy thức dậy, chẩn đoán từ nhật ký WLAN theo mã lý do. Phần kết nối mới chạy thử, chưa chạy thật. Menu cũ `fixwf.bat` vẫn tìm card bằng chữ. | P1: tự sửa sau khi máy thức dậy; gộp menu cũ vào `KetNoiWifi.ps1`. |
 | Máy in mạng LAN và thư mục chia sẻ | Mọi người | Chẩn đoán 11 nhóm, chỉ nút sửa theo mã lỗi; 8 nút sửa in việc sẽ làm, hỏi trước, có Chạy thử, ghi nhật ký hoàn tác; nới bảo mật tách riêng, hỏi 2 lần; không bật SMB1. Mới kiểm chứng trên máy phát triển. | P1: chạy các nút sửa ở văn phòng thật; Local Port `\\MÁY\máy-in` thay cho nới RPC; dò máy in trong mạng. |
@@ -106,19 +117,19 @@ Mức ưu tiên:
 | File thẻ xe .nt | Mọi người | Chuyển danh sách Excel sang .nt, kiểm tra file .nt như phần mềm giữ xe đọc và so từng thẻ với danh sách Excel, chuyển .nt sang Excel kèm kết quả từng thẻ, sửa CardID mất số 0; bản sửa lô 3257-3426 khớp từng thẻ với bản sửa tay. Không cần Excel. | P1: nạp thử file do công cụ ghi vào phần mềm thật; so với danh sách thẻ đang có trong phần mềm trước khi nạp. |
 | MyExcelFix | Mọi người | Chẩn đoán kỹ theo từng tài khoản Windows, có sao lưu và hoàn tác an toàn (giữ bản đã sửa tiếp), mã thoát và JSON kết quả có mã phát hiện cố định; mã nguồn chia module và build ra một file `.bat`. | P1: Trạm hiện phát hiện từ JSON; `/undo`, `/list`; sao lưu theo tài khoản thay vì Desktop. |
 | DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5-35 phút). | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
-| Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn. | P1: tên kết quả giữ đuôi file gốc, lưu tiến độ để chạy tiếp, chỉ chạy lại bằng CPU khi đúng là lỗi card. |
-| Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. Có `doctor` kiểm tra môi trường; giao diện giữ cổng riêng, tự lùi khi cổng bận. | P1: `.venv` riêng khoá phiên bản pyodbc; dọn database tạm, thư mục làm việc bị bỏ lại; trạm đọc `server.json` để mở lại, tắt giao diện. |
+| Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn; tên kết quả giữ đuôi file gốc, chọn được thư mục kết quả. | P1: lưu tiến độ để chạy tiếp, chỉ chạy lại bằng CPU khi đúng là lỗi card. |
+| Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. Có `doctor` kiểm tra môi trường; giao diện giữ cổng riêng, tự lùi khi cổng bận; hộp thoại chọn file chạy trong tiến trình riêng. | P1: `.venv` riêng khoá phiên bản pyodbc; dọn database tạm, thư mục làm việc bị bỏ lại; trạm đọc `server.json` để mở lại, tắt giao diện. |
 | Chuyển dữ liệu khi cài lại Windows | Kỹ thuật | Bản 2.0: sao lưu Wi-Fi kèm mật khẩu, máy in kèm driver, dữ liệu Claude, khoá BitLocker, driver mạng ra nơi chọn (USB trước), tuỳ chọn mã hoá phần bí mật; manifest đánh dấu đã xong, bước nhập không dùng bản dở; có Chạy thử. Mới thử bằng giả lập. | P1: kiểm đếm file và SHA-256; hỏi bật tự mở khoá ổ BitLocker sau khi mở. |
 | BitLocker và khoá khôi phục | Mọi người | Kiểm tra từng ổ (mã hoá, tạm dừng, bị khoá), khoá khôi phục đã lưu ở đâu, TPM, các lần máy phải nhập khoá; kết luận theo thứ tự nên làm. 6 nút đổi máy có Chạy thử, nhật ký hoàn tác; khoá 48 số không bao giờ vào báo cáo, nhật ký. Chưa chạy trên ổ mã hoá thật, mới thử bằng giả lập. | P1: chạy thật trên máy có BitLocker; sao lưu khoá lên tài khoản Microsoft; lưu gói khoá `.KPG`. |
-| Đăng xuất GitHub | Kỹ thuật | Nhỏ, đúng việc; có thể sót mục đăng nhập lưu theo tài khoản. | P1: lọc `cmdkey /list` theo `github`. |
+| Đăng xuất GitHub | Kỹ thuật | Bản 1.1: xoá mọi mục GitHub của Git trong Credential Manager (cả mục kèm tên tài khoản), hỏi trước với mục của ứng dụng khác và GitHub CLI, có Chạy thử. | P2: chọn tài khoản cần xoá thay vì xoá hết. |
 
 ## Vấn đề chung
 
 Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy ước chung thay vì vá từng nơi.
 
 1. **Kiểm tra quyền Admin sai cách hoặc không kiểm tra.** CheckWinFix, Wi-Fi dùng `net session` (cần dịch vụ Server,
-   bị tắt là báo nhầm hoặc tự mở lại không dừng; nay đã đổi sang `fltmc`, còn Báo cáo sức khoẻ; Chuyển dữ liệu khi cài
-   lại Windows 2.0 kiểm tra trong PowerShell). Sửa lỗi Windows, Tắt/bật dịch vụ, Tối ưu đồng hồ không kiểm tra gì (đã sửa ở bản 2.0 của cả ba).
+   bị tắt là báo nhầm hoặc tự mở lại không dừng; nay đã đổi sang `fltmc`, cả Báo cáo sức khoẻ 1.1; Chuyển dữ liệu khi
+   cài lại Windows 2.0 kiểm tra trong PowerShell). Sửa lỗi Windows, Tắt/bật dịch vụ, Tối ưu đồng hồ không kiểm tra gì (đã sửa ở bản 2.0 của cả ba).
    Quy ước: `fltmc >nul 2>&1` để kiểm tra, tự nâng quyền đúng một lần, không được thì báo rõ và thoát.
 2. **Báo thành công giả.** Lỗi bị giấu bằng `>nul 2>&1` rồi in *thành công*; mã thoát luôn 0. Quy ước: kiểm tra
    `errorlevel` (hoặc `$LASTEXITCODE`) sau mỗi lệnh thay đổi máy; mã thoát `0` xong, `1` lỗi, `2` thiếu điều kiện,
@@ -139,9 +150,10 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
    một file JSON tóm tắt (máy, thời gian, trạng thái, phát hiện, mức độ, cách sửa, đường dẫn kết quả).
 9. **Bài thử không nằm trong repo.** Các nút đổi máy chủ yếu được thử bằng giả lập, nhưng bài thử chỉ nằm ở thư mục
    tạm của phiên làm việc nên sửa sau không chạy lại được. Đã làm: `tests\` với một trình chạy chung
-   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 28 bài cho 13 bộ (cú pháp, mã hoá file, danh mục và lược đồ
+   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 32 bài cho 17 bộ (cú pháp, mã hoá file, danh mục và lược đồ
    `tool.json`, không commit dữ liệu khách, lan can của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
-   dịch vụ, đồng hồ, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe) và `tools\mdf2sql\tests` (unittest).
+   dịch vụ, đồng hồ, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe, Đăng xuất GitHub, Báo cáo sức khoẻ, Ghi âm
+   sang Word, `.bat` của mdf2sql) và `tools\mdf2sql\tests` (unittest).
    Chạy bằng quyền thường, thư mục tạm ngoài repo, registry chỉ trong `HKCU\Software\TramToolTest`. Quy ước: chạy
    trước mỗi lần commit; thêm, sửa công cụ thì thêm bài thử. Giả lập không thay được chạy thật trên máy thử.
 
@@ -174,7 +186,11 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 - [ ] Gộp: Báo cáo sức khoẻ thành chế độ nhanh của CheckWinFix; Tắt/bật dịch vụ + Tối ưu đồng hồ thành một công cụ
       *Tối ưu* có trang trạng thái.
 - [ ] Khôi phục .mdf: `.venv` riêng có pyodbc khoá phiên bản; dọn database tạm, thư mục làm việc bị bỏ lại.
-- [ ] Ghi âm sang Word: tên kết quả giữ đuôi file gốc; lưu tiến độ từng khúc; hết bộ nhớ card thì thử lại khúc đó với beam nhỏ.
+- [x] Khôi phục .mdf: hộp thoại chọn file trong tiến trình riêng; `Chay_tool.bat` chạy thử Python thật (mdf2sql 1.1.1).
+- [x] Ghi âm sang Word: tên kết quả giữ đuôi file gốc, `--ra` (2026.10.1).
+- [ ] Ghi âm sang Word: lưu tiến độ từng khúc; hết bộ nhớ card thì thử lại khúc đó với beam nhỏ.
+- [x] Đăng xuất GitHub: lọc `cmdkey /list` theo `github` (bản 1.1).
+- [x] Báo cáo sức khoẻ: không có sự kiện thì [OK]; nâng quyền bằng `fltmc`, đường dẫn qua biến môi trường (bản 1.1).
 - [x] DWG sang PDF: giải mã TCVN3 (`.VnTime`, `.VnArial`...) giống cách đã làm với VNI.
 - [ ] DWG sang PDF: bộ bản vẽ mẫu + so ảnh từng trang khi nâng ezdxf, PyMuPDF, LibreDWG.
 

@@ -30,7 +30,9 @@ Cả lượt mất khoảng 6 phút. Bộ chậm nhất: `new-windows/4_TienTrin
 ## Cần gì
 
 - Windows PowerShell 5.1 (có sẵn). Không cần Pester.
-- Python 3 cho `mdf2sql` (`tools\mdf2sql\tests`, dùng pyodbc giả, không cần SQL Server). Không có Python thì bỏ qua.
+- Python 3 cho `mdf2sql` (`tools\mdf2sql\tests`, dùng pyodbc và tkinter giả, không cần SQL Server) và
+  `ghi-am-sang-word` (không cần `.venv` hay mô hình). Không có Python thì bỏ qua. `mdf2sql/1_ChayTool` không cần Python:
+  bài này biên dịch một `python.exe` giả.
 - Excel cho `the-xe-nt` (tạo file `.xls` mẫu), PowerShell 32 bit (Jet) do trình chạy tự gọi. Không có Excel thì bỏ qua.
 - Node.js cho `tinh/4_LuocDo` (kiểm `tool.json` theo lược đồ bằng Ajv, kiểm cú pháp JavaScript của giao diện). Cài Ajv
   một lần: `cd tests` rồi `npm install` (vào `tests\node_modules`, không commit). Thiếu Ajv thì bỏ phần lược đồ.
@@ -53,6 +55,7 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `new-windows/4_TienTrinh` | chạy thử xuất (`-DryRun`): tên mạng Wi-Fi đã lưu, máy in, ổ đĩa; không đọc mật khẩu |
 | `myexcelfix/3_KiemTra` | Kiểm tra MyExcel (chỉ đọc), kết quả ghi vào thư mục tạm |
 | `tram/3_KhoiChay` | Máy in LAN `-ChayThu -KhongDung` dò máy này và 127.0.0.1 |
+| `health-report/1_SuKien` | gọi `Get-WinEvent` thật với bộ lọc không khớp gì (nhật ký Application) để chắc mã "không có sự kiện" |
 
 `tram/1_LanCanAnToan` cũng đọc trạng thái Bảo vệ hệ thống, winget, dịch vụ SysMain, build Windows (chỉ đọc).
 
@@ -67,8 +70,11 @@ Bài có dòng `# KiemThu: doc-may` có đọc máy thật nhưng không đổi 
 | `office` | che khoá sản phẩm, đọc mẫu, gỡ, cài, kích hoạt (ODT, giấy phép, tiến trình đều giả) |
 | `bitlocker` | lưu khoá, tạm dừng, bật lại, mở khoá, giải mã, hoàn tác trên ổ giả; khoá không lọt vào báo cáo |
 | `don-o-c` | danh sách cho phép xoá, xoá theo tuổi file, junction, trình duyệt, WinSxS (trong thư mục cát) |
+| `github-logout` | đọc `cmdkey /list` (cả Windows tiếng Việt), chia mục Git / GitHub CLI / ứng dụng khác, xoá, đọc lại, chạy thử (Credential Manager giả) |
+| `health-report` | không có sự kiện thì [OK] thay vì [LOI]; tách phần PowerShell, nâng quyền khi thư mục có dấu `'` (không chạy `.bat` thật) |
+| `ghi-am-sang-word` | tên kết quả giữ đuôi file gốc, nhận kết quả bản cũ, `--ra` (Python của máy, không nạp mô hình) |
 | các bộ khác | `service-optimizer`, `clock-optimizer`, `fix-win`, `checkwinfix`, `may-in-lan`, `the-xe-nt` |
-| `mdf2sql` | `tools\mdf2sql\tests` (unittest): doctor, cổng riêng, `/api/health`, `/api/shutdown`, CLI |
+| `mdf2sql` | `1_ChayTool`: hai `.bat` với `python.exe` giả (lối tắt Store, thiếu pyodbc, pip lỗi); `tools\mdf2sql\tests` (unittest): doctor, cổng riêng, `/api/health`, `/api/shutdown`, hộp thoại chọn file trong tiến trình con, CLI |
 
 ## Viết bài thử mới
 
@@ -87,6 +93,8 @@ Complete-Test                              # in tổng kết, thoát 0/1
 - File `tests\<bộ>\<số>_<Tên>.ps1`; file bắt đầu bằng `_` là thư viện riêng của bộ, không tự chạy.
 - Đầu vào chuyển hướng (câu trả lời, mật khẩu giả): `<số>_<Tên>.dauvao.txt` cạnh bài, mỗi dòng một lần hỏi.
 - Biến có sẵn: `$RepoRoot`, `$ToolsDir`, `$HubDir`, `$TestRoot` (thư mục tạm sạch riêng của bài); hàm `New-TestDir`,
-  `Clear-TestRegistry`, `Test-Is32BitHost`.
+  `Clear-TestRegistry`, `Test-Is32BitHost`, `Invoke-Bat` (chạy `.bat`, đọc đầu ra, đóng đầu vào để `pause` không
+  treo), `New-FakeExe` (biên dịch `.exe` giả để `.bat` gọi qua `PATH`: `.bat` gọi một `.cmd` khác mà không có `call`
+  thì không quay lại), `Find-Python` (bỏ qua lối tắt Microsoft Store).
 - Dữ liệu trong bài thử là giả (khoá BitLocker, mật khẩu Wi-Fi, khoá Office, mã thẻ); không chép dữ liệu khách vào đây.
 - Sau khi sửa: `powershell -ExecutionPolicy Bypass -File hub\dev\Normalize-Encoding.ps1 -Path tests`.
