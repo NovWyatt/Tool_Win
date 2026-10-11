@@ -3,6 +3,8 @@
 Bộ công cụ Windows của Wyatt (chẩn đoán, sửa lỗi, tối ưu, văn phòng, chuyển đổi dữ liệu, cài lại máy) và một
 **trạm** để tìm, chạy và theo dõi tất cả từ một chỗ.
 
+![Giao diện trạm – nhóm công cụ Văn phòng](docs/screenshot.png)
+
 ## Cài trên máy mới
 
 Chép cả thư mục `Tool_Win` sang máy (hoặc giải nén file .zip), rồi bấm đúp **`CAI_DAT.bat`** một lần.
