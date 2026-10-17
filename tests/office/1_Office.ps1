@@ -299,9 +299,15 @@ Check 'T2 HB retail' ((Get-ProductName 'HomeBusiness2021Retail') -eq 'Office Hom
 Check 'T2 lạ' ((Get-ProductName 'LanguagePack') -eq 'LanguagePack')
 Check 'T3 2019 hết' ((Get-ProductLifecycle 'ProPlus2019Volume').Status -eq 'ended')
 Check 'T3 2016 hết' ((Get-ProductLifecycle 'ProPlusRetail').Status -eq 'ended')
+# Hạn hỗ trợ so với ngày hôm nay: thử bằng ngày giả cố định để bài thử không hỏng khi một bản Office tới hạn.
+function Get-Date { return [datetime]'2026-01-01' }
 $lc = Get-ProductLifecycle 'ProPlus2021Volume'
-Check 'T3 2021 sắp hết' ($lc.Status -eq 'soon' -and $lc.Text -match '13/10/2026') $lc.Text
-Check 'T3 2024 còn' ((Get-ProductLifecycle 'ProPlus2024Volume').Status -eq 'ok')
+Check 'T3 2021 sắp hết (ngày giả 01/01/2026)' ($lc.Status -eq 'soon' -and $lc.Text -match '13/10/2026' -and $lc.Text -match 'còn 285 ngày') $lc.Text
+Check 'T3 2024 còn (ngày giả 01/01/2026)' ((Get-ProductLifecycle 'ProPlus2024Volume').Status -eq 'ok')
+function Get-Date { return [datetime]'2026-10-14' }
+$lc = Get-ProductLifecycle 'ProPlus2021Volume'
+Check 'T3 2021 hết (ngày giả 14/10/2026)' ($lc.Status -eq 'ended' -and $lc.Text -match 'đã hết hỗ trợ từ 13/10/2026') $lc.Text
+Microsoft.PowerShell.Management\Remove-Item -LiteralPath function:Get-Date   # bài này thay Remove-Item bằng bản chỉ xoá trong thư mục thử
 Check 'T3 365' ((Get-ProductLifecycle 'O365ProPlusRetail').Status -eq 'subscription')
 Check 'T3 MSI 2013' ((Get-ProductLifecycle -MsiMajor 15).Name -eq 'Office 2013')
 Check 'T4 kênh 2019' ((Get-ChannelInfo "http://officecdn.microsoft.com/pr/$ffn2019").Id -eq 'PerpetualVL2019')
