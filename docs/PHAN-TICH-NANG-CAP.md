@@ -1,6 +1,6 @@
 # Phân tích và hướng nâng cấp
 
-Cập nhật 10/10/2026. Đánh giá 18 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
+Cập nhật 17/10/2026. Đánh giá 19 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
 và lộ trình nâng cấp theo mức ưu tiên.
 
 Danh sách lỗi và hướng nâng cấp đầy đủ của từng công cụ nằm trong `issues` và `upgrades` của `tool.json`,
@@ -118,6 +118,14 @@ Mức ưu tiên:
   - Đã thử: *Kiểm tra* chạy thật; bản chuyển mở được bằng Word, Excel thật; *Đặt định dạng* chạy thật trên khoá
     registry thử.
   - Chưa thử: đổi định dạng thật trên một máy.
+- **Công cụ mới: Đồng bộ phiên Claude giữa các tài khoản** (Wyatt đề nghị 17/10/2026):
+  - Claude Desktop lưu danh sách phiên tab Code theo tài khoản (`claude-code-sessions\<tài khoản>\<tổ chức>`), nội
+    dung hội thoại dùng chung (`~\.claude\projects`), nên đổi tài khoản là thanh bên trống.
+  - *Đồng bộ* chép các mục danh sách của tài khoản khác trên máy (hoặc từ gói sao lưu) vào tài khoản đang đăng nhập;
+    bản mới hơn thắng, phiên đã xoá không thêm lại, bỏ kết nối claude.ai và Remote Control của tài khoản cũ.
+    *Sao lưu* gói danh sách kèm nội dung để mang sang máy khác. *Hoàn tác* có nhật ký.
+  - Đã thử: giả lập đủ các trường hợp; Kiểm tra, Sao lưu và Đồng bộ chạy thử trên dữ liệu thật (12 phiên).
+  - Chưa thử: đồng bộ thật sang tài khoản thứ hai.
 
 ## Đã sửa trong đợt này
 
@@ -173,6 +181,8 @@ Mức ưu tiên:
 | `3d9ce5d` (submodule `1a7afff`) | Khôi phục .mdf sang .sql | mdf2sql 1.3.0: hai `.bat` tạo `.venv` riêng và cài pyodbc 5.3.0 vào đó (không còn `pip install --user` vào Python chung); nút *Cài hoặc sửa môi trường chạy*. |
 | `5c4a53f` | CheckWinFix | Phần dùng chung `src\Chung.ps1` (kiểm tra Admin, ghi JSON, đọc và giải mã SMART) dựng vào `ThuThapThongTin.bat` và script 2 đến 5 bằng `src\build.ps1`; bài thử bắt `.bat` sửa tay lệch bản chung. |
 | `4f2e279` | Gói tiếng Việt (mới) | Công cụ mới `tools\tieng-viet`: Kiểm tra bộ gõ, khởi động cùng Windows, bàn phím của Windows, font cũ, định dạng số và ngày, Excel, bảng mã; *Đặt định dạng* (`SetLocaleInfo`, cho tài khoản đang dùng), *Trả lại*; *Chuyển tài liệu sang Unicode* (`chuyen_unicode.py`, chỉ thư viện chuẩn của Python, sửa thẳng XML của `.docx`, `.xlsx`). |
+| `9c3f246` | Đồng bộ phiên Claude (mới) | Công cụ mới `tools\claude-dong-bo`: *Đồng bộ* các phiên tab Code của tài khoản khác trên máy hoặc từ gói vào tài khoản đang đăng nhập (bản mới hơn thắng, bỏ kết nối của tài khoản cũ, sửa đường dẫn khi đổi máy), *Sao lưu*, *Kiểm tra*, *Hoàn tác*. |
+| `adfc8ea` | Office (bài thử) | Hạn hỗ trợ Office thử bằng ngày giả: Office LTSC 2021 hết hỗ trợ 13/10/2026 làm bài thử viết cứng "sắp hết" hỏng dù công cụ đúng. |
 
 ## Bảng tổng quan
 
@@ -195,6 +205,7 @@ Mức ưu tiên:
 | Giờ máy và chữ ký số (USB token) | Mọi người | Kiểm tra chỉ đọc bằng quyền thường: độ lệch giờ (NTP, dự phòng http), múi giờ, dịch vụ giờ, dịch vụ Smart Card, đầu đọc token, chứng thư ký số, phần mềm ký số; trạm hiện từng phát hiện kèm nút sửa. Sửa giờ, sửa dịch vụ token lưu giá trị cũ để trả lại. Không hỏi PIN. Chưa thử với token thật; token chỉ dùng PKCS#11 thì không thấy. | P1: đọc chứng thư trong token (`certutil -scinfo`) khi kho của tài khoản chưa có; kiểm tra tiện ích ký số của trình duyệt. |
 | Bộ ứng dụng văn phòng (winget) | Mọi người | Cài một lượt ứng dụng hay dùng từ nguồn winget, bỏ qua ứng dụng đã có, đọc lại danh sách đã cài để chắc cài xong; Kiểm tra xem ứng dụng nào đã có, Cập nhật cả bộ. Danh sách sửa được. Mới chạy thật Kiểm tra và chạy thử; cài, cập nhật thử bằng giả lập. | P1: báo ứng dụng có bản mới ngay trong Kiểm tra; cài thật trên một máy mới. |
 | Gói tiếng Việt | Mọi người | Kiểm tra chỉ đọc bằng quyền thường: bộ gõ (hai bộ cùng chạy, chạy hai bản, khởi động trùng, bàn phím tiếng Việt của Windows bật cùng), font VNI, TCVN3, định dạng số và ngày, Excel dùng dấu riêng, chế độ UTF-8 (Beta); trạm hiện từng phát hiện kèm nút sửa. *Đặt định dạng* cho tài khoản, không cần Admin, lưu giá trị cũ để trả lại. *Chuyển tài liệu sang Unicode* tạo bản sao `.docx`, `.xlsx`, giải mã theo font của từng đoạn chữ. Chưa đổi định dạng thật của máy nào. | P1: chuyển cả `.doc`, `.xls` cũ qua Word, Excel; đổi chữ trong hình, biểu đồ, SmartArt; đổi định dạng thật trên máy ảo. |
+| Đồng bộ phiên Claude | Kỹ thuật | Đổi tài khoản Claude Desktop là thanh bên tab Code trống dù nội dung còn trên máy. *Đồng bộ* đưa các phiên của tài khoản khác trên máy hoặc từ gói sao lưu vào tài khoản đang đăng nhập (bản mới hơn thắng, không thêm lại phiên đã xoá, bỏ kết nối của tài khoản cũ, sửa đường dẫn khi đổi máy), có nhật ký *Hoàn tác*; phải tắt Claude Desktop trong lúc ghi. Dựa trên cách lưu quan sát được, chưa có tài liệu; chưa đồng bộ thật sang tài khoản thứ hai. | P1: đồng bộ thật một lần với tài khoản thứ hai; thêm phiên Cowork, tác vụ hẹn giờ. |
 | Đăng xuất GitHub | Kỹ thuật | Bản 1.1: xoá mọi mục GitHub của Git trong Credential Manager (cả mục kèm tên tài khoản), hỏi trước với mục của ứng dụng khác và GitHub CLI, có Chạy thử. | P2: chọn tài khoản cần xoá thay vì xoá hết. |
 
 ## Vấn đề chung
@@ -228,15 +239,17 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
    một file JSON theo chuẩn `tramtool.ketqua/1` (máy, thời gian, mã thoát, trạng thái, phát hiện, mức độ, cách sửa,
    công cụ chạy tiếp, file liên quan; xem `docs\THEM-CONG-CU.md`). Đã làm cho mọi công cụ chẩn đoán, sửa: MyExcelFix,
    Chuyển dữ liệu khi cài lại Windows, `mdf2sql doctor`, CheckWinFix (Thu thập thông tin và bốn script chuyên sâu), Tối
-   ưu Windows, Giờ máy và chữ ký số, Bộ ứng dụng văn phòng, Sửa lỗi Windows, Máy in LAN, BitLocker, Dọn ổ C, Office, Gói tiếng Việt;
+   ưu Windows, Giờ máy và chữ ký số, Bộ ứng dụng văn phòng, Sửa lỗi Windows, Máy in LAN, BitLocker, Dọn ổ C, Office, Gói tiếng Việt,
+   Đồng bộ phiên Claude;
    Trạm 1.4.0 đọc và hiện trong Lịch sử. Chưa ghi: Wi-Fi, DWG sang PDF, Ghi âm sang Word, File thẻ xe .nt, Đăng xuất
    GitHub (kết quả là file đầu ra hoặc thao tác một lần, mã thoát đã đủ cho Lịch sử).
 9. **Bài thử không nằm trong repo.** Các nút đổi máy chủ yếu được thử bằng giả lập, nhưng bài thử chỉ nằm ở thư mục
    tạm của phiên làm việc nên sửa sau không chạy lại được. Đã làm: `tests\` với một trình chạy chung
-   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 55 bài cho 19 bộ (cú pháp, mã hoá file, danh mục và lược đồ
+   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 57 bài cho 20 bộ (cú pháp, mã hoá file, danh mục và lược đồ
    `tool.json`, không commit dữ liệu khách, lan can và kết quả JSON của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
    Tối ưu Windows, Giờ máy và chữ ký số, Bộ ứng dụng văn phòng, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe,
-   Đăng xuất GitHub, Ghi âm sang Word, DWG sang PDF, Gói tiếng Việt, `.bat` của mdf2sql) và `tools\mdf2sql\tests` (unittest).
+   Đăng xuất GitHub, Ghi âm sang Word, DWG sang PDF, Gói tiếng Việt, Đồng bộ phiên Claude, `.bat` của mdf2sql) và
+   `tools\mdf2sql\tests` (unittest).
    Chạy bằng quyền thường, thư mục tạm ngoài repo, registry chỉ trong `HKCU\Software\TramToolTest`. Quy ước: chạy
    trước mỗi lần commit; thêm, sửa công cụ thì thêm bài thử. Giả lập không thay được chạy thật trên máy thử.
 
@@ -301,6 +314,8 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 - [x] Công cụ mới: Giờ máy và chữ ký số (1.0), Bộ ứng dụng văn phòng bằng winget (1.0), mục 6, 8 của *Công cụ Windows
       nên thêm*.
 - [x] Công cụ mới: Gói tiếng Việt (1.0), mục 4 của *Công cụ Windows nên thêm*.
+- [x] Công cụ mới: Đồng bộ phiên Claude giữa các tài khoản (1.0). Còn: đồng bộ thật sang tài khoản thứ hai; phiên
+      Cowork, tác vụ hẹn giờ.
 - [ ] Máy ảo Windows 11 (VirtualBox, ổ D) để chạy thật các nút sửa trước khi đưa cho khách: `hub\dev\TaoMayAoThu.ps1`
       tạo máy ảo (EFI, TPM 2.0, Secure Boot, NAT, repo chia sẻ chỉ đọc, cài tự động), chụp nhanh và trả về bản sạch;
       còn chờ cài VirtualBox (cần quyền Admin).
@@ -665,6 +680,10 @@ Mới có nguồn cộng đồng hoặc chưa thử; kiểm tra trên máy thậ
   `WM_SETTINGCHANGE`. Gói tiếng Việt chưa đổi định dạng thật.
 - `UseSystemSeparators` = 0 trong `HKCU\Software\Microsoft\Office\<bản>\Excel\Options` là Excel dùng dấu riêng (theo
   mẫu chính sách nhóm của Office; chưa đối chiếu bằng cách bỏ dấu trong Excel).
+- Cách Claude Desktop lưu phiên tab Code (xem trên bản 2.42304, không có tài liệu): danh sách ở
+  `claude-code-sessions\<accountUuid>\<organizationUuid>\local_<mã>.json`, tài khoản đang đăng nhập là
+  `lastKnownAccountUuid` trong `config.json`, phiên đã xoá để lại `deleted_<mã>`; Claude đọc lại danh sách khi mở.
+  Đồng bộ phiên Claude dựa vào các điều này; chưa thử mở phiên đã đồng bộ bằng tài khoản thứ hai.
 
 ## Thư viện bên thứ ba
 
