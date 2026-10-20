@@ -10,6 +10,8 @@
     - Guest Additions.
     Tài khoản thử của máy ảo có mật khẩu ngẫu nhiên, ghi vào <ThuMuc>\<Ten>\TaiKhoanThu.txt (không in ra màn hình).
     Cài xong (thấy màn hình Windows, Guest Additions đã chạy) thì chạy lại với -ChupNhanh.
+  -KhongMo:    tạo và chuẩn bị cài tự động nhưng chưa bật máy ảo (máy đang thiếu RAM); bật sau bằng -Mo.
+  -Mo:         bật máy ảo (lần đầu thì bắt đầu cài Windows). Cảnh báo khi RAM trống ít hơn RAM của máy ảo.
   -ChupNhanh:  chụp nhanh tên "Sach" (máy mới cài), làm mốc trả về.
   -TraVeSach:  tắt máy ảo, trả về bản chụp "Sach", mở lại. Dùng sau mỗi lần thử nút sửa.
   -ChiSoAnh N: chọn bản Windows trong ISO (mặc định tìm Windows 11 Pro).
@@ -25,6 +27,8 @@ param(
     [int]$Cpu = 2,
     [int]$DiaGB = 64,
     [int]$ChiSoAnh = 0,
+    [switch]$KhongMo,
+    [switch]$Mo,
     [switch]$ChupNhanh,
     [switch]$TraVeSach,
     [switch]$ChayThu
@@ -57,6 +61,21 @@ function VBox {
     return $out
 }
 
+function Get-FreeRamMB {
+    # RAM trống của máy thật; TRAMTOOL_RAM_TRONG_MB cho bài thử.
+    if ($env:TRAMTOOL_RAM_TRONG_MB) { return [int]$env:TRAMTOOL_RAM_TRONG_MB }
+    try { return [int]((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1KB) } catch { return -1 }
+}
+
+function Test-RamWarn {
+    $free = Get-FreeRamMB
+    if ($free -ge 0 -and $free -lt $RamMB + 1024) {
+        Write-Host ("  [!] RAM trống còn {0} MB, máy ảo cần {1} MB: máy thật sẽ chậm hẳn. Nên đóng bớt ứng dụng trước." -f $free, $RamMB) -ForegroundColor Yellow
+        return $true
+    }
+    return $false
+}
+
 function New-MatKhau {
     $chu = [char[]]'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
     $b = New-Object byte[] 16
@@ -77,6 +96,13 @@ try {
     if ($ChupNhanh) {
         [void](VBox @('snapshot', $Ten, 'take', 'Sach', '--description', 'Windows mới cài, có Guest Additions; mốc trả về sau mỗi lần thử nút sửa.'))
         Write-Host '  [OK] Đã chụp nhanh "Sach".' -ForegroundColor Green
+        exit 0
+    }
+    if ($Mo) {
+        [void](Test-RamWarn)
+        [void](VBox @('startvm', $Ten, '--type', 'gui'))
+        Write-Host '  [OK] Đã bật máy ảo. Lần đầu: Windows tự cài khoảng 20-40 phút, máy ảo tự khởi động lại vài lần.' -ForegroundColor Green
+        Write-Host "       Cài xong, thấy màn hình Windows thì chạy: powershell -File `"$PSCommandPath`" -ChupNhanh"
         exit 0
     }
     if ($TraVeSach) {
@@ -128,14 +154,22 @@ try {
         [IO.File]::WriteAllText($pwFile, $mk, (New-Object Text.UTF8Encoding $false))
         $mk = $null
     }
+    $ua = @('unattended', 'install', $Ten, "--iso=$Iso", '--user=thu', "--password-file=$pwFile", '--full-user-name=Thu Nghiem',
+        "--image-index=$(if ($ChiSoAnh -gt 0) { $ChiSoAnh } else { '<Windows 11 Pro>' })", '--locale=en_US', '--country=VN',
+        '--hostname=tramtool-thu.local', '--install-additions')
+    if (-not $KhongMo) { [void](Test-RamWarn); $ua += '--start-vm=gui' }   # không có --start-vm: chỉ chuẩn bị, chưa bật
     try {
-        [void](VBox @('unattended', 'install', $Ten, "--iso=$Iso", '--user=thu', "--password-file=$pwFile", '--full-user-name=Thu Nghiem',
-                "--image-index=$(if ($ChiSoAnh -gt 0) { $ChiSoAnh } else { '<Windows 11 Pro>' })", '--locale=en_US', '--country=VN',
-                '--hostname=tramtool-thu.local', '--install-additions', '--start-vm=gui'))
+        [void](VBox $ua)
     } finally { if (Test-Path -LiteralPath $pwFile) { Remove-Item -LiteralPath $pwFile -Force } }
 
     Write-Host ''
     if ($ChayThu) { Write-Host '  [i] Chạy thử: chưa tạo gì.' -ForegroundColor Gray; exit 0 }
+    if ($KhongMo) {
+        Write-Host "  [OK] Đã tạo máy ảo $Ten và chuẩn bị cài Windows tự động; máy ảo chưa bật." -ForegroundColor Green
+        Write-Host "       Tài khoản thử: $tk"
+        Write-Host "       Khi máy rảnh RAM (cần khoảng $RamMB MB trống), bật để bắt đầu cài: powershell -File `"$PSCommandPath`" -Mo"
+        exit 0
+    }
     Write-Host "  [OK] Đã tạo máy ảo $Ten và bắt đầu cài Windows (khoảng 20-40 phút, máy ảo tự khởi động lại vài lần)." -ForegroundColor Green
     Write-Host "       Tài khoản thử: $tk"
     Write-Host '       Setup hỏi khoá sản phẩm thì chọn "I don''t have a product key". Bản cài không kích hoạt vẫn đủ để thử.'

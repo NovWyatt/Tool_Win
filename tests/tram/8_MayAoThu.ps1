@@ -62,6 +62,18 @@ $tkText = if (Test-Path -LiteralPath $tk) { [IO.File]::ReadAllText($tk) } else {
 $mk = ([regex]::Match($tkText, 'Mật khẩu: (\S+)')).Groups[1].Value
 Check ($mk.Length -eq 16 -and $r.Out -notmatch [regex]::Escape($mk) -and $r.Out -match 'TaiKhoanThu\.txt') 'mật khẩu ngẫu nhiên 16 ký tự chỉ nằm trong TaiKhoanThu.txt, màn hình chỉ in đường dẫn file'
 Check (([IO.File]::ReadAllText("$log.pw")) -eq 'co' -and -not (Test-Path -LiteralPath (Join-Path $vm2 'TramTool-Win11\mat-khau.tmp'))) 'file mật khẩu tạm có lúc cài, bị xoá sau đó'
+Check ($inst -match '--start-vm=gui') 'không có -KhongMo: cài xong bật máy ảo luôn'
+Remove-Item -LiteralPath $log
+$vm3 = New-TestDir 'vm3'
+$r = Run @('-Iso', $iso, '-ThuMuc', $vm3, '-KhongMo') @{ TRAMTOOL_VBOXMANAGE = $fake; FAKE_VBOX_LOG = $log; FAKE_VBOX_VMS = '' }
+$inst3 = @(Get-Content -LiteralPath $log -Encoding UTF8 | Where-Object { $_ -like 'unattended install*' })[0]
+Check ($r.Code -eq 0 -and $inst3 -and $inst3 -notmatch '--start-vm' -and $r.Out -match 'chưa bật' -and $r.Out -match '-Mo') "-KhongMo: chuẩn bị cài nhưng không bật, chỉ cách bật sau ($($r.Code))"
+Remove-Item -LiteralPath $log
+$r = Run @('-Mo') @{ TRAMTOOL_VBOXMANAGE = $fake; FAKE_VBOX_LOG = $log; TRAMTOOL_RAM_TRONG_MB = '1700' }
+Check ($r.Code -eq 0 -and @(Get-Content -LiteralPath $log | Where-Object { $_ -eq 'startvm TramTool-Win11 --type gui' }).Count -and $r.Out -match 'RAM trống còn 1700 MB') "-Mo: bật máy ảo, cảnh báo khi RAM trống ít ($($r.Code))"
+Remove-Item -LiteralPath $log
+$r = Run @('-Mo') @{ TRAMTOOL_VBOXMANAGE = $fake; FAKE_VBOX_LOG = $log; TRAMTOOL_RAM_TRONG_MB = '9000' }
+Check ($r.Code -eq 0 -and $r.Out -notmatch 'RAM trống còn') '-Mo đủ RAM: không cảnh báo'
 Remove-Item -LiteralPath $log
 $r = Run @('-Iso', $iso, '-ThuMuc', $vm2) @{ TRAMTOOL_VBOXMANAGE = $fake; FAKE_VBOX_LOG = $log; FAKE_VBOX_VMS = '"TramTool-Win11" {2222}' }
 Check ($r.Code -eq 2 -and $r.Out -match 'Đã có máy ảo' -and -not @(Get-Content -LiteralPath $log | Where-Object { $_ -like 'createvm*' }).Count) "máy ảo đã có: mã 2, không tạo lại ($($r.Code))"
