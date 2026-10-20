@@ -47,7 +47,7 @@ Check ($script:Secret.Count -eq 0 -and $null -eq $script:Password) 'đã xoá b�
 Check ($script:Started) 'đánh dấu đã bắt đầu'
 
 function Reset-Run {
-    $script:Errors.Clear(); $script:Warnings.Clear(); $global:Calls.Clear()
+    $script:Errors.Clear(); $script:Warnings.Clear(); $script:NextSteps.Clear(); $global:Calls.Clear()
     $script:Started = $false; $script:Secret = $null; $script:SecretIn = $null; $script:Out = $null; $script:In = $null
     foreach ($v in $global:FakeVols) { $v.Locked = 1 }
     $global:FakePrinters = @(); $global:FakeDrivers = @()
@@ -77,6 +77,8 @@ Check ([IO.File]::ReadAllText((Join-Path $newHome '.claude.json')).Contains('BiM
 Check ([IO.File]::ReadAllText((Join-Path $deskNew 'claude_desktop_config.json')).Contains('BiMatDesktopGia_777')) 'claude_desktop_config.json từ BiMat.aes'
 Check ([IO.File]::ReadAllText((Join-Path $deskNew 'Claude Extensions Settings\ext.json')).Contains('BiMatExtGia_888')) 'Claude Extensions Settings từ BiMat.aes'
 Check (Test-Path (Join-Path $deskNew 'claude-code-sessions\a\local_1.json')) 'danh sách phiên Code'
+$ns = @($script:NextSteps | Where-Object { $_.chayTiep.congCu -eq 'claude-dong-bo' -and $_.chayTiep.action -eq 'dong-bo' })
+Check ($ns.Count -eq 1 -and $ns[0].ma -eq 'CLAUDE_DOI_TAI_KHOAN' -and $ns[0].mucDo -eq 'thong-tin') 'Claude chưa đăng nhập trên máy mới: gợi ý chạy claude-dong-bo nếu đăng nhập tài khoản khác'
 $pn = ($newHome -replace '[^A-Za-z0-9]', '-') + '-DuAn'
 Check (Test-Path (Join-Path $newHome ".claude\projects\$pn\phien-1.jsonl")) 'thư mục dự án đổi tên theo tài khoản mới'
 Check ([IO.File]::ReadAllText((Join-Path $newHome '.claude\CLAUDE.md')).Contains("$newHome\DuAn")) 'CLAUDE.md sửa đường dẫn'
@@ -96,11 +98,14 @@ Write-Host '== NHẬP, sai mật khẩu 3 lần, đồng ý bỏ qua phần mã 
 Reset-Run
 $script:Yes = $false
 Remove-Item -LiteralPath (Join-Path $newHome '.claude.json') -Force
+Set-Content -LiteralPath (Join-Path $deskNew 'config.json') -Value '{"lastKnownAccountUuid":"99999999-9999-4999-8999-999999999999"}' -Encoding UTF8
 $rc = @(Invoke-Nhap)[-1]
 Check ($rc -eq 3) "trả 3 ($rc)"
 Check (@($script:Errors | Where-Object { $_ -like 'Bỏ qua 2 mạng Wi-Fi*' }).Count -eq 1) 'báo bỏ qua Wi-Fi'
 Check (@($script:Errors | Where-Object { $_ -like 'Cấu hình Claude*BiMat.aes*' }).Count -eq 1) 'báo chưa khôi phục cấu hình Claude'
 Check ($global:Calls -contains 'Bde:Unlock E:' -and $global:Calls -contains 'Add-Printer May In Gia') 'các phần không mã hoá vẫn nhập'
 Check (-not (Test-Path (Join-Path $newHome '.claude.json'))) 'không ghi .claude.json khi chưa giải mã'
+$ns = @($script:NextSteps | Where-Object { $_.chayTiep.congCu -eq 'claude-dong-bo' })
+Check ($ns.Count -eq 1 -and $ns[0].ma -eq 'CLAUDE_TAI_KHOAN_KHAC' -and $ns[0].mucDo -eq 'canh-bao') 'Claude máy mới đang đăng nhập tài khoản khác tài khoản có phiên: cảnh báo, gợi ý claude-dong-bo'
 
 Complete-Test

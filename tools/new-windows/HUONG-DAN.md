@@ -43,6 +43,7 @@ Chọn mã hoá (hoặc thêm `-MaHoa`) thì hồ sơ Wi-Fi kèm mật khẩu, `
    - Bản tạo bởi bản 2026.10 trở về trước (chỉ có `thong-tin.json`) được coi là đã xong.
 4. Bản có mã hoá: hỏi mật khẩu, sai 3 lần thì hỏi có bỏ qua Wi-Fi và cấu hình Claude để nhập phần còn lại không.
 5. Thứ tự: driver, mở khoá ổ BitLocker, Wi-Fi, máy in, Claude. Wi-Fi, máy in đã có thì bỏ qua; hội thoại, file Cowork trên máy mới hơn bản sao lưu được giữ nguyên. Tên tài khoản đổi thì công cụ tự sửa đường dẫn trong cấu hình Claude.
+6. Danh sách phiên tab Code lưu theo tài khoản Claude: đăng nhập Claude trên máy mới bằng tài khoản khác tài khoản cũ thì thanh bên trống. Công cụ nhắc việc này trong kết quả (có nút chạy *Đồng bộ phiên Claude*, công cụ claude-dong-bo), và cảnh báo khi Claude trên máy mới đang đăng nhập sẵn một tài khoản khác.
 
 Ổ mở bằng khoá trong bản sao lưu sẽ khoá lại sau khi khởi động lại: dùng công cụ BitLocker (Mở khoá ổ, bật tự mở khoá) hoặc giải mã.
 

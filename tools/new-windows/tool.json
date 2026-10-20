@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "new-windows",
   "name": "Chuyển dữ liệu khi cài lại Windows",
-  "version": "2.1",
+  "version": "2.2",
   "category": "cai-lai-may",
   "icon": "laptop",
   "audience": "tech",

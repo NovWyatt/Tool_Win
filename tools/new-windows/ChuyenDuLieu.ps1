@@ -32,7 +32,7 @@ try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 
 $script:ToolDir = $PSScriptRoot
 $script:MainScript = $PSCommandPath
-$script:Version = '2.1'
+$script:Version = '2.2'
 $script:ResultDir = if ($env:CDL_KET_QUA) { $env:CDL_KET_QUA } else { Join-Path $PSScriptRoot 'ket_qua' }
 $script:Started = $false   # đã bắt đầu ghi bản sao lưu / đổi máy
 $script:Out = $null        # xuất: thư mục DuLieu_SaoLuu đang ghi
@@ -122,14 +122,16 @@ function Save-RunResult([int]$Code) {
             default { "$what lỗi$(if ($script:Errors.Count) { ': ' + $script:Errors[0] })." }
         }
         $found = @(@($script:Errors.ToArray()) | ForEach-Object { [ordered]@{ ma = ''; mucDo = 'loi'; tieuDe = [string]$_ } }) +
-        @(@($script:Warnings.ToArray()) | ForEach-Object { [ordered]@{ ma = ''; mucDo = 'canh-bao'; tieuDe = [string]$_ } })
+        @(@($script:Warnings.ToArray()) | ForEach-Object { [ordered]@{ ma = ''; mucDo = 'canh-bao'; tieuDe = [string]$_ } }) +
+        @($script:NextSteps.ToArray())
+        $nNextWarn = @($script:NextSteps | Where-Object { $_.mucDo -eq 'canh-bao' }).Count
         $r = [ordered]@{
             chuan = 'tramtool.ketqua/1'; congCu = 'new-windows'; cheDo = $Mode; phienBan = $script:Version
             may = $env:COMPUTERNAME; taiKhoan = $env:USERNAME
             batDau = $script:RunStart.ToString('s'); ketThuc = (Get-Date).ToString('s')
             maThoat = $Code; trangThai = @{ 0 = 'xong'; 1 = 'loi'; 2 = 'thieu-dieu-kien'; 3 = 'mot-phan' }[$Code]
             chayThu = [bool]$script:Opt.DryRun; thongDiep = $msg
-            tomTat = [ordered]@{ loi = $script:Errors.Count; canhBao = $script:Warnings.Count; thongTin = 0 }
+            tomTat = [ordered]@{ loi = $script:Errors.Count; canhBao = $script:Warnings.Count + $nNextWarn; thongTin = $script:NextSteps.Count - $nNextWarn }
             phatHien = $found
             tep = @($(if ($bk) { [ordered]@{ nhan = 'Thư mục sao lưu'; duongDan = $bk } }))
             thuMucSaoLuu = $bk

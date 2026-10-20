@@ -4,6 +4,7 @@
 $script:Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $script:Warnings  = New-Object System.Collections.ArrayList   # lưu ý (không làm hỏng kết quả)
 $script:Errors    = New-Object System.Collections.ArrayList   # việc không làm được -> kết quả "một phần", mã 3
+$script:NextSteps = New-Object System.Collections.ArrayList   # gợi ý chạy công cụ khác (Add-NextStep)
 $script:EndOfInput = 'CDL_HET_DAU_VAO'
 $script:Secret    = $null    # xuất có mã hoá: đường dẫn tương đối -> byte[] của file bí mật, chỉ nằm trong bộ nhớ
 $script:SecretIn  = $null    # nhập: nội dung đã giải mã của BiMat.aes
@@ -16,6 +17,15 @@ function Info([string]$m) { Write-Host "       $m" -ForegroundColor Gray }
 function Plan([string]$m) { Write-Host "   ->  $m" -ForegroundColor White }
 function Warn([string]$m) { Write-Host "  [!]  $m" -ForegroundColor Yellow; [void]$script:Warnings.Add($m) }
 function Fail([string]$m) { Write-Host "  [X]  $m" -ForegroundColor Red; [void]$script:Errors.Add($m) }
+function Add-NextStep([string]$Level, [string]$Ma, [string]$Title, [string]$Fix, [string]$Next) {
+    # Gợi ý chạy công cụ khác của Trạm (nút chạy tiếp, chuẩn tramtool.ketqua/1); không tính là lỗi.
+    $mark = if ($Level -eq 'canh-bao') { '[!] ' } else { '[i] ' }
+    Write-Host "  $mark $Title" -ForegroundColor $(if ($Level -eq 'canh-bao') { 'Yellow' } else { 'Gray' })
+    if ($Fix) { Write-Host "       $Fix" -ForegroundColor Gray }
+    $f = [ordered]@{ ma = $Ma; mucDo = $Level; tieuDe = $Title; cachSua = $Fix }
+    if ($Next -match '^([a-z0-9-]+)/([A-Za-z0-9_-]+)$') { $f['chayTiep'] = [ordered]@{ congCu = $Matches[1]; action = $Matches[2] } }
+    [void]$script:NextSteps.Add($f)
+}
 
 # ---------------------------------------------------------------- hỏi người dùng
 # -Yes: nhận câu trả lời mặc định. Đầu vào bị chuyển hướng (chạy tự động): đọc từng dòng, hết dòng thì dừng hẳn

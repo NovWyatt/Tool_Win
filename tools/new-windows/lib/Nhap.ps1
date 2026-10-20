@@ -280,6 +280,27 @@ function Check-CodeConversations([string]$sessDir, [string]$projDir) {
     }
 }
 
+function Get-ClaudeLoggedIn([string]$Dir) {
+    # Mã tài khoản Claude Desktop đang đăng nhập (config.json); '' khi chưa đăng nhập, chưa cài.
+    $f = Join-Path $Dir 'config.json'
+    if (-not (Test-Path -LiteralPath $f)) { return '' }
+    try { $id = [string](Read-Json $f).lastKnownAccountUuid } catch { return '' }
+    if ($id -match '^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$') { return $id }
+    return ''
+}
+function Test-ClaudeAccounts([string]$Target, [string]$LoggedIn) {
+    # Danh sách phiên tab Code lưu theo tài khoản: đăng nhập Claude bằng tài khoản khác tài khoản có phiên trong bản sao
+    # lưu thì thanh bên trống. Công cụ claude-dong-bo đưa các phiên sang tài khoản đang đăng nhập (nút chạy tiếp ở Trạm).
+    $accts = @(Get-ChildItem -LiteralPath (Join-Path $Target 'claude-code-sessions') -Directory -Force -ErrorAction SilentlyContinue |
+        Where-Object { @(Get-ChildItem -LiteralPath $_.FullName -Filter 'local_*.json' -File -Recurse -Force -ErrorAction SilentlyContinue).Count } | ForEach-Object { $_.Name })
+    if (-not $accts.Count) { return }
+    if ($LoggedIn -and $accts -notcontains $LoggedIn) {
+        Add-NextStep 'canh-bao' 'CLAUDE_TAI_KHOAN_KHAC' 'Claude trên máy này đang đăng nhập tài khoản khác tài khoản có phiên trong bản sao lưu: thanh bên tab Code sẽ trống' 'Thoát hẳn Claude rồi chạy Đồng bộ phiên Claude (công cụ claude-dong-bo) để đưa các phiên sang tài khoản đang đăng nhập.' 'claude-dong-bo/dong-bo'
+    } else {
+        Add-NextStep 'thong-tin' 'CLAUDE_DOI_TAI_KHOAN' 'Đăng nhập Claude bằng tài khoản khác tài khoản cũ thì thanh bên tab Code sẽ trống' 'Khi đó thoát hẳn Claude rồi chạy Đồng bộ phiên Claude (công cụ claude-dong-bo).' 'claude-dong-bo/dong-bo'
+    }
+}
+
 function Import-Claude {
     Head 'CLAUDE'
     $cIn = Join-Path $In 'Claude'
@@ -356,6 +377,7 @@ function Import-Claude {
             Ensure-Dir $target
             $cfgT = Join-Path $target 'claude_desktop_config.json'
             if (Test-Path -LiteralPath $cfgT) { Copy-Item -LiteralPath $cfgT -Destination "$cfgT.truoc-khoi-phuc-$ts" -Force }
+            $loggedIn = Get-ClaudeLoggedIn $target   # tài khoản Claude máy này đang đăng nhập, đọc trước khi chép đè config.json
             $rc = if (Test-Path -LiteralPath $aIn) { Copy-Tree $aIn $target } else { 0 }
             if ((Write-SecretEntries 'Claude\AppData-Claude' $target) -gt 0) { $rc = 16 }
             if ($remap) {
@@ -365,7 +387,7 @@ function Import-Claude {
                     if (Test-Path -LiteralPath $sd) { foreach ($f in @(Get-ChildItem -LiteralPath $sd -Filter '*.json' -File -Recurse -Force -ErrorAction SilentlyContinue)) { Remap-JsonFile $f.FullName $OldUP $NewUP } }
                 }
             }
-            if ($rc -lt 8) { Ok 'Claude Desktop: cấu hình, danh sách phiên Code/Cowork, tác vụ hẹn giờ'; $desktopDone = $true }
+            if ($rc -lt 8) { Ok 'Claude Desktop: cấu hình, danh sách phiên Code/Cowork, tác vụ hẹn giờ'; $desktopDone = $true; Test-ClaudeAccounts $target $loggedIn }
             else { Fail "Khôi phục dữ liệu Claude Desktop bị lỗi (robocopy mã $rc)." }
             # Kiểm đếm hội thoại tab Code: mỗi cuộc phải có cả mục trong danh sách lẫn file nội dung
             Check-CodeConversations (Join-Path $target 'claude-code-sessions') (Join-Path $dst 'projects')
