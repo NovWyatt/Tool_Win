@@ -38,9 +38,24 @@ if ($f) {
     $t = @($hr.phatHien | Where-Object { $_.ma -eq 'TAI_KHOAN_DANG_DUNG' })[0].tieuDe
     Check ($t -match ': (\d+) phiên' -and [int]$Matches[1] -ge 1) "đọc được danh sách phiên thật: $($t -replace '^.*: ', '')"
     Check (-not @($codes | Where-Object { $_ -match '^(CHUA_|DONG_BO_LOI)' }).Count) 'không báo thiếu điều kiện'
+    Check (-not @($codes | Where-Object { $_ -in 'CACH_LUU_DA_DOI', 'MUC_KHONG_HOP_LE' }).Count) "danh sách phiên thật đúng cấu trúc công cụ biết (bản Claude $(([IO.File]::ReadAllText($f.FullName) | ConvertFrom-Json).banClaude))"
 }
 $r = Run @('-Mode', 'sao-luu', '-ChayThu', '-KhongDung')
-Check ($r.Code -eq 0 -and $r.Out -match 'phiên có nội dung, cần khoảng' -and -not @(Get-ChildItem -LiteralPath $env:CDB_DU_LIEU -Directory -Filter 'Goi_*').Count) "Sao lưu chạy thử: mã 0, tính được dung lượng, không tạo gói ($($r.Code))"
+Check ($r.Code -eq 0 -and $r.Out -match 'phiên có nội dung, gói khoảng' -and -not @(Get-ChildItem -LiteralPath $env:CDB_DU_LIEU -Directory -Filter 'Goi_*').Count) "Sao lưu chạy thử: mã 0, tính được dung lượng, không tạo gói ($($r.Code))"
+$r = Run @('-Mode', 'sao-luu', '-ChayThu', '-MaHoa', '-KhongDung')
+Check ($r.Code -eq 0 -and $r.Out -match 'Nén, mã hoá thành' -and -not @(Get-ChildItem -LiteralPath $env:CDB_DU_LIEU -Recurse -File -Filter '*.aes').Count) "Sao lưu chạy thử -MaHoa: không hỏi mật khẩu, không tạo file ($($r.Code))"
+$desk = [Environment]::GetFolderPath('Desktop')
+$lnkBefore = Test-Path -LiteralPath (Join-Path $desk 'Mở Claude (đồng bộ phiên).lnk')
+$r = Run @('-Mode', 'loi-tat', '-ChayThu', '-KhongDung')
+Check ($r.Code -eq 0 -and (Test-Path -LiteralPath (Join-Path $desk 'Mở Claude (đồng bộ phiên).lnk')) -eq $lnkBefore) "Tạo lối tắt chạy thử: mã 0, màn hình thật không đổi ($($r.Code))"
+$r = Run @('-Mode', 'mo-claude', '-ChayThu', '-KhongDung')
+Check ($r.Code -eq 0 -and $r.Out -match 'không mở Claude') "Mở Claude chạy thử: mã 0, không đồng bộ, không mở Claude ($($r.Code))"
+$env:TRAMTOOL_CLAUDEDONGBO_TEST = '1'
+. $script
+Remove-Item Env:TRAMTOOL_CLAUDEDONGBO_TEST
+$id = Get-ClaudeAppId
+$exe = if (Get-ClaudePackage) { $id -match '^Claude_[a-z0-9]+!\w+$' } else { $true }
+Check $exe "mã ứng dụng để mở Claude bản Microsoft Store: $(if ($id) { $id } else { 'không phải bản Store' })"
 $r = Run @('-Mode', 'dong-bo', '-ChayThu', '-KhongDung')
 Check ($r.Code -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $env:CDB_DU_LIEU 'HoanTac'))) "Đồng bộ chạy thử: mã 0, không tạo nhật ký ($($r.Code))"
 $r = Run @('-Mode', 'hoan-tac', '-ChayThu', '-KhongDung')

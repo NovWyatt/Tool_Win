@@ -2,13 +2,13 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "claude-dong-bo",
   "name": "Đồng bộ phiên Claude giữa các tài khoản",
-  "version": "1.0",
+  "version": "1.1",
   "category": "tien-ich",
   "icon": "sync",
   "audience": "tech",
   "summary": "Đổi tài khoản Claude là thanh bên tab Code trống: đưa các phiên của tài khoản cũ sang tài khoản đang đăng nhập để mở lại và làm tiếp, trên cùng máy hoặc qua gói sao lưu sang máy khác.",
-  "description": "Claude Desktop lưu danh sách phiên tab Code riêng cho từng tài khoản, còn nội dung hội thoại nằm chung trong ~\\.claude\\projects. Cùng một máy: đăng nhập tài khoản mới, thoát Claude, bấm Đồng bộ là đủ (công cụ đọc thẳng danh sách của các tài khoản khác trên máy). Sang máy khác: Sao lưu ở máy cũ, chép thư mục gói sang, Đồng bộ từ gói. Cuộc trò chuyện ở tab Chat, Projects trên claude.ai nằm trên máy chủ của từng tài khoản nên không chuyển được.",
-  "tags": ["claude", "claude code", "claude desktop", "tài khoản", "đổi tài khoản", "phiên", "session", "hội thoại", "đồng bộ", "sao lưu", "chuyển máy"],
+  "description": "Claude Desktop lưu danh sách phiên tab Code riêng cho từng tài khoản, còn nội dung hội thoại nằm chung trong ~\\.claude\\projects. Cùng một máy: đăng nhập tài khoản mới, thoát Claude, bấm Đồng bộ là đủ (công cụ đọc thẳng danh sách của các tài khoản khác trên máy), hoặc tạo lối tắt Mở Claude để lần nào mở Claude cũng tự đồng bộ trước. Kèm tác vụ hẹn giờ, mẫu phiên, mục thanh bên của tài khoản cũ. Sang máy khác: Sao lưu ở máy cũ (gói cập nhật dần, nén hoặc mã hoá được), mang gói sang, Đồng bộ từ gói; trí nhớ dự án đi kèm. Cuộc trò chuyện ở tab Chat, Projects trên claude.ai nằm trên máy chủ của từng tài khoản nên không chuyển được.",
+  "tags": ["claude", "claude code", "claude desktop", "tài khoản", "đổi tài khoản", "phiên", "session", "hội thoại", "đồng bộ", "sao lưu", "chuyển máy", "tác vụ hẹn giờ", "lối tắt"],
   "docs": "HUONG-DAN.md",
   "actions": [
     {
@@ -21,17 +21,56 @@
       "restorePoint": false,
       "primary": true,
       "duration": "Vài giây (cùng máy), vài phút khi chép nội dung từ gói",
-      "description": "Thêm vào tài khoản Claude đang đăng nhập các phiên tab Code nó chưa có, lấy từ các tài khoản khác đã dùng trên máy và các gói sao lưu. Phiên đã xoá ở tài khoản này không thêm lại. Claude Desktop phải tắt; xong mở lại Claude là thấy phiên ở thanh bên.",
+      "description": "Thêm vào tài khoản Claude đang đăng nhập các phiên tab Code nó chưa có, lấy từ các tài khoản khác đã dùng trên máy và các gói sao lưu, kèm tác vụ hẹn giờ, mẫu phiên, mục thanh bên còn thiếu. Phiên đã xoá ở tài khoản này không thêm lại. Claude Desktop phải tắt; xong mở lại Claude là thấy phiên ở thanh bên.",
       "confirm": "Claude Desktop phải thoát hẳn trong lúc đồng bộ. Đánh dấu Tự đóng Claude thì mọi cửa sổ và phiên Claude đang chạy bị đóng ngay.",
       "changes": [
         "Thêm mục local_<mã>.json vào %APPDATA%\\Claude\\claude-code-sessions\\<tài khoản đang dùng>\\<tổ chức>, bỏ kết nối claude.ai và Remote Control của tài khoản cũ",
-        "Đồng bộ từ gói: chép nội dung hội thoại vào ~\\.claude\\projects (đường dẫn tự sửa khi tên tài khoản Windows khác)",
+        "Thêm tác vụ hẹn giờ (scheduled-tasks.json), mẫu phiên (ccd-session-presets.json), mục thanh bên tab Code (một khoá trong claude_desktop_config.json) còn thiếu",
+        "Đồng bộ từ gói: chép nội dung hội thoại, trí nhớ dự án, file tác vụ hẹn giờ vào ~\\.claude (đường dẫn tự sửa khi tên tài khoản Windows khác)",
         "Lưu nhật ký và các bản bị thay vào du-lieu\\HoanTac để Hoàn tác"
       ],
       "args": [
-        { "id": "tu", "type": "folder", "flag": "-Tu", "label": "Gói sao lưu (không bắt buộc)", "help": "Bỏ trống: các tài khoản khác trên máy và mọi gói trong du-lieu của công cụ. Chọn thư mục Goi_... hoặc thư mục chứa các gói (vd trên USB)." },
+        { "id": "tu", "type": "file", "flag": "-Tu", "label": "Gói sao lưu (không bắt buộc)", "filter": "Gói sao lưu (goi.json, .zip, .aes)|goi.json;*.zip;*.aes", "help": "Bỏ trống: các tài khoản khác trên máy và mọi gói trong du-lieu của công cụ. Gói dạng thư mục: chọn goi.json trong thư mục Goi_... Gói .aes: công cụ hỏi mật khẩu trong cửa sổ." },
         { "id": "dong-claude", "type": "bool", "flag": "-DongClaude", "label": "Tự đóng Claude Desktop nếu đang mở" },
+        { "id": "mo-claude", "type": "bool", "flag": "-MoClaude", "label": "Xong thì mở lại Claude Desktop" },
+        { "id": "kem-cowork", "type": "bool", "flag": "-KemCowork", "label": "Kèm phiên, tác vụ hẹn giờ Cowork (thử nghiệm)" },
         { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ liệt kê phiên sẽ thêm, không ghi gì" }
+      ]
+    },
+    {
+      "id": "mo-claude",
+      "label": "Mở Claude (đồng bộ phiên trước)",
+      "file": "DongBoClaude.ps1",
+      "fixedArgs": ["-Mode", "mo-claude"],
+      "admin": false,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Vài giây",
+      "description": "Việc của lối tắt Mở Claude: Claude Desktop đang tắt thì đồng bộ phiên vào tài khoản đang đăng nhập (không hỏi lại) rồi mở Claude; đang mở thì chỉ đưa cửa sổ Claude lên. Cửa sổ công cụ tự đóng khi xong, chỉ ở lại khi có lỗi.",
+      "changes": [
+        "Như Đồng bộ phiên: thêm mục danh sách phiên, tác vụ hẹn giờ, mẫu phiên, mục thanh bên còn thiếu (có nhật ký để Hoàn tác)",
+        "Mở Claude Desktop"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem sẽ đồng bộ gì, không mở Claude" }
+      ]
+    },
+    {
+      "id": "loi-tat",
+      "label": "Tạo lối tắt Mở Claude trên màn hình",
+      "file": "DongBoClaude.ps1",
+      "fixedArgs": ["-Mode", "loi-tat"],
+      "admin": false,
+      "risk": "modifies-system",
+      "restorePoint": false,
+      "duration": "Vài giây",
+      "description": "Tạo lối tắt \"Mở Claude (đồng bộ phiên)\" trên màn hình. Mở Claude bằng lối tắt này thay cho lối tắt thường: lần nào cũng đồng bộ phiên của các tài khoản khác trước khi Claude đọc danh sách.",
+      "changes": [
+        "Thêm lối tắt Mở Claude (đồng bộ phiên).lnk trên màn hình (Desktop), ghi đè nếu đã có",
+        "Chép biểu tượng Claude vào du-lieu\\claude.ico"
+      ],
+      "args": [
+        { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem lối tắt sẽ chạy gì" }
       ]
     },
     {
@@ -41,10 +80,13 @@
       "fixedArgs": ["-Mode", "sao-luu"],
       "admin": false,
       "risk": "read-only",
-      "duration": "Vài phút (chép cả nội dung hội thoại)",
-      "description": "Chép danh sách phiên và nội dung hội thoại của tài khoản đang đăng nhập vào một gói du-lieu\\Goi_<tài khoản>_<giờ> (hoặc thư mục chọn), để đồng bộ trên máy khác. Không cần thoát Claude. Cùng máy thì không bắt buộc sao lưu.",
+      "duration": "Vài phút lần đầu (chép cả nội dung hội thoại), các lần sau chỉ chép phần đổi",
+      "description": "Chép danh sách phiên, nội dung hội thoại, trí nhớ dự án, tác vụ hẹn giờ, mẫu phiên, mục thanh bên của tài khoản đang đăng nhập vào gói du-lieu\\Goi_<tài khoản> (hoặc thư mục chọn), để đồng bộ trên máy khác. Gói đã có thì chỉ chép phần đổi. Không cần thoát Claude. Cùng máy thì không bắt buộc sao lưu.",
       "args": [
         { "id": "den", "type": "folder", "flag": "-Den", "label": "Lưu vào (không bắt buộc)", "help": "Bỏ trống: du-lieu trong thư mục công cụ. Chọn USB nếu sẽ mang sang máy khác." },
+        { "id": "nen", "type": "bool", "flag": "-Nen", "label": "Nén thành một file .zip" },
+        { "id": "ma-hoa", "type": "bool", "flag": "-MaHoa", "label": "Nén và mã hoá bằng mật khẩu (.aes)", "help": "Mật khẩu gõ trong cửa sổ công cụ (ít nhất 8 ký tự), không lưu ở đâu cả: quên là không mở được gói." },
+        { "id": "kem-cowork", "type": "bool", "flag": "-KemCowork", "label": "Kèm phiên Cowork (thử nghiệm)" },
         { "id": "chay-thu", "type": "bool", "flag": "-ChayThu", "label": "Chạy thử: chỉ xem số phiên, dung lượng, chưa chép" }
       ]
     },
@@ -56,7 +98,7 @@
       "admin": false,
       "risk": "read-only",
       "duration": "Vài giây",
-      "description": "Chỉ đọc. Tài khoản đang đăng nhập, các tài khoản từng dùng trên máy và số phiên của từng tài khoản, các gói sao lưu, số phiên tài khoản đang dùng chưa có, phiên thiếu nội dung."
+      "description": "Chỉ đọc. Tài khoản đang đăng nhập, các tài khoản từng dùng trên máy và số phiên của từng tài khoản, các gói sao lưu, phiên và cài đặt tài khoản đang dùng chưa có, phiên thiếu nội dung, lần đồng bộ gần nhất Claude đã nhận chưa, bản Claude có khác bản công cụ đã thử không."
     },
     {
       "id": "hoan-tac",
@@ -67,10 +109,10 @@
       "risk": "modifies-system",
       "restorePoint": false,
       "duration": "Vài giây",
-      "description": "Bỏ các phiên lần đồng bộ gần nhất đã thêm, trả lại các mục đã bị thay. Phiên nào đã dùng tiếp sau khi đồng bộ thì giữ. Claude Desktop phải tắt.",
+      "description": "Bỏ các phiên, cài đặt lần đồng bộ gần nhất đã thêm, trả lại các mục đã bị thay. Mục nào đã dùng tiếp sau khi đồng bộ thì giữ. Claude Desktop phải tắt.",
       "changes": [
-        "Xoá các mục danh sách phiên, nội dung hội thoại mà lần đồng bộ đã thêm và chưa đổi từ đó",
-        "Trả các mục bị thay về bản cất trong du-lieu\\HoanTac"
+        "Xoá các mục danh sách phiên, nội dung hội thoại, file, Cowork mà lần đồng bộ đã thêm và chưa đổi từ đó",
+        "Trả các mục bị thay về bản cất trong du-lieu\\HoanTac; khoá thanh bên trong claude_desktop_config.json về giá trị cũ"
       ],
       "args": [
         { "id": "dong-claude", "type": "bool", "flag": "-DongClaude", "label": "Tự đóng Claude Desktop nếu đang mở" },
@@ -94,14 +136,15 @@
     "include": ["DONG_BO_CLAUDE.bat", "DongBoClaude.ps1", "HUONG-DAN.md"]
   },
   "issues": [
-    "Dựa trên cách Claude Desktop lưu dữ liệu (thư mục claude-code-sessions theo tài khoản, xem trên bản 2.42304, 10/2026); bản Claude sau đổi cách lưu thì công cụ phải sửa theo.",
-    "Mới thử bằng giả lập và Kiểm tra, Sao lưu chạy thử trên dữ liệu thật; chưa đồng bộ thật sang một tài khoản thứ hai.",
-    "Chỉ đồng bộ phiên tab Code. Phiên Cowork, tác vụ hẹn giờ, cài đặt mặc định từng tài khoản chưa đồng bộ; cuộc trò chuyện tab Chat nằm trên máy chủ claude.ai, không chuyển được.",
-    "Kết nối claude.ai (connector) gắn với tài khoản: phiên đồng bộ sang dùng kết nối của tài khoản mới."
+    "Dựa trên cách Claude Desktop lưu dữ liệu (xem trên bản 2.42304, 10/2026). Trước khi ghi, công cụ kiểm cấu trúc danh sách phiên và dừng (CACH_LUU_DA_DOI) khi quá nửa số mục lạ; bản Claude khác chỉ báo để biết.",
+    "Mới thử bằng giả lập và Kiểm tra, các chế độ chạy thử trên dữ liệu thật; chưa đồng bộ thật sang một tài khoản thứ hai. Sau lần đồng bộ thật đầu tiên, mở Claude rồi chạy Kiểm tra: mục LAN_DONG_BO_GAN_NHAT cho biết Claude đã nhận các phiên chưa.",
+    "Nhóm tự tạo ở thanh bên: chưa thấy nơi Claude lưu phiên nào thuộc nhóm nào, chỉ chép định nghĩa mục thanh bên. Ghim (starred) dùng chung cho mọi tài khoản trên một máy nên không cần đồng bộ, sang máy khác thì không mang theo.",
+    "Cowork (-KemCowork) là thử nghiệm: chưa có phiên Cowork thật để kiểm, mục Cowork chép nguyên (không sửa đường dẫn khi đổi thư mục người dùng). Cuộc trò chuyện tab Chat nằm trên máy chủ claude.ai, không chuyển được.",
+    "Kết nối claude.ai (connector) gắn với tài khoản: phiên đồng bộ sang dùng kết nối của tài khoản mới. Chế độ quyền theo thư mục (bypass) không đồng bộ."
   ],
   "upgrades": [
-    "P1: Đồng bộ cả phiên Cowork và tác vụ hẹn giờ của tab Code.",
-    "P2: Tự mở lại Claude Desktop sau khi đồng bộ.",
-    "P2: Chọn phiên cần đồng bộ thay vì lấy hết."
+    "P1: Đồng bộ nhóm tự tạo ở thanh bên khi biết nơi Claude lưu thành viên nhóm.",
+    "P2: Chọn phiên cần đồng bộ thay vì lấy hết.",
+    "P2: Tự đồng bộ khi Claude Desktop thoát (theo dõi tiến trình) thay cho lối tắt."
   ]
 }

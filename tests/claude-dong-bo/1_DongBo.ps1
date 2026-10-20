@@ -10,52 +10,7 @@ $ErrorActionPreference = 'Stop'
 $toolDir = Join-Path $ToolsDir 'claude-dong-bo'
 $manifest = [IO.File]::ReadAllText((Join-Path $toolDir 'tool.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
 
-$tkA = '11111111-aaaa-4aaa-8aaa-111111111111'; $tcA = '22222222-aaaa-4aaa-8aaa-222222222222'
-$tkB = '33333333-bbbb-4bbb-8bbb-333333333333'; $tcB = '44444444-bbbb-4bbb-8bbb-444444444444'
-$tkC = '55555555-cccc-4ccc-8ccc-555555555555'; $tcC = '66666666-cccc-4ccc-8ccc-666666666666'
-Add-Type -AssemblyName System.Web.Extensions
-$jser = New-Object System.Web.Script.Serialization.JavaScriptSerializer
-$jser.MaxJsonLength = [int]::MaxValue
-
-function Save-Json([string]$Path, $Obj) {
-    $d = Split-Path $Path -Parent
-    if (-not (Test-Path -LiteralPath $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
-    [IO.File]::WriteAllText($Path, ($Obj | ConvertTo-Json -Depth 20), (New-Object Text.UTF8Encoding $false))
-}
-function New-Machine([string]$Name, [string]$Current, [string]$UserName = 'Thu') {
-    $root = New-TestDir $Name
-    $m = [pscustomobject]@{ Root = $root; App = (Join-Path $root 'AppData\Claude'); Nha = (Join-Path $root "Users\$UserName") }
-    Save-Json (Join-Path $m.App 'config.json') @{ lastKnownAccountUuid = $Current; locale = 'vi' }
-    New-Item -ItemType Directory -Path (Join-Path $m.Nha '.claude\projects') -Force | Out-Null
-    return $m
-}
-function New-Session([string]$Dir, [string]$Title, [string]$Cwd, [long]$Last, [hashtable]$Extra = @{}) {
-    $u = [guid]::NewGuid().ToString(); $cli = [guid]::NewGuid().ToString()
-    $d = [ordered]@{
-        sessionId = "local_$u"; cliSessionId = $cli; cwd = $Cwd; originCwd = $Cwd
-        gitAnchors = @([ordered]@{ gitRoot = $Cwd; commonDir = "$Cwd\.git"; trustedAt = 1790941016017 })
-        lastFocusedAt = $Last; createdAt = ($Last - 100000); lastActivityAt = $Last; model = 'claude-opus-5-5'; effort = 'xhigh'
-        sessionSettings = [ordered]@{ ultracode = $false }; isArchived = $false; title = $Title; titleSource = 'auto'
-        permissionMode = 'acceptEdits'; bypassChosenInApp = $false
-        remoteMcpServersConfig = @([ordered]@{ uuid = 'gia'; name = 'Gia'; url = 'https://vd.test/mcp'; tools = @() })
-        writtenBranches = @("$Cwd`0main"); bridgeSessionIds = @('session_gia'); completedTurns = 3; titleTurn = 0
-        postTurnSummary = [ordered]@{ status_category = 'review_ready'; status_detail = 'Đã xong <b> & "trích" \ ngược' }
-        alwaysAllowedReasons = @(); spawnSeed = @{}; promptAppendSnapshot = [ordered]@{ append = "dòng 1`ndòng 2" }; terminalClaudeTabOrdinal = 2
-    }
-    foreach ($k in $Extra.Keys) { $d[$k] = $Extra[$k] }
-    $f = Join-Path $Dir "local_$u.json"
-    Save-Json $f $d
-    return [pscustomobject]@{ Id = "local_$u"; Uuid = $u; Cli = $cli; File = $f; Cwd = $Cwd }
-}
-function New-Transcript($M, $S, [int]$Lines = 3, [switch]$Side) {
-    $dir = Join-Path $M.Nha ('.claude\projects\' + ($S.Cwd -replace '[^A-Za-z0-9]', '-'))
-    New-Item -ItemType Directory -Path $dir -Force | Out-Null
-    $f = Join-Path $dir "$($S.Cli).jsonl"
-    [IO.File]::WriteAllText($f, ((1..$Lines | ForEach-Object { '{"type":"user","message":{"content":"câu ' + $_ + '"}}' }) -join "`n") + "`n", (New-Object Text.UTF8Encoding $false))
-    if ($Side) { $sd = Join-Path $dir "$($S.Cli)\subagents"; New-Item -ItemType Directory -Path $sd -Force | Out-Null; [IO.File]::WriteAllText((Join-Path $sd 'a.jsonl'), '{}') }
-    return $f
-}
-function Get-Listing([string]$Dir) { return (@(Get-ChildItem -LiteralPath $Dir -Recurse -File -Force -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName.Substring($Dir.Length) + '=' + $_.Length }) | Sort-Object) -join '|' }
+. "$PSScriptRoot\_GiaLap.ps1"
 function Codes { return @($script:Findings | ForEach-Object { $_.ma }) }
 function Latest-Result { return @(Get-ChildItem -LiteralPath $kq -Filter 'KetQua_ClaudeDongBo_*.json' | Sort-Object LastWriteTime, Name -Descending)[0] }
 
@@ -80,12 +35,6 @@ Save-Json (Join-Path $may1.Nha '.claude.json') @{ oauthAccount = @{ accountUuid 
 
 $du = New-TestDir 'du-lieu'
 $kq = New-TestDir 'ket_qua'
-function Use-Machine($M) {
-    $env:CDB_CLAUDE_APPDATA = $M.App
-    $script:UserDir = $M.Nha
-    $script:ProjectsDir = Join-Path $M.Nha '.claude\projects'
-    $script:ClaudeJson = Join-Path $M.Nha '.claude.json'
-}
 $env:CDB_CLAUDE_APPDATA = $may1.App; $env:CDB_NGUOI_DUNG = $may1.Nha; $env:CDB_DU_LIEU = $du; $env:CDB_KET_QUA = $kq
 $env:CDB_MAU_CLAUDE = 'KHONG-CO-TIEN-TRINH-NAY-' + [guid]::NewGuid()
 $env:TRAMTOOL_CLAUDEDONGBO_TEST = '1'
@@ -111,7 +60,7 @@ $tieps = @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.Strin
 $ids = @($manifest.actions | ForEach-Object { $_.id })
 Check ($tieps.Count -and -not @($tieps | Where-Object { $ids -notcontains $_ }).Count) "nút chạy tiếp có trong tool.json ($($tieps -join ', '))"
 $modesJ = @($manifest.actions | Where-Object { $_.fixedArgs } | ForEach-Object { $_.fixedArgs[1] })
-Check (-not @($modesJ | Where-Object { -not $script:Modes.Contains($_) }).Count -and $modesJ.Count -eq 4) "chế độ trong tool.json có trong công cụ ($($modesJ -join ', '))"
+Check (-not @($modesJ | Where-Object { -not $script:Modes.Contains($_) }).Count -and $modesJ.Count -eq 6) "chế độ trong tool.json có trong công cụ ($($modesJ -join ', '))"
 Check (-not @($manifest.pack.include | Where-Object { -not (Test-Path -LiteralPath (Join-Path $toolDir $_)) }).Count) 'gói có đủ file'
 
 # ---- tài khoản đang dùng, nhãn
@@ -216,9 +165,9 @@ $r = Invoke-Mode 'sao-luu' 6> $null
 Check ($r -eq 2 -and (Codes) -contains 'THIEU_CHO_TRONG' -and -not @(Get-ChildItem -LiteralPath $du -Directory -Filter 'Goi_*').Count) "thiếu chỗ trống: mã 2, không tạo gói ($r)"
 Set-Item function:Get-FreeBytes $realFree
 $r = Invoke-Mode 'sao-luu' 6> $null
-$pk = @(Get-ChildItem -LiteralPath $du -Directory -Filter 'Goi_11111111_*')
+$pk = @(Get-ChildItem -LiteralPath $du -Directory -Filter 'Goi_11111111')
 $g = if ($pk.Count) { Read-Obj (Join-Path $pk[0].FullName 'goi.json') } else { $null }
-Check ($r -eq 0 -and $pk.Count -eq 1 -and $g.chuan -eq 'tramtool.claudedongbo.goi/1' -and $g.taiKhoan.acct -eq $tkA -and $g.taiKhoan.org -eq $tcA -and $g.thuMucNguoiDung -eq $may1.Nha) "Sao lưu: một gói Goi_11111111_*, goi.json đúng tài khoản ($r)"
+Check ($r -eq 0 -and $pk.Count -eq 1 -and $g.chuan -eq 'tramtool.claudedongbo.goi/1' -and $g.taiKhoan.acct -eq $tkA -and $g.taiKhoan.org -eq $tcA -and $g.thuMucNguoiDung -eq $may1.Nha) "Sao lưu: một gói Goi_11111111 (cập nhật dần), goi.json đúng tài khoản ($r)"
 $pPhien = @(Get-ChildItem -LiteralPath (Join-Path $pk[0].FullName 'phien') -File | ForEach-Object { $_.Name })
 $pNd = @(Get-ChildItem -LiteralPath (Join-Path $pk[0].FullName 'noi-dung') -Recurse -File -Filter '*.jsonl' | Where-Object { $_.Directory.Name -ne 'subagents' })
 Check ($pPhien.Count -eq 4 -and $pPhien -notcontains "$($s4.Id).json" -and $pNd.Count -eq 4 -and $g.soPhien -eq 4 -and (Codes) -contains 'PHIEN_THIEU_NOI_DUNG') "gói có 4 phiên kèm nội dung, bỏ s4 thiếu nội dung ($($pPhien.Count), $($pNd.Count))"
