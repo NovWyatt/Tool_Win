@@ -1,5 +1,5 @@
 ﻿# Cài môi trường cho công cụ DWG -> PDF (chạy được không cần quyền Admin).
-#   1. Tìm Python 3.12 (thiếu thì cài bản cho riêng người dùng bằng winget)
+#   1. Tìm Python 3.12 (bản portable dùng Python mang theo; thiếu thì cài bản cho riêng người dùng bằng winget)
 #   2. Tạo .venv, cài thư viện đúng phiên bản trong requirements.txt (chỉ bản dựng sẵn, không biên dịch)
 #   3. Tải LibreDWG 0.14 (GPL-3.0) từ GitHub, kiểm SHA256, giải nén vào bin\libredwg
 #   4. Tự kiểm tra
@@ -20,6 +20,12 @@ function Buoc([string]$text) { Write-Host ''; Write-Host "== $text" -ForegroundC
 function Loi([string]$text) { Write-Host "LOI: $text" -ForegroundColor Red; exit 1 }
 
 function Tim-Python312 {
+    # Bản portable: Python 3.12 mang theo (trạm đặt TRAMTOOL_PYTHON, hoặc runtime\python ở thư mục trạm), không cần cài.
+    foreach ($p in @($env:TRAMTOOL_PYTHON, (Join-Path $here '..\..\runtime\python\python.exe'))) {
+        if (-not $p -or -not (Test-Path -LiteralPath $p)) { continue }
+        $v = & $p -c 'import sys; print(sys.version_info[1])' 2>$null
+        if ($LASTEXITCODE -eq 0 -and "$v".Trim() -eq '12') { return [IO.Path]::GetFullPath($p) }
+    }
     $py = Get-Command py.exe -ErrorAction SilentlyContinue
     if ($py) {
         $exe = & $py.Source -3.12 -c 'import sys; print(sys.executable)' 2>$null

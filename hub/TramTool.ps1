@@ -13,7 +13,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$HubVersion = '1.5.0'
+$HubVersion = '1.6.0'
 $HubDir = $PSScriptRoot
 $RootDir = Split-Path $HubDir -Parent
 if (-not $ToolsDir) { $ToolsDir = Join-Path $RootDir 'tools' }
@@ -40,6 +40,11 @@ $ProgressDir = Join-Path $DataDir 'tien-do'
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
 $Host.UI.RawUI.WindowTitle = 'Trạm Tool - máy chủ (đóng cửa sổ này để tắt trạm)'
 if (-not (Test-Path -LiteralPath $DataDir)) { New-Item -ItemType Directory -Path $DataDir | Out-Null }
+# Bản portable (có runtime\python): Python mang theo vào PATH, .venv trỏ lại thư mục này, bỏ dấu tải từ Internet.
+$Portable = Initialize-PortableRuntime -RootDir $RootDir -ToolsDir $ToolsDir -DataDir $DataDir
+if ($Portable) {
+    Write-HubLog "Bản portable: Python $($Portable.Version) mang theo$(if (@($Portable.Fixed).Count) { "; đã trỏ lại .venv: $(@($Portable.Fixed) -join ', ')" })$(if ($Portable.Unblocked) { "; bỏ dấu tải từ Internet cho $($Portable.Unblocked) file" })."
+}
 
 # ------------------------------------------------------------------ cài đặt
 function Get-HubSettings {

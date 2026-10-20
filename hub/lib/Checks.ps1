@@ -89,10 +89,11 @@ function Test-ToolRequirement {
                             else { $r.detail += ", đủ thư viện ($($mods -join ', '))" }
                         }
                     } else {
-                        $home = ''
+                        $venvHome = ''
                         $cfg = Join-Path $venv 'pyvenv.cfg'
-                        if (Test-Path -LiteralPath $cfg) { $home = ((Get-Content -LiteralPath $cfg) | Where-Object { $_ -match '^\s*home\s*=' }) -replace '^\s*home\s*=\s*', '' }
-                        $r.detail = ".venv hỏng: Python gốc không còn ở '$home'. Cài lại đúng phiên bản đó hoặc dựng lại .venv."
+                        # pyvenv.cfg là UTF-8 (đường dẫn có dấu). Không đặt tên biến là $home: biến chỉ đọc của PowerShell.
+                        if (Test-Path -LiteralPath $cfg) { $venvHome = (@([IO.File]::ReadAllLines($cfg, [Text.Encoding]::UTF8)) | Where-Object { $_ -match '^\s*home\s*=' }) -replace '^\s*home\s*=\s*', '' }
+                        $r.detail = ".venv hỏng: Python gốc không còn ở '$venvHome'. Bấm Cài để dựng lại .venv, hoặc cài lại đúng phiên bản Python đó."
                     }
                 }
             }

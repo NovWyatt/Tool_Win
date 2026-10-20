@@ -39,20 +39,6 @@ function Ask([string]$Prompt, [string[]]$Keys, [string]$Fallback) {
     return Read-AtChoice -Prompt $Prompt -Keys $Keys -Fallback $Fallback
 }
 
-# Thư mục nặng (môi trường Python, mô hình, kết quả): không cần dò dấu tải từ Internet.
-$script:SkipDirs = @('.venv', 'venv', 'models', '.git', 'node_modules', 'ket_qua', 'du-lieu', '__pycache__')
-function Get-BlockedFiles([string]$Dir) {
-    $out = New-Object System.Collections.ArrayList
-    foreach ($f in @(Get-ChildItem -LiteralPath $Dir -File -Force -ErrorAction SilentlyContinue)) {
-        if (Get-Item -LiteralPath $f.FullName -Stream 'Zone.Identifier' -ErrorAction SilentlyContinue) { [void]$out.Add($f.FullName) }
-    }
-    foreach ($d in @(Get-ChildItem -LiteralPath $Dir -Directory -Force -ErrorAction SilentlyContinue)) {
-        if ($script:SkipDirs -contains $d.Name -or ($d.Attributes -band [IO.FileAttributes]::ReparsePoint)) { continue }
-        foreach ($x in (Get-BlockedFiles $d.FullName)) { [void]$out.Add($x) }
-    }
-    return $out.ToArray()
-}
-
 # Submodule (vd tools\mdf2sql) trống khi tải repo dạng .zip: lấy bằng git nếu có, không thì tải .zip của repo công khai.
 function Get-EmptySubmodules {
     $file = Join-Path $RootDir '.gitmodules'
@@ -225,6 +211,13 @@ if ($blocked.Count) {
         Write-AtOk "Đã bỏ dấu tải từ Internet cho $($blocked.Count) file của trạm."
     }
 } else { Write-AtOk 'File của trạm không bị Windows đánh dấu tải từ Internet.' }
+
+# Bản portable: Python và .venv mang theo, chỉ cần trỏ lại đúng thư mục này (không cài gì).
+$portable = Initialize-PortableRuntime -RootDir $RootDir -ToolsDir $ToolsDir
+if ($portable) {
+    Write-AtOk "Bản portable: Python $($portable.Version) mang theo trong runtime\python, không cần cài Python."
+    if (@($portable.Fixed).Count) { Write-AtOk "Đã trỏ lại .venv về thư mục này: $(@($portable.Fixed) -join ', ')." }
+}
 
 if (-not $customTools) {
     foreach ($sub in @(Get-EmptySubmodules)) {
