@@ -140,6 +140,20 @@ Mức ưu tiên:
     chạy *Đồng bộ* (nút chạy tiếp trong trạm).
   - Đã thử: 133 mục giả lập (gồm mã hoá, zip slip, máy thứ hai qua `.aes`, `.zip`); chạy thử trên dữ liệu thật (16
     phiên, đúng cấu trúc). Chưa thử: đồng bộ thật sang tài khoản thứ hai, lối tắt thật.
+- **Bản portable, Trạm 1.6.0** (Wyatt dùng trên máy mới thấy cài rất lâu, chữ tiếng Việt hỏng, muốn tải về là dùng,
+  20/10/2026):
+  - `hub\dev\DongGoi.ps1` dựng một file .zip: giải nén, bấm `TramTool.exe` là chạy. Trong gói có Python 3.12.10 (gói
+    NuGet chính thức, kèm tkinter của cùng bản), `.venv` dựng sẵn của DWG sang PDF và Khôi phục .mdf, LibreDWG. Máy dùng
+    không phải tải Python, thư viện qua winget, pip (phần làm lần cài đầu chậm).
+  - `TramTool.exe` (C#, dịch bằng `csc.exe` của Windows) chạy máy chủ với cửa sổ ẩn, báo lỗi khi máy chủ không mở được.
+  - Mỗi lần mở trạm: trỏ lại `.venv` khi thư mục đổi chỗ (pyvenv.cfg chỉ nhận đường dẫn tuyệt đối), Python mang theo
+    đứng đầu PATH, `PYTHONUTF8=1` cho mọi công cụ, bỏ dấu tải từ Internet một lần.
+  - Lỗi chữ có thật tìm thấy: lối tắt `Trạm Tool.lnk` (bước cuối của `CAI_DAT.bat`, nút *Tạo lối tắt*) không lưu được
+    vì WScript.Shell đổi chữ có dấu thành `?`; nay ghi bằng IShellLinkW. Kiểm tra `.venv` hỏng (đúng trường hợp chép
+    thư mục sang máy mới) gán vào biến chỉ đọc `$home` nên báo lỗi tiếng Anh thay vì hướng dẫn; đã đổi tên biến, đọc
+    pyvenv.cfg bằng UTF-8.
+  - Chưa có trong gói: Ghi âm sang Word (khoảng 5 GB, `-KemGhiAm` làm gói thêm riêng), SQL Server và ODBC (cài vào
+    Windows, cần Admin). Chưa thử gói trên máy sạch.
 
 ## Đã sửa trong đợt này
 
@@ -200,6 +214,7 @@ Mức ưu tiên:
 | `94f3581` | Đồng bộ phiên Claude | Bản 1.1: tác vụ hẹn giờ, mẫu phiên, nhóm tự tạo trên thanh bên, trí nhớ dự án, Cowork (`-KemCowork`) đi kèm phiên, mục đã xoá không thêm lại; gói cập nhật dần, `-Nen`, `-MaHoa`; kiểm cấu trúc trước khi ghi (`CACH_LUU_DA_DOI`); *Mở Claude*, *Tạo lối tắt*, `-MoClaude`; Kiểm tra báo lần đồng bộ gần nhất. |
 | `2b11e78` | Chuyển dữ liệu khi cài lại Windows | Bản 2.2: nhập Claude xong mà tài khoản đang đăng nhập không có phiên thì gợi ý chạy Đồng bộ phiên Claude (nút chạy tiếp). |
 | `541dc24` | Máy ảo thử (`hub\dev`) | `TaoMayAoThu.ps1 -KhongMo` tạo máy ảo mà chưa bật, `-Mo` bật sau; cảnh báo khi RAM trống ít. |
+| `537175f` | Trạm 1.6.0 | Bản portable: `hub\dev\DongGoi.ps1` dựng .zip có Python 3.12 mang theo, `.venv` dựng sẵn, LibreDWG, `TramTool.exe`; trạm trỏ lại `.venv` khi đổi thư mục, `PYTHONUTF8=1`. Lối tắt `Trạm Tool.lnk` ghi bằng IShellLinkW (WScript.Shell không lưu được tên có dấu); kiểm `.venv` hỏng không còn gán vào biến chỉ đọc `$home`. |
 
 ## Bảng tổng quan
 
@@ -262,7 +277,7 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
    GitHub (kết quả là file đầu ra hoặc thao tác một lần, mã thoát đã đủ cho Lịch sử).
 9. **Bài thử không nằm trong repo.** Các nút đổi máy chủ yếu được thử bằng giả lập, nhưng bài thử chỉ nằm ở thư mục
    tạm của phiên làm việc nên sửa sau không chạy lại được. Đã làm: `tests\` với một trình chạy chung
-   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 58 bài cho 20 bộ (cú pháp, mã hoá file, danh mục và lược đồ
+   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 59 bài cho 20 bộ (cú pháp, mã hoá file, danh mục và lược đồ
    `tool.json`, không commit dữ liệu khách, lan can và kết quả JSON của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
    Tối ưu Windows, Giờ máy và chữ ký số, Bộ ứng dụng văn phòng, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe,
    Đăng xuất GitHub, Ghi âm sang Word, DWG sang PDF, Gói tiếng Việt, Đồng bộ phiên Claude, `.bat` của mdf2sql) và
@@ -327,6 +342,8 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 - [ ] Chuyển dữ liệu khi cài lại Windows: thêm `winget export`, thư mục người dùng (xem trước dung lượng), dấu trang, font.
 - [ ] Sửa lỗi Windows thành bước *Sửa* trong CheckWinFix, chỉ đề xuất lệnh hợp với bệnh tìm thấy.
 - [x] Trạm: nút *Cập nhật công cụ* (chỉ fast-forward, Trạm 1.5.0).
+- [x] Bản portable không cần cài (Trạm 1.6.0, `hub\dev\DongGoi.ps1`, `TramTool.exe`). Còn: thử trên máy sạch (máy ảo);
+      kèm sẵn bộ cài SQL Server LocalDB, ODBC trong gói để cài không cần mạng; ký số `TramTool.exe` nếu có chứng thư.
 - [ ] Trạm: xuất/nhập cài đặt.
 - [x] Công cụ mới: Giờ máy và chữ ký số (1.0), Bộ ứng dụng văn phòng bằng winget (1.0), mục 6, 8 của *Công cụ Windows
       nên thêm*.

@@ -5,9 +5,28 @@ Bộ công cụ Windows của Wyatt (chẩn đoán, sửa lỗi, tối ưu, văn
 
 ![Giao diện trạm – nhóm công cụ Văn phòng](docs/screenshot.png)
 
-## Cài trên máy mới
+## Bản portable (không cần cài)
 
-Chép cả thư mục `Tool_Win` sang máy (hoặc giải nén file .zip), rồi bấm đúp **`CAI_DAT.bat`** một lần.
+Gửi cho máy khác file **`TramTool-Portable-<phiên bản>-<ngày>.zip`**: giải nén ở đâu cũng được (ổ D, USB), bấm đúp
+**`TramTool.exe`**. Không cài Python, thư viện hay LibreDWG; không cần mạng.
+
+- Trong gói có Python 3.12 (`runtime\python`, gói NuGet chính thức, kèm tkinter), `.venv` dựng sẵn của DWG sang PDF và
+  Khôi phục .mdf, LibreDWG. Chuyển thư mục đi chỗ khác thì lần mở sau trạm tự trỏ lại `.venv`.
+- Python của mọi công cụ chạy ở chế độ UTF-8 (`PYTHONUTF8=1`), nên chữ có dấu không hỏng khi chuyển qua lại giữa các
+  chương trình.
+- `TramTool.exe` chỉ chạy máy chủ của trạm với cửa sổ ẩn rồi thoát (máy chủ tự mở giao diện, tự tắt sau 10 phút
+  không có giao diện). Mở không được thì nó báo lỗi và chỉ `TramTool.bat` để xem chi tiết.
+- Lần đầu Windows có thể hiện *Windows protected your PC* (file chưa có chữ ký số): *More info → Run anyway*.
+- Còn phải cài: Ghi âm sang Word (thư viện và mô hình khoảng 5 GB, nút *Cài* trong trạm tải một lần, hoặc giải nén
+  gói `TramTool-GhiAm-*.zip` chồng vào thư mục), SQL Server LocalDB và ODBC Driver của Khôi phục .mdf (cài vào Windows,
+  cần quyền Admin).
+- Dựng gói trên máy phát triển: `powershell -ExecutionPolicy Bypass -File hub\dev\DongGoi.ps1` (mặc định ra
+  `D:\Repo\TramTool-Portable`; `-KemGhiAm` làm thêm gói Ghi âm sang Word, `-ChayThu` chỉ in kế hoạch). Cần mạng lần
+  đầu; gói chỉ lấy file git đang theo dõi nên không lẫn dữ liệu khách.
+
+## Cài trên máy mới (bản lấy bằng git)
+
+Chép cả thư mục `Tool_Win` sang máy (hoặc giải nén file .zip của GitHub), rồi bấm đúp **`CAI_DAT.bat`** một lần.
 
 - Bộ cài kiểm tra từng công cụ cần gì (giống mục *Yêu cầu để chạy* trong trạm), in danh sách còn thiếu kèm cách cài,
   thời gian, có cần quyền Admin không; gõ `C` để cài tất cả hoặc `T` để chọn từng mục.
@@ -18,8 +37,8 @@ Chép cả thư mục `Tool_Win` sang máy (hoặc giải nén file .zip), rồi
   lấy `tools\mdf2sql` khi thư mục này trống (bản .zip của GitHub không kèm submodule).
 - Chạy lại bao nhiêu lần cũng được: thứ đã có thì bỏ qua. `CAI_DAT.bat -ChayThu` chỉ kiểm tra, không cài gì;
   `CAI_DAT.bat -TatCa` không hỏi.
-- Dùng `.bat` thay vì đóng thành `.exe`: file `.exe` tự đóng gói từ script PowerShell (không có chữ ký số) thường bị
-  phần mềm diệt virus và SmartScreen chặn, còn `.bat` mở ra đọc được từng dòng.
+- Công cụ vẫn là `.bat`, `.ps1` đọc được từng dòng, không đóng script vào `.exe` (kiểu ps2exe hay bị phần mềm diệt
+  virus chặn). `TramTool.exe` của bản portable chỉ là trình mở nhỏ (mã nguồn `hub\dev\TramToolExe.cs`).
 
 ## Mở trạm
 
@@ -83,7 +102,7 @@ Thả thư mục công cụ vào `tools\`, bấm *Làm mới* trong trạm. Vi�
 ## Cấu trúc
 
 ```
-TramTool.bat              mở trạm
+TramTool.bat              mở trạm (bản portable có thêm TramTool.exe, runtime\python)
 CAI_DAT.bat               cài một lần cho máy mới (hub\CaiDat.ps1)
 hub\
   TramTool.ps1            máy chủ HTTP cục bộ và API
@@ -93,7 +112,7 @@ hub\
   web\                    giao diện; thư viện ngoài nằm sẵn trong web\vendor\ (chạy không cần mạng)
   schema\                 tool.schema.json
   fixes\                  script cài đặt, sửa dùng chung (SQL Server LocalDB, winget...)
-  dev\                    Normalize-Encoding.ps1
+  dev\                    Normalize-Encoding.ps1, DongGoi.ps1 + TramToolExe.cs (bản portable), TaoMayAoThu.ps1
   data\                   lịch sử chạy, cài đặt, mã phiên, trạng thái trước khi chạy (máy nào giữ máy đó, không commit)
 tools\<id>\               mỗi công cụ một thư mục, có tool.json
 tests\                    bài thử giả lập: ChayTatCa.ps1 chạy hết, mỗi bộ một thư mục (xem tests\README.md)
