@@ -1,6 +1,6 @@
 # Phân tích và hướng nâng cấp
 
-Cập nhật 17/10/2026. Đánh giá 19 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
+Cập nhật 20/10/2026. Đánh giá 19 công cụ trong `tools\`, những gì đã sửa trong đợt gom vào Trạm Tool,
 và lộ trình nâng cấp theo mức ưu tiên.
 
 Danh sách lỗi và hướng nâng cấp đầy đủ của từng công cụ nằm trong `issues` và `upgrades` của `tool.json`,
@@ -126,6 +126,20 @@ Mức ưu tiên:
     *Sao lưu* gói danh sách kèm nội dung để mang sang máy khác. *Hoàn tác* có nhật ký.
   - Đã thử: giả lập đủ các trường hợp; Kiểm tra, Sao lưu và Đồng bộ chạy thử trên dữ liệu thật (12 phiên).
   - Chưa thử: đồng bộ thật sang tài khoản thứ hai.
+- **Đồng bộ phiên Claude 1.1** (Wyatt bảo làm hết các hướng nâng cấp, 20/10/2026):
+  - Đi kèm phiên: tác vụ hẹn giờ (`scheduled-tasks.json`, `~\.claude\scheduled-tasks`), mẫu phiên, nhóm tự tạo trên
+    thanh bên (chỉ thêm nhóm, không đổi nhóm có sẵn), trí nhớ dự án (`~\.claude\projects\<dự án>\memory`, sửa đường
+    dẫn khi đổi máy); Cowork khi chọn `-KemCowork`. Mục đã xoá ở tài khoản này không bị thêm lại ở lần sau.
+  - Gói sao lưu cập nhật dần (chỉ chép file đổi), đánh dấu đang ghi dở; `-Nen` thành `.zip`, `-MaHoa` thành `.aes`
+    (cùng định dạng với `BiMat.aes` của new-windows, mật khẩu gõ trong cửa sổ công cụ, không qua tham số).
+  - Ghi bản Claude Desktop đã xem; kiểm cấu trúc từng mục danh sách, bỏ mục lạ, đa số sai thì dừng
+    (`CACH_LUU_DA_DOI`) thay vì ghi vào cách lưu mới. Đọc danh sách có bộ đệm.
+  - *Mở Claude*: đồng bộ (khi Claude đang tắt) rồi mở Claude; *Tạo lối tắt* trên màn hình; `-MoClaude` cho *Đồng bộ*.
+    *Kiểm tra* báo lần đồng bộ gần nhất và phiên đã đồng bộ mà nay mất khỏi danh sách (để kiểm sau lần thử thật).
+  - Chuyển dữ liệu khi cài lại Windows 2.2: nhập Claude xong mà tài khoản đang đăng nhập không có phiên nào thì gợi ý
+    chạy *Đồng bộ* (nút chạy tiếp trong trạm).
+  - Đã thử: 133 mục giả lập (gồm mã hoá, zip slip, máy thứ hai qua `.aes`, `.zip`); chạy thử trên dữ liệu thật (16
+    phiên, đúng cấu trúc). Chưa thử: đồng bộ thật sang tài khoản thứ hai, lối tắt thật.
 
 ## Đã sửa trong đợt này
 
@@ -183,6 +197,9 @@ Mức ưu tiên:
 | `4f2e279` | Gói tiếng Việt (mới) | Công cụ mới `tools\tieng-viet`: Kiểm tra bộ gõ, khởi động cùng Windows, bàn phím của Windows, font cũ, định dạng số và ngày, Excel, bảng mã; *Đặt định dạng* (`SetLocaleInfo`, cho tài khoản đang dùng), *Trả lại*; *Chuyển tài liệu sang Unicode* (`chuyen_unicode.py`, chỉ thư viện chuẩn của Python, sửa thẳng XML của `.docx`, `.xlsx`). |
 | `9c3f246` | Đồng bộ phiên Claude (mới) | Công cụ mới `tools\claude-dong-bo`: *Đồng bộ* các phiên tab Code của tài khoản khác trên máy hoặc từ gói vào tài khoản đang đăng nhập (bản mới hơn thắng, bỏ kết nối của tài khoản cũ, sửa đường dẫn khi đổi máy), *Sao lưu*, *Kiểm tra*, *Hoàn tác*. |
 | `adfc8ea` | Office (bài thử) | Hạn hỗ trợ Office thử bằng ngày giả: Office LTSC 2021 hết hỗ trợ 13/10/2026 làm bài thử viết cứng "sắp hết" hỏng dù công cụ đúng. |
+| `94f3581` | Đồng bộ phiên Claude | Bản 1.1: tác vụ hẹn giờ, mẫu phiên, nhóm tự tạo trên thanh bên, trí nhớ dự án, Cowork (`-KemCowork`) đi kèm phiên, mục đã xoá không thêm lại; gói cập nhật dần, `-Nen`, `-MaHoa`; kiểm cấu trúc trước khi ghi (`CACH_LUU_DA_DOI`); *Mở Claude*, *Tạo lối tắt*, `-MoClaude`; Kiểm tra báo lần đồng bộ gần nhất. |
+| `2b11e78` | Chuyển dữ liệu khi cài lại Windows | Bản 2.2: nhập Claude xong mà tài khoản đang đăng nhập không có phiên thì gợi ý chạy Đồng bộ phiên Claude (nút chạy tiếp). |
+| `541dc24` | Máy ảo thử (`hub\dev`) | `TaoMayAoThu.ps1 -KhongMo` tạo máy ảo mà chưa bật, `-Mo` bật sau; cảnh báo khi RAM trống ít. |
 
 ## Bảng tổng quan
 
@@ -200,12 +217,12 @@ Mức ưu tiên:
 | DWG sang PDF | Mọi người | Không cần AutoCAD; mỗi khung bản vẽ một trang; giải mã chữ VNI và TCVN3. Bản vẽ lớn chậm (5-35 phút); trạm hiện phần trăm, tờ đang vẽ. | P1: bộ bản vẽ mẫu để kiểm tra khi nâng thư viện. |
 | Ghi âm sang Word | Mọi người | Chạy offline trên card NVIDIA, nhanh khoảng 5 lần thời gian thực, đánh dấu chỗ máy nghe kém chắc chắn; tên kết quả giữ đuôi file gốc, chọn được thư mục kết quả; trạm hiện phần trăm, thời gian còn lại; bị ngắt thì làm tiếp từ khúc đã xong, card hết bộ nhớ thì thử lại khúc đó. | P1: mã thoát riêng cho lỗi card; chỉ chạy lại bằng CPU các file chưa xong. |
 | Khôi phục .mdf sang .sql | Kỹ thuật | Khôi phục được file tắt đột ngột hoặc thiếu `.ldf`, xuất cho cả SQL Server và MySQL; luôn làm trên bản sao. Có `doctor` kiểm tra môi trường; giao diện giữ cổng riêng, tự lùi khi cổng bận; hộp thoại chọn file chạy trong tiến trình riêng; Trạm mở lại, tắt giao diện đang chạy và hiện kết quả `doctor`; pyodbc ghim bản trong `.venv` riêng. | P1: dọn database tạm, thư mục làm việc bị bỏ lại. |
-| Chuyển dữ liệu khi cài lại Windows | Kỹ thuật | Bản 2.0: sao lưu Wi-Fi kèm mật khẩu, máy in kèm driver, dữ liệu Claude, khoá BitLocker, driver mạng ra nơi chọn (USB trước), tuỳ chọn mã hoá phần bí mật; manifest đánh dấu đã xong, bước nhập không dùng bản dở; có Chạy thử. Mới thử bằng giả lập. | P1: kiểm đếm file và SHA-256; hỏi bật tự mở khoá ổ BitLocker sau khi mở. |
+| Chuyển dữ liệu khi cài lại Windows | Kỹ thuật | Bản 2.2: sao lưu Wi-Fi kèm mật khẩu, máy in kèm driver, dữ liệu Claude, khoá BitLocker, driver mạng ra nơi chọn (USB trước), tuỳ chọn mã hoá phần bí mật; manifest đánh dấu đã xong, bước nhập không dùng bản dở; có Chạy thử; nhập Claude xong gợi ý Đồng bộ phiên Claude khi đổi tài khoản. Mới thử bằng giả lập. | P1: kiểm đếm file và SHA-256; hỏi bật tự mở khoá ổ BitLocker sau khi mở. |
 | BitLocker và khoá khôi phục | Mọi người | Kiểm tra từng ổ (mã hoá, tạm dừng, bị khoá), khoá khôi phục đã lưu ở đâu, TPM, các lần máy phải nhập khoá; kết luận theo thứ tự nên làm. 6 nút đổi máy có Chạy thử, nhật ký hoàn tác; khoá 48 số không bao giờ vào báo cáo, nhật ký. Chưa chạy trên ổ mã hoá thật, mới thử bằng giả lập. | P1: chạy thật trên máy có BitLocker; sao lưu khoá lên tài khoản Microsoft; lưu gói khoá `.KPG`. |
 | Giờ máy và chữ ký số (USB token) | Mọi người | Kiểm tra chỉ đọc bằng quyền thường: độ lệch giờ (NTP, dự phòng http), múi giờ, dịch vụ giờ, dịch vụ Smart Card, đầu đọc token, chứng thư ký số, phần mềm ký số; trạm hiện từng phát hiện kèm nút sửa. Sửa giờ, sửa dịch vụ token lưu giá trị cũ để trả lại. Không hỏi PIN. Chưa thử với token thật; token chỉ dùng PKCS#11 thì không thấy. | P1: đọc chứng thư trong token (`certutil -scinfo`) khi kho của tài khoản chưa có; kiểm tra tiện ích ký số của trình duyệt. |
 | Bộ ứng dụng văn phòng (winget) | Mọi người | Cài một lượt ứng dụng hay dùng từ nguồn winget, bỏ qua ứng dụng đã có, đọc lại danh sách đã cài để chắc cài xong; Kiểm tra xem ứng dụng nào đã có, Cập nhật cả bộ. Danh sách sửa được. Mới chạy thật Kiểm tra và chạy thử; cài, cập nhật thử bằng giả lập. | P1: báo ứng dụng có bản mới ngay trong Kiểm tra; cài thật trên một máy mới. |
 | Gói tiếng Việt | Mọi người | Kiểm tra chỉ đọc bằng quyền thường: bộ gõ (hai bộ cùng chạy, chạy hai bản, khởi động trùng, bàn phím tiếng Việt của Windows bật cùng), font VNI, TCVN3, định dạng số và ngày, Excel dùng dấu riêng, chế độ UTF-8 (Beta); trạm hiện từng phát hiện kèm nút sửa. *Đặt định dạng* cho tài khoản, không cần Admin, lưu giá trị cũ để trả lại. *Chuyển tài liệu sang Unicode* tạo bản sao `.docx`, `.xlsx`, giải mã theo font của từng đoạn chữ. Chưa đổi định dạng thật của máy nào. | P1: chuyển cả `.doc`, `.xls` cũ qua Word, Excel; đổi chữ trong hình, biểu đồ, SmartArt; đổi định dạng thật trên máy ảo. |
-| Đồng bộ phiên Claude | Kỹ thuật | Đổi tài khoản Claude Desktop là thanh bên tab Code trống dù nội dung còn trên máy. *Đồng bộ* đưa các phiên của tài khoản khác trên máy hoặc từ gói sao lưu vào tài khoản đang đăng nhập (bản mới hơn thắng, không thêm lại phiên đã xoá, bỏ kết nối của tài khoản cũ, sửa đường dẫn khi đổi máy), có nhật ký *Hoàn tác*; phải tắt Claude Desktop trong lúc ghi. Dựa trên cách lưu quan sát được, chưa có tài liệu; chưa đồng bộ thật sang tài khoản thứ hai. | P1: đồng bộ thật một lần với tài khoản thứ hai; thêm phiên Cowork, tác vụ hẹn giờ. |
+| Đồng bộ phiên Claude | Kỹ thuật | Đổi tài khoản Claude Desktop là thanh bên tab Code trống dù nội dung còn trên máy. *Đồng bộ* đưa các phiên của tài khoản khác trên máy hoặc từ gói sao lưu vào tài khoản đang đăng nhập (bản mới hơn thắng, không thêm lại phiên đã xoá, bỏ kết nối của tài khoản cũ, sửa đường dẫn khi đổi máy), có nhật ký *Hoàn tác*; phải tắt Claude Desktop trong lúc ghi. Bản 1.1 kèm tác vụ hẹn giờ, mẫu phiên, nhóm thanh bên, trí nhớ dự án, Cowork (tuỳ chọn); gói cập nhật dần, nén hoặc mã hoá; lối tắt *Mở Claude*; dừng khi cách lưu của Claude khác cách công cụ biết. Dựa trên cách lưu quan sát được, chưa có tài liệu; chưa đồng bộ thật sang tài khoản thứ hai. | P1: đồng bộ thật một lần với tài khoản thứ hai; đồng bộ nhóm tự tạo kèm phiên trong nhóm khi biết nơi Claude lưu. |
 | Đăng xuất GitHub | Kỹ thuật | Bản 1.1: xoá mọi mục GitHub của Git trong Credential Manager (cả mục kèm tên tài khoản), hỏi trước với mục của ứng dụng khác và GitHub CLI, có Chạy thử. | P2: chọn tài khoản cần xoá thay vì xoá hết. |
 
 ## Vấn đề chung
@@ -245,7 +262,7 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
    GitHub (kết quả là file đầu ra hoặc thao tác một lần, mã thoát đã đủ cho Lịch sử).
 9. **Bài thử không nằm trong repo.** Các nút đổi máy chủ yếu được thử bằng giả lập, nhưng bài thử chỉ nằm ở thư mục
    tạm của phiên làm việc nên sửa sau không chạy lại được. Đã làm: `tests\` với một trình chạy chung
-   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 57 bài cho 20 bộ (cú pháp, mã hoá file, danh mục và lược đồ
+   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 58 bài cho 20 bộ (cú pháp, mã hoá file, danh mục và lược đồ
    `tool.json`, không commit dữ liệu khách, lan can và kết quả JSON của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
    Tối ưu Windows, Giờ máy và chữ ký số, Bộ ứng dụng văn phòng, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe,
    Đăng xuất GitHub, Ghi âm sang Word, DWG sang PDF, Gói tiếng Việt, Đồng bộ phiên Claude, `.bat` của mdf2sql) và
@@ -314,11 +331,12 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 - [x] Công cụ mới: Giờ máy và chữ ký số (1.0), Bộ ứng dụng văn phòng bằng winget (1.0), mục 6, 8 của *Công cụ Windows
       nên thêm*.
 - [x] Công cụ mới: Gói tiếng Việt (1.0), mục 4 của *Công cụ Windows nên thêm*.
-- [x] Công cụ mới: Đồng bộ phiên Claude giữa các tài khoản (1.0). Còn: đồng bộ thật sang tài khoản thứ hai; phiên
-      Cowork, tác vụ hẹn giờ.
+- [x] Công cụ mới: Đồng bộ phiên Claude giữa các tài khoản (1.0; 1.1 thêm tác vụ hẹn giờ, mẫu phiên, nhóm thanh bên,
+      trí nhớ dự án, Cowork, gói nén/mã hoá cập nhật dần, lối tắt *Mở Claude*). Còn: đồng bộ thật sang tài khoản thứ hai.
 - [ ] Máy ảo Windows 11 (VirtualBox, ổ D) để chạy thật các nút sửa trước khi đưa cho khách: `hub\dev\TaoMayAoThu.ps1`
       tạo máy ảo (EFI, TPM 2.0, Secure Boot, NAT, repo chia sẻ chỉ đọc, cài tự động), chụp nhanh và trả về bản sạch;
-      còn chờ cài VirtualBox (cần quyền Admin).
+      đã cài VirtualBox, đã tạo máy ảo `TramTool-Win11` nhưng chưa bật (`-KhongMo`, máy thiếu RAM); còn bật bằng `-Mo`,
+      cài xong thì `-ChupNhanh`.
 
 ## Trạm Tool
 
@@ -684,6 +702,12 @@ Mới có nguồn cộng đồng hoặc chưa thử; kiểm tra trên máy thậ
   `claude-code-sessions\<accountUuid>\<organizationUuid>\local_<mã>.json`, tài khoản đang đăng nhập là
   `lastKnownAccountUuid` trong `config.json`, phiên đã xoá để lại `deleted_<mã>`; Claude đọc lại danh sách khi mở.
   Đồng bộ phiên Claude dựa vào các điều này; chưa thử mở phiên đã đồng bộ bằng tài khoản thứ hai.
+- Phần ngoài danh sách phiên (bản 2.42304): mẫu phiên ở `ccd-session-presets.json` (`byAccount`), nhóm thanh bên ở
+  `claude_desktop_config.json` → `preferences.epitaxyPrefs["dframe-code-sections"]["<tài khoản>/<tổ chức>"]`, tác vụ
+  hẹn giờ ở `claude-code-sessions\<tài khoản>\<tổ chức>\scheduled-tasks.json` và `~\.claude\scheduled-tasks\<tên>\SKILL.md`,
+  Cowork ở `local-agent-mode-sessions\<tài khoản>\<tổ chức>`. Claude Desktop bản Microsoft Store mở bằng
+  `shell:AppsFolder\Claude_<mã>!Claude`. Công cụ chỉ đổi khoá của các mục này, không chép cả file cấu hình (có thể có
+  token của máy chủ MCP).
 
 ## Thư viện bên thứ ba
 
