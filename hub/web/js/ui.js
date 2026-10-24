@@ -120,14 +120,17 @@ export function confirmDialog({ title, body, confirmLabel, confirmIcon = '', dan
 
 // ------------------------------------------------------------------ lớp phủ khi mất kết nối
 let overlayKind = null;
+// File bấm đúp để mở lại trạm: bản portable có TramTool.exe, bản lấy từ git chỉ có TramTool.bat.
+export const launcherName = () => (S.hub && S.hub.launcher) || 'TramTool.exe (hoặc TramTool.bat)';
+
 export function showOverlay(kind, title = '', text = '') {
   overlayKind = kind;
   if (kind === 'token') {
-    title = 'Hãy mở Trạm Tool bằng TramTool.bat';
-    text = 'Trang này thiếu mã thông hành của phiên đang chạy. Bấm đúp file TramTool.bat trong thư mục Tool_Win, trạm sẽ tự mở đúng cửa sổ.';
+    title = 'Hãy mở Trạm Tool bằng file của trạm';
+    text = `Trang này thiếu mã thông hành của phiên đang chạy. Bấm đúp ${launcherName()} trong thư mục trạm, trạm sẽ tự mở đúng cửa sổ.`;
   } else if (kind === 'offline') {
     title = 'Mất kết nối với Trạm Tool';
-    text = 'Có thể cửa sổ máy chủ của trạm đã bị đóng hoặc tự tắt vì để lâu. Mở lại bằng TramTool.bat rồi bấm Thử lại.';
+    text = `Có thể máy chủ của trạm đã bị đóng hoặc tự tắt vì để lâu. Mở lại bằng ${launcherName()} rồi bấm Thử lại.`;
   }
   $('#overlay-title').textContent = title;
   $('#overlay-text').textContent = text;

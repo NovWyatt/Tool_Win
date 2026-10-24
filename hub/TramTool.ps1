@@ -13,7 +13,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$HubVersion = '1.6.0'
+$HubVersion = '1.7.0'
 $HubDir = $PSScriptRoot
 $RootDir = Split-Path $HubDir -Parent
 if (-not $ToolsDir) { $ToolsDir = Join-Path $RootDir 'tools' }
@@ -270,6 +270,9 @@ function Invoke-Api {
                 hub        = [ordered]@{
                     version = $HubVersion; root = $RootDir; toolsDir = $ToolsDir; computer = $env:COMPUTERNAME; user = $env:USERNAME
                     isAdmin = (Test-IsAdmin); startedAt = (Get-IsoTime $State.StartedAt); browser = $State.Browser; settings = $State.Settings
+                    # File bấm để mở lại trạm, cho các lời nhắc trong giao diện (bản portable có TramTool.exe).
+                    launcher = $(if (Test-Path -LiteralPath (Join-Path $RootDir 'TramTool.exe')) { 'TramTool.exe' } else { 'TramTool.bat' })
+                    portable = [bool]$Portable
                 }
                 categories = $State.Categories
                 tools      = @($State.Catalog | ForEach-Object { ConvertTo-ToolSummary $_ })

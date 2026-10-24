@@ -6,7 +6,7 @@ import { api, icon, enc, fmtElapsed, fmtDuration } from './core.js';
 import { S, update, go, runState } from './state.js';
 import { toast } from './ui.js';
 import { resultSentence, resultTone, showResult } from './result.js';
-import { loadToolOutputs, loadServer, hasWebServer } from './data.js';
+import { loadToolOutputs, loadServer, hasWebServer, loadReqs } from './data.js';
 
 let pollTimer = null;
 let tickTimer = null;
@@ -45,6 +45,8 @@ function onFinished(j) {
   const t = S.byId.get(j.toolId);
   // Kết quả mới có thể đã được tạo: trang công cụ đang mở thì tải lại ngay, trang khác tải lại khi mở.
   S.outputs = null;
+  // Việc vừa xong có thể là việc cài môi trường chạy: kiểm lại yêu cầu để khung "Cần cài" và Tổng quan cập nhật.
+  if (t && (t.requires || []).length) loadReqs(t, true);
   if (t && S.route.name === 'tool' && S.route.id === t.id) {
     if ((t.outputs || []).length) loadToolOutputs(t);
     if (hasWebServer(t)) loadServer(t);

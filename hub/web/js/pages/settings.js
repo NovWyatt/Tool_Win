@@ -2,7 +2,7 @@
 import { html, nothing } from '../../vendor/lit-html/lit-html.js';
 import { api, icon } from '../core.js';
 import { S, saveSettings, update } from '../state.js';
-import { toast, confirmDialog, applyTheme, showOverlay } from '../ui.js';
+import { toast, confirmDialog, applyTheme, showOverlay, launcherName } from '../ui.js';
 import { pageHead, btn } from '../parts.js';
 import { reloadCatalog } from '../data.js';
 import { refreshJobs, watchJob } from '../jobs.js';
@@ -77,14 +77,14 @@ async function save(patch, msg = 'Đã lưu cài đặt.') {
 async function shutdown() {
   const ok = await confirmDialog({
     title: 'Tắt Trạm Tool?',
-    body: html`<p>Máy chủ của trạm sẽ dừng. Công cụ đang chạy trong cửa sổ riêng không bị ảnh hưởng, nhưng trạm sẽ không ghi được kết quả của chúng. Mở lại bằng TramTool.bat.</p>`,
+    body: html`<p>Máy chủ của trạm sẽ dừng. Công cụ đang chạy trong cửa sổ riêng không bị ảnh hưởng, nhưng trạm sẽ không ghi được kết quả của chúng. Mở lại bằng ${launcherName()}.</p>`,
     confirmLabel: 'Tắt trạm',
     confirmIcon: 'power',
   });
   if (!ok) return;
   try {
     await api('/api/shutdown', { method: 'POST' });
-    showOverlay('stopped', 'Đã tắt Trạm Tool', 'Có thể đóng cửa sổ này. Mở lại bằng TramTool.bat.');
+    showOverlay('stopped', 'Đã tắt Trạm Tool', `Có thể đóng cửa sổ này. Mở lại bằng ${launcherName()}.`);
   } catch (e) { toast('error', e.message); }
 }
 

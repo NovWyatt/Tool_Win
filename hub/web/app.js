@@ -10,7 +10,7 @@ import { openPalette, initPalette } from './js/palette.js';
 import { refreshJobs, dockTemplate } from './js/jobs.js';
 import { loadHistory, loadDepsAll, reloadCatalog } from './js/data.js';
 import { navTemplate } from './js/pages/nav.js';
-import { homePage, homeLoad } from './js/pages/home.js';
+import { homePage, homeLoad, focusHomeFind } from './js/pages/home.js';
 import { categoryPage } from './js/pages/category.js';
 import { toolPage, toolLoad } from './js/pages/tool.js';
 import { outputsPage, outputsLoad } from './js/pages/outputs.js';
@@ -70,7 +70,8 @@ document.addEventListener('keydown', (e) => {
   const el = document.activeElement;
   const typing = !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); return; }
-  if (e.key === '/' && !typing) { e.preventDefault(); openPalette(); }
+  // "/": ở Tổng quan thì vào ô tìm của trang (lọc danh mục tại chỗ), trang khác thì mở Tìm nhanh.
+  if (e.key === '/' && !typing) { e.preventDefault(); if (!(S.route.name === 'home' && focusHomeFind())) openPalette(); }
 });
 
 $('#menu-btn').addEventListener('click', () => $('#app').classList.toggle('nav-open'));

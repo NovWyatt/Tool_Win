@@ -1,7 +1,7 @@
 // Trạm Tool - các khối giao diện dùng chung giữa các trang.
 import { html, nothing } from '../vendor/lit-html/lit-html.js';
-import { icon, enc, timeAgo, clock, dayKey, fmtDuration } from './core.js';
-import { S, go, isPinned, togglePin, depsStatus, missingDeps, primaryAction, runState, RISK } from './state.js';
+import { icon, enc, clock, dayKey, fmtDuration } from './core.js';
+import { go, isPinned, togglePin, depsStatus, missingDeps, primaryAction, runState, catLabel } from './state.js';
 import { runAction } from './run.js';
 import { toast } from './ui.js';
 
@@ -42,14 +42,14 @@ export function badge(color, text, ic = '') {
   return html`<span class="tag ${TAG[color] || ''}">${ic ? icon(ic) : nothing}${text}</span>`;
 }
 
-// Mỗi công cụ chỉ hiện một dấu hiệu, và chỉ khi có điều bất thường; "Chỉ đọc" là mặc định nên không ghi.
+// Mỗi công cụ chỉ hiện một dấu hiệu, và chỉ khi có điều cần làm. Mức rủi ro thuộc về từng việc nên ghi ở trang
+// công cụ, không ghi ở danh mục (một công cụ có cả việc chỉ xem lẫn việc đổi máy).
 export function statusBadge(t) {
+  if (t.manifestBroken) return badge('danger', 'tool.json bị lỗi');
   if (t.auto) return badge('subtle', 'Chưa có tool.json');
   if (t.status === 'broken') return badge('danger', 'Đang hỏng');
-  if (depsStatus(t) === 'missing') return badge('danger', `Thiếu ${missingDeps(t).length} yêu cầu`);
+  if (depsStatus(t) === 'missing') return badge('danger', `Cần cài ${missingDeps(t).length} thứ`);
   if (t.status === 'warning') return badge('warning', 'Cần xem lại');
-  const a = primaryAction(t);
-  if (a && a.risk === 'modifies-system') return badge('warning', RISK['modifies-system'].label);
   return nothing;
 }
 
@@ -89,27 +89,28 @@ export const onRowKey = (hash) => (e) => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); go(hash); }
 };
 
-// Một dòng trong danh mục: cả dòng bấm được để mở trang công cụ; nút Chạy và Ghim hiện rõ khi rê chuột.
-export function toolRow(t) {
+// Một dòng trong danh mục: cả dòng là một liên kết mở trang công cụ (ở đó mới chọn việc để chạy, vì phần lớn
+// công cụ có nhiều việc). Ghim hiện khi rê chuột; mũi tên cho biết dòng bấm được.
+export function toolRow(t, { cat = false } = {}) {
   const hash = `#/tool/${enc(t.id)}`;
   return html`<div class="trow" role="link" tabindex="0" aria-label=${t.name} @click=${() => go(hash)} @keydown=${onRowKey(hash)}>
     ${icon(t.icon || 'toolbox')}
     <div>
       <div class="trow-title"><span class="name">${t.name}</span>${statusBadge(t)}</div>
-      <div class="trow-sub">${t.summary}</div>
+      <div class="trow-sub">${cat ? html`<span class="trow-cat">${catLabel(t.category)}</span>` : nothing}${t.summary}</div>
     </div>
-    <div class="trow-side">${runButton(t, primaryAction(t), { sm: true })}${pinButton(t)}</div>
+    <div class="trow-side">${pinButton(t)}<span class="trow-go" aria-hidden="true">${icon('chevron-right')}</span></div>
   </div>`;
 }
 
-// Công cụ đã ghim: tên, lần chạy gần nhất, nút Chạy.
+// Công cụ đã ghim: tên, việc chính (chính là việc nút Chạy sẽ làm), nút Chạy.
 export function pinRow(t) {
   const hash = `#/tool/${enc(t.id)}`;
-  const last = (S.history || []).find((h) => h.toolId === t.id);
+  const a = primaryAction(t);
   return html`<div class="pin" role="link" tabindex="0" aria-label=${t.name} @click=${() => go(hash)} @keydown=${onRowKey(hash)}>
     ${icon(t.icon || 'toolbox')}
-    <div class="what"><span class="name">${t.name}</span><span class="sub">${last ? `Chạy ${timeAgo(last.time)}` : t.summary}</span></div>
-    <div class="side">${runButton(t, primaryAction(t), { sm: true })}</div>
+    <div class="what"><span class="name">${t.name}</span><span class="sub">${a ? a.label : t.summary}</span></div>
+    <div class="side">${runButton(t, a, { sm: true })}</div>
   </div>`;
 }
 

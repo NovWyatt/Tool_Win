@@ -1,8 +1,8 @@
 // Trạm Tool - bấm Chạy: hỏi tham số (nếu có), xác nhận việc thay đổi hệ thống, gọi máy chủ mở cửa sổ công cụ.
 import { html, nothing, render } from '../vendor/lit-html/lit-html.js';
 import { live } from '../vendor/lit-html/directives/live.js';
-import { api, icon } from './core.js';
-import { S, update } from './state.js';
+import { api, icon, enc } from './core.js';
+import { S, update, go, missingFixes } from './state.js';
 import { openDialog, toast } from './ui.js';
 import { refreshJobs, watchJob } from './jobs.js';
 import { loadServer } from './data.js';
@@ -186,6 +186,27 @@ async function pickArg(spec) {
   } catch (e) { note.update('error', e.message); }
 }
 
+// Công cụ còn thiếu yêu cầu bắt buộc: hỏi trước khi chạy vì công cụ gần như chắc chắn báo lỗi. Bỏ qua khi chính
+// việc này là cách cài (vd action cai-dat). Trả về true nếu được chạy tiếp.
+async function confirmMissing(t, a) {
+  const fixes = missingFixes(t);
+  if (!fixes.length || fixes.some((f) => f.fix && f.fix.action === a.id)) return true;
+  const canFix = fixes.some((f) => f.fix);
+  const v = await openDialog({
+    title: `${t.name} còn thiếu yêu cầu`,
+    body: html`<p>Chạy "${a.label}" lúc này nhiều khả năng sẽ báo lỗi vì máy còn thiếu:</p>
+      <ul>${fixes.map((f) => html`<li>${f.labels.join(', ')}</li>`)}</ul>
+      <p class="muted">${canFix ? 'Cài xong rồi chạy lại. ' : ''}Biết chắc việc này không cần các thứ trên thì vẫn chạy được.</p>`,
+    buttons: [
+      { label: 'Huỷ', value: false },
+      { label: 'Vẫn chạy', value: 'run' },
+      ...(canFix ? [{ label: 'Xem cách cài', appearance: 'primary', icon: 'download', value: 'fix' }] : []),
+    ],
+  });
+  if (v === 'fix') go(`#/tool/${enc(t.id)}`);
+  return v === 'run';
+}
+
 // Action mở giao diện web (webServer) mà giao diện đó đang chạy: mở lại trang, không hỏi, không mở thêm máy chủ.
 async function reopenServer(t, a) {
   let s;
@@ -203,6 +224,7 @@ export async function runAction(toolId, actionId, { values: given = null } = {})
   const a = t && (t.actions || []).find((x) => x.id === actionId);
   if (!a) return;
   if (a.webServer && await reopenServer(t, a)) return;
+  if (!await confirmMissing(t, a)) return;
   const specs = a.args || [];
   const risky = a.risk === 'modifies-system' || !!a.confirm;
   let values = {};

@@ -3,7 +3,7 @@
 import { html, render, nothing } from '../vendor/lit-html/lit-html.js';
 import { live } from '../vendor/lit-html/directives/live.js';
 import { $, api, icon, enc, norm, timeAgo } from './core.js';
-import { S, go, visibleTools, pinnedTools, primaryAction, catLabel, matches, saveSettings, PAGES } from './state.js';
+import { S, go, visibleTools, pinnedTools, primaryAction, catLabel, matches, hayHas, saveSettings, PAGES } from './state.js';
 import { runAction } from './run.js';
 import { applyTheme, toast } from './ui.js';
 
@@ -65,7 +65,7 @@ function compute() {
   const onlyActions = raw.startsWith('>');
   const q = norm(onlyActions ? raw.slice(1) : raw).trim();
   const words = q.split(/\s+/).filter(Boolean);
-  const hit = (it) => words.every((w) => it.hay.includes(w));
+  const hit = (it) => words.every((w) => hayHas(it.hay, w));
   let list;
   if (!q && !onlyActions) {
     // Chưa gõ gì: công cụ đã ghim, dùng gần đây, rồi các trang.

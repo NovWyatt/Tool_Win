@@ -155,9 +155,17 @@ function ConvertTo-HubAction {
         else { [void]$Problems.Add("Action '$id': tienDo cần flag dạng --ten hoặc -Ten và action console.") }
     }
 
+    # Nhóm trên trang công cụ (xem js/state.js, ACTION_GROUPS); bỏ trống thì giao diện đoán theo id và risk.
+    $group = [string](Get-Prop $Raw 'group' '')
+    if ($group -and $group -notin 'xem', 'sua', 'tra-lai', 'cai-dat', 'khac') {
+        [void]$Problems.Add("Action '$id': group chỉ nhận xem, sua, tra-lai, cai-dat, khac.")
+        $group = ''
+    }
+
     return [ordered]@{
         id           = $id
         label        = $label
+        group        = $group
         description  = [string](Get-Prop $Raw 'description' '')
         file         = $file
         url          = [string](Get-Prop $Raw 'url' '')
@@ -185,7 +193,11 @@ function Read-ToolManifest {
     $problems = New-Object System.Collections.ArrayList
     try { $m = Read-JsonFile $ManifestPath }
     catch {
-        $err = "tool.json lỗi cú pháp: $($_.Exception.Message)"
+        # PS 5.1 chép cả nội dung file vào lời báo ("... (385): { ..."): chỉ giữ câu lỗi và vị trí ký tự.
+        $msg = ($_.Exception.Message -split "`r?`n")[0]
+        if ($msg -match '^(.*?)\s*\((\d+)\):') { $msg = "$($Matches[1]) (ở ký tự thứ $($Matches[2]))" }
+        elseif ($msg.Length -gt 200) { $msg = $msg.Substring(0, 200) + '...' }
+        $err = "tool.json lỗi cú pháp: $msg"
         $fallback = New-AutoManifest -Path $dir -RootDir $RootDir
         if (-not $fallback) {
             # Thư mục không có script nào để đoán: vẫn hiện ra để người dùng biết tool.json đang hỏng.
@@ -199,6 +211,10 @@ function Read-ToolManifest {
             }
         }
         $fallback.problems = @($err)
+        # Có tool.json mà hỏng: không coi là "chưa có tool.json", vì nút Tạo tool.json sẽ ghi đè file người viết đang sửa.
+        $fallback.status = 'broken'
+        $fallback.manifestBroken = $true
+        if (@($fallback.actions).Count) { $fallback.summary = 'tool.json bị lỗi cú pháp nên trạm chỉ đoán các nút chạy từ file script. Sửa tool.json rồi bấm Làm mới.' }
         return $fallback
     }
 
@@ -314,6 +330,7 @@ function New-ToolManifestFile {
         summary = 'Mô tả ngắn công cụ này làm gì.'; tags = @(); docs = $Tool.docs; actions = $actions
     }
     $path = Join-Path $dir 'tool.json'
+    if (Test-Path -LiteralPath $path) { throw 'Thư mục đã có tool.json (đang lỗi cú pháp). Sửa tay file đó, trạm không ghi đè.' }
     Write-JsonFile -Path $path -InputObject $manifest
     return $path
 }

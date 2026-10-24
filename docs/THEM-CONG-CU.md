@@ -75,7 +75,8 @@ Lỗi trạm phát hiện khi đọc (thiếu file, sai mức rủi ro, flag sai
 | `webServer` | Nút mở giao diện web cục bộ (vd mdf2sql): `{ "stateFile": "%LOCALAPPDATA%\\mdf2sql\\server.json", "app": "mdf2sql" }`. Giao diện đang chạy thì bấm nút là mở lại trang cũ thay vì mở thêm cửa sổ; trang công cụ hiện *Đang chạy ở cổng N* với nút **Mở lại**, **Tắt**. Xem mục *Giao diện web cục bộ*. |
 | `risk` | `read-only` (chỉ đọc), `asks-before-change` (script tự hỏi trước khi sửa), `modifies-system` (thay đổi máy). Thiếu thì coi là `modifies-system`. |
 | `confirm`, `changes` | Cảnh báo riêng và danh sách thay đổi, hiện trong hộp xác nhận. Hộp xác nhận hiện khi `risk` là `modifies-system` hoặc có `confirm`. |
-| `primary` | Nút chính. Không khai báo thì nút đầu tiên là nút chính. |
+| `primary` | Việc chính: hiện riêng ở đầu trang công cụ (khung viền màu) và là nút *Chạy* ở mục *Đã ghim*. Không khai báo thì nút đầu tiên là việc chính. |
+| `group` | Nhóm của nút trong phần *Các việc khác*: `xem` (*Chỉ xem, không đổi gì*), `sua` (*Có thay đổi*), `tra-lai` (*Trả lại như cũ*), `cai-dat` (*Cài đặt môi trường chạy*), `khac` (*Cách chạy khác*, gấp lại sẵn). Thường không cần khai báo: trạm tự xếp theo `id` (`menu...` vào `khac`, `cai-dat` vào `cai-dat`, id có `hoan-tac`, `tra-lai`, `khoi-phuc`, `mac-dinh`, `bat-lai` vào `tra-lai`) rồi theo `risk` (`read-only` vào `xem`, còn lại vào `sua`). Chỉ khai báo khi cách đoán xếp sai. |
 | `duration` | Thời gian ước lượng, vd `Dưới 1 phút`. |
 | `keepOpen` | Giữ cửa sổ sau khi script xong để người dùng đọc kết quả. |
 | `restorePoint` | Tạo điểm khôi phục hệ thống trong cửa sổ Admin của công cụ trước khi chạy. Mặc định `true` khi `admin` là `true` và `risk` là `modifies-system`; đặt `false` khi điểm khôi phục không có ích hoặc có hại (vd giải mã BitLocker, cứu dữ liệu từ ổ đang hỏng). Chỉ dùng được cho action `console` `.bat`/`.cmd`/`.ps1` có `admin: true`. |

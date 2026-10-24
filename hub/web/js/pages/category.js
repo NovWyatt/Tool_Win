@@ -10,6 +10,6 @@ export function categoryPage(id) {
   const tools = visibleTools().filter((t) => t.category === id);
   return html`<div class="page">
     ${pageHead(c.label, c.description)}
-    <div class="cat-list">${tools.length ? tools.map(toolRow) : emptyState('toolbox', 'Nhóm này chưa có công cụ', 'Có thể công cụ đang bị ẩn do chế độ đơn giản.')}</div>
+    <div class="cat-list">${tools.length ? tools.map((t) => toolRow(t)) : emptyState('toolbox', 'Nhóm này chưa có công cụ', 'Có thể công cụ đang bị ẩn do chế độ đơn giản.')}</div>
   </div>`;
 }

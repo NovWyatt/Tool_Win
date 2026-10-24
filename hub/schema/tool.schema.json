@@ -131,7 +131,11 @@
           "enum": ["read-only", "asks-before-change", "modifies-system"],
           "default": "modifies-system"
         },
-        "primary": { "description": "Nút chính (hiện to nhất, chạy khi bấm Chạy ở danh sách).", "type": "boolean", "default": false },
+        "primary": { "description": "Việc chính: hiện riêng ở đầu trang công cụ và ở mục Đã ghim.", "type": "boolean", "default": false },
+        "group": {
+          "description": "Nhóm trên trang công cụ: xem (chỉ xem, không đổi gì), sua (có thay đổi), tra-lai (hoàn tác), cai-dat (cài môi trường chạy), khac (menu dòng lệnh). Bỏ trống thì trạm đoán theo id và risk.",
+          "enum": ["xem", "sua", "tra-lai", "cai-dat", "khac"]
+        },
         "duration": { "description": "Thời gian chạy ước lượng, vd 'Dưới 1 phút'.", "type": "string" },
         "keepOpen": { "description": "Giữ cửa sổ sau khi script xong (thêm pause) để người dùng đọc kết quả.", "type": "boolean", "default": false },
         "restorePoint": {

@@ -3,7 +3,7 @@
 Bộ công cụ Windows của Wyatt (chẩn đoán, sửa lỗi, tối ưu, văn phòng, chuyển đổi dữ liệu, cài lại máy) và một
 **trạm** để tìm, chạy và theo dõi tất cả từ một chỗ.
 
-![Giao diện trạm – nhóm công cụ Văn phòng](docs/screenshot.png)
+![Giao diện trạm: trang công cụ Kiểm tra và sửa lỗi Wi-Fi](docs/screenshot.png)
 
 ## Bản portable (không cần cài)
 
@@ -53,13 +53,21 @@ Bấm đúp **`TramTool.bat`**.
 
 Trong trạm:
 
-- **Ctrl+K** (hoặc `/`): tìm và chạy nhanh công cụ, việc, trang, kết quả. Gõ `>` để chỉ hiện việc chạy được.
-- **Tổng quan**: mục *Cần chú ý* (thiếu thư viện, ổ gần đầy, máy bật quá lâu, lần chạy báo lỗi, Secure Boot, Bảo vệ
-  hệ thống đang tắt, winget hỏng), công cụ đã ghim, việc dùng gần đây.
+- **Tổng quan**: ô tìm lọc danh mục ngay khi gõ (`/` để vào ô, Enter mở công cụ đầu tiên, mũi tên để chọn); mục *Cần
+  chú ý* (thiếu thư viện, ổ gần đầy, máy bật quá lâu, lần chạy báo lỗi, Secure Boot, Bảo vệ hệ thống đang tắt, winget
+  hỏng), công cụ đã ghim (nút *Chạy* làm việc chính ghi dưới tên), việc dùng gần đây (*Chạy lại* với tham số cũ).
+- Bấm một dòng công cụ để mở trang của nó: **việc chính** ở đầu trang, các việc khác xếp theo mức an toàn (*Chỉ xem,
+  không đổi gì*, *Có thay đổi*, *Trả lại như cũ*, *Cài đặt môi trường chạy*; menu dòng lệnh gấp lại). Còn thiếu thư
+  viện, phần mềm thì khung **Cần cài trước khi chạy** nằm ngay dưới tên, nút *Cài* cạnh từng thứ; cài xong trạm tự kiểm
+  tra lại. Bấm *Chạy* khi còn thiếu thì trạm hỏi trước.
+- **Ctrl+K**: tìm nhanh mọi thứ (công cụ, việc chạy được, trang, file kết quả). Gõ `>` để chỉ hiện việc chạy được,
+  Ctrl+Enter để chạy ngay việc chính.
 - Thanh **Đang chạy** ở cuối trang theo dõi cửa sổ công cụ mở từ trạm; **Lịch sử chạy** ghi kết quả (xong, báo lỗi kèm
   mã, đã đóng cửa sổ), thời gian chạy, điểm khôi phục đã tạo, các mục đã đổi so với trước khi chạy, và chạy lại với
   tham số cũ.
 - **Máy này**: thông tin máy, Bảo vệ hệ thống (bật được ngay tại đây), winget (có nút *Sửa winget*).
+- **Cài đặt** ở chân thanh bên: sáng hoặc tối, chế độ đơn giản (ẩn công cụ kỹ thuật; Tổng quan báo đang ẩn bao nhiêu
+  công cụ và có nút *Hiện tất cả*), điểm khôi phục, trình duyệt, tự tắt, cập nhật.
 - **Kết quả gần đây**: mở file, mở thư mục, chọn nhiều để xoá. Xoá là chuyển vào Thùng rác; bản sao lưu có cảnh báo
   phải đánh dấu đã đọc mới xoá được.
 

@@ -44,7 +44,7 @@ export const PAGES = [
   { id: 'history', label: 'Lịch sử chạy', icon: 'history' },
   { id: 'system', label: 'Máy này', icon: 'desktop-pulse' },
   { id: 'roadmap', label: 'Phân tích và nâng cấp', icon: 'map', tech: true },
-  { id: 'settings', label: 'Cài đặt', icon: 'settings' },
+  { id: 'settings', label: 'Cài đặt', icon: 'settings', bottom: true },
 ];
 
 // ------------------------------------------------------------------ danh mục
@@ -93,9 +93,15 @@ export async function togglePin(id) {
   await saveSettings({ pins });
 }
 
+// Từ tìm ngắn (1-2 chữ, vd "in" trong "máy in") phải khớp đầu một từ, không thì "in" khớp cả "windows", "admin".
+export function hayHas(hay, w) {
+  if (w.length > 2) return hay.includes(w);
+  return ` ${hay.replace(/[^a-z0-9]+/g, ' ')}`.includes(` ${w}`);
+}
+
 export function matches(tool, query) {
   const words = norm(query).split(/\s+/).filter(Boolean);
-  return words.every((w) => tool._hay.includes(w));
+  return words.every((w) => hayHas(tool._hay, w));
 }
 
 export function depsStatus(tool) {
@@ -107,6 +113,36 @@ export const missingDeps = (tool) => (S.deps[tool.id] || []).filter((r) => !r.ok
 
 export function primaryAction(tool) {
   return (tool.actions || []).find((a) => a.primary) || (tool.actions || [])[0];
+}
+
+// Các việc còn lại trên trang công cụ, xếp theo mức an toàn để việc chỉ xem không nằm lẫn với việc đổi máy.
+// tool.json có thể ghi "group" cho từng action; không ghi thì trạm đoán theo id và mức rủi ro.
+export const ACTION_GROUPS = [
+  { id: 'xem', title: 'Chỉ xem, không đổi gì', desc: 'Đọc thông tin hoặc tạo file kết quả mới. Chạy lúc nào cũng được.' },
+  { id: 'sua', title: 'Có thay đổi', desc: 'Đổi cài đặt, dịch vụ hoặc file. Trạm hoặc cửa sổ công cụ hỏi lại trước khi đổi.' },
+  { id: 'tra-lai', title: 'Trả lại như cũ', desc: 'Hoàn tác thay đổi của lần sửa trước.' },
+  { id: 'cai-dat', title: 'Cài đặt môi trường chạy', desc: 'Chỉ cần khi trạm báo thiếu yêu cầu.' },
+  { id: 'khac', title: 'Cách chạy khác', desc: 'Menu trong cửa sổ dòng lệnh, giống bấm đúp file .bat trong thư mục công cụ.' },
+];
+
+export function actionGroup(a) {
+  if (ACTION_GROUPS.some((g) => g.id === a.group)) return a.group;
+  if (/^menu/.test(a.id)) return 'khac';
+  if (a.id === 'cai-dat') return 'cai-dat';
+  if (/hoan-tac|tra-lai|khoi-phuc|mac-dinh|bat-lai/.test(a.id)) return 'tra-lai';
+  return !a.risk || a.risk === 'read-only' ? 'xem' : 'sua';
+}
+
+// Yêu cầu còn thiếu của công cụ, gộp theo cách cài (nhiều yêu cầu cùng một action Cài đặt thì một nút).
+export function missingFixes(tool, reqs = S.deps[tool.id]) {
+  const out = [];
+  for (const q of (reqs || []).filter((r) => !r.ok && !r.optional)) {
+    const key = q.fix ? JSON.stringify(q.fix) : `none:${q.id || q.label}`;
+    const same = out.find((x) => x.key === key);
+    if (same) same.labels.push(q.label);
+    else out.push({ key, req: q, fix: q.fix || null, labels: [q.label] });
+  }
+  return out;
 }
 
 // Lần chạy gần nhất của công cụ (và action nếu có) theo lịch sử.
@@ -128,6 +164,6 @@ export function runState(h) {
     case 'ended': return { label: 'Đã kết thúc', color: 'subtle', icon: 'checkmark', dur };
     case 'cancelled': return { label: 'Đã huỷ', color: 'subtle', icon: 'dismiss', dur: null };
     case 'error': return { label: 'Không mở được', color: 'danger', icon: 'warning', dur: null };
-    default: return { label: 'Đã mở', color: 'subtle', icon: 'open', dur: null }; // lần chạy cũ, chưa ghi kết quả
+    default: return { label: 'Không rõ kết quả', color: 'subtle', icon: 'open', dur: null }; // lần chạy cũ, trạm chưa ghi kết quả
   }
 }
