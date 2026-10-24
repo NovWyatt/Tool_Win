@@ -67,10 +67,18 @@ Set-ItemProperty -LiteralPath $xk -Name UseSystemSeparators -Value 0 -Type DWord
 $goc = (@($names | ForEach-Object { [string](Get-ItemProperty -LiteralPath $k).$_ }) -join '|')
 $m = if ($real.sDecimal -eq ',') { 'quoc-te' } else { 'vn' }
 $env:TV_REG_GOC = $root
+# Excel đang mở (ở bất kỳ phiên nào) thì công cụ cố ý để nguyên tuỳ chọn Excel, trả mã 3.
+$excelMo = [bool](Get-Process -Name 'EXCEL' -ErrorAction SilentlyContinue)
 $r = Run @('-Mode', 'dinh-dang', '-Mau', $m, '-ExcelTheoWindows', '-KhongDung')
 $p = Get-ItemProperty -LiteralPath $k
 $want = if ($m -eq 'vn') { ',|.|;|dd/MM/yyyy|,|.' } else { '.|,|,|dd/MM/yyyy|.|,' }
-Check ($r.Code -eq 0 -and (@($names | ForEach-Object { [string]$p.$_ }) -join '|') -eq $want -and (Get-ItemProperty -LiteralPath $xk).UseSystemSeparators -eq 1) "Đặt định dạng $m thật trên registry thử: mã 0, đổi đủ, Excel dùng dấu Windows ($($r.Code))"
+$doiDu = (@($names | ForEach-Object { [string]$p.$_ }) -join '|') -eq $want
+$xs = (Get-ItemProperty -LiteralPath $xk).UseSystemSeparators
+if ($excelMo) {
+    Check ($r.Code -eq 3 -and $doiDu -and $xs -eq 0 -and $r.Out -match 'Excel đang mở') "Đặt định dạng $m thật trên registry thử khi Excel đang mở: mã 3, đổi định dạng Windows, để nguyên tuỳ chọn Excel ($($r.Code))"
+} else {
+    Check ($r.Code -eq 0 -and $doiDu -and $xs -eq 1) "Đặt định dạng $m thật trên registry thử: mã 0, đổi đủ, Excel dùng dấu Windows ($($r.Code))"
+}
 Check ((Test-Path -LiteralPath $state) -and ([IO.File]::ReadAllText($state) | ConvertFrom-Json).dinhDang.sDecimal -eq $real.sDecimal) 'lưu giá trị cũ trước khi đổi'
 $r = Run @('-Mode', 'tra-lai', '-KhongDung')
 $p = Get-ItemProperty -LiteralPath $k
