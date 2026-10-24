@@ -154,6 +154,28 @@ Mức ưu tiên:
     pyvenv.cfg bằng UTF-8.
   - Chưa có trong gói: Ghi âm sang Word (khoảng 5 GB, `-KemGhiAm` làm gói thêm riêng), SQL Server và ODBC (cài vào
     Windows, cần Admin). Chưa thử gói trên máy sạch.
+- **Giao diện dễ hiểu hơn, Trạm 1.7.0** (Wyatt thấy giao diện trạm đôi khi khó hiểu, làm không thuận tay, 24/10/2026):
+  - Đọc lại theo NN/g (nhãn nút ghi rõ việc gì, mở dần thông tin tối đa hai tầng, để xa nhau nút an toàn và nút có
+    hậu quả, chặn lỗi trước khi xảy ra), hướng dẫn trang cài đặt của Microsoft (Cài đặt ở chân thanh bên), PowerToys
+    0.93 (trạng thái nhìn thấy được, mở nhanh). Phím tắt chỉ là đường phụ.
+  - Chỗ khó hiểu tìm thấy: dòng công cụ có nút *Chạy* chạy việc không ghi tên; trang công cụ để 6 đến 9 nút ngang hàng
+    (Kiểm tra, Sửa, Hoàn tác, menu dòng lệnh, cài môi trường); thiếu thư viện chỉ báo ở nhãn đỏ, bấm *Chạy* vẫn chạy
+    rồi lỗi; ô tìm ở Tổng quan thật ra là nút mở bảng Ctrl+K; nút ở *Cần chú ý* đều ghi *Mở*; công tắc chế độ đơn giản
+    ở chân thanh bên dễ bấm nhầm, bật lên thì công cụ biến mất không báo.
+  - Đã đổi: Tổng quan có ô tìm thật (lọc ngay, `/` vào ô, mũi tên, Enter, Esc); dòng công cụ là liên kết tới trang của
+    nó; công cụ đã ghim ghi tên việc chính dưới tên. Trang công cụ: mô tả dài gấp hai dòng (*Đọc thêm*), dòng *sẵn sàng*
+    (đủ yêu cầu hay thiếu mấy thứ, lần chạy gần nhất), khung *Cần cài trước khi chạy* có nút *Cài* cạnh từng thứ, *Việc
+    chính* đứng riêng, các việc khác xếp theo mức an toàn (trường `group`, không khai thì trạm đoán theo `id` và `risk`),
+    menu dòng lệnh gấp lại; *Lỗi đã biết và hướng nâng cấp* gấp lại. Bấm *Chạy* khi còn thiếu thì hỏi trước (*Vẫn chạy*,
+    *Xem cách cài*); cài xong (việc cài chạy trong trạm, hoặc quay lại cửa sổ trạm sau khi cài bằng winget) trạm tự kiểm
+    tra lại. Cài đặt ở chân thanh bên, kèm tên máy, bản trạm; chế độ đơn giản chỉ còn ở trang Cài đặt, Tổng quan báo
+    đang ẩn bao nhiêu công cụ.
+  - Lỗi tìm thấy khi thử: `tool.json` lỗi cú pháp hiện như *Chưa có tool.json*, nút *Tạo tool.json* ghi đè file đang
+    lỗi, câu báo lỗi chép nguyên cả file; tìm `in` khớp cả 19 công cụ (khớp giữa từ); ô tìm mất con trỏ sau chữ đầu;
+    câu báo khi trạm tắt ghi `TramTool.bat` cả ở bản portable.
+  - Đã thử: `tram/10_GiaoDien` (39 mục, chạy hàm thật của `state.js` bằng Node); hai trạm thử (công cụ thật, công cụ giả
+    thiếu yêu cầu) ở sáng, tối, rộng 1440, 1024, 390; 18 thao tác bằng trình duyệt không giao diện (hỏi trước khi chạy,
+    Vẫn chạy, Cài rồi khung tự mất, việc báo lỗi, phím tắt ô tìm); không có lỗi console.
 
 ## Đã sửa trong đợt này
 
@@ -215,6 +237,8 @@ Mức ưu tiên:
 | `2b11e78` | Chuyển dữ liệu khi cài lại Windows | Bản 2.2: nhập Claude xong mà tài khoản đang đăng nhập không có phiên thì gợi ý chạy Đồng bộ phiên Claude (nút chạy tiếp). |
 | `541dc24` | Máy ảo thử (`hub\dev`) | `TaoMayAoThu.ps1 -KhongMo` tạo máy ảo mà chưa bật, `-Mo` bật sau; cảnh báo khi RAM trống ít. |
 | `537175f` | Trạm 1.6.0 | Bản portable: `hub\dev\DongGoi.ps1` dựng .zip có Python 3.12 mang theo, `.venv` dựng sẵn, LibreDWG, `TramTool.exe`; trạm trỏ lại `.venv` khi đổi thư mục, `PYTHONUTF8=1`. Lối tắt `Trạm Tool.lnk` ghi bằng IShellLinkW (WScript.Shell không lưu được tên có dấu); kiểm `.venv` hỏng không còn gán vào biến chỉ đọc `$home`. |
+| `4f850a8` | Trạm 1.7.0 | Giao diện dễ hiểu hơn: *Việc chính* đứng riêng, việc khác chia nhóm theo mức an toàn (trường `group`), khung *Cần cài trước khi chạy* có nút *Cài* và tự kiểm tra lại, hỏi trước khi chạy lúc còn thiếu; Tổng quan có ô tìm thật, dòng công cụ là liên kết; `tool.json` lỗi cú pháp báo hỏng, không bị *Tạo tool.json* ghi đè. Bài thử `tram/10_GiaoDien`. |
+| `4e7d2ad` | Gói tiếng Việt (bài thử) | `tieng-viet/3_ChayThat` hỏng khi Excel đang mở dù công cụ đúng (cố ý để nguyên tuỳ chọn Excel, trả mã 3); bài thử nay kiểm nhánh đó. |
 
 ## Bảng tổng quan
 
@@ -277,7 +301,7 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
    GitHub (kết quả là file đầu ra hoặc thao tác một lần, mã thoát đã đủ cho Lịch sử).
 9. **Bài thử không nằm trong repo.** Các nút đổi máy chủ yếu được thử bằng giả lập, nhưng bài thử chỉ nằm ở thư mục
    tạm của phiên làm việc nên sửa sau không chạy lại được. Đã làm: `tests\` với một trình chạy chung
-   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 59 bài cho 20 bộ (cú pháp, mã hoá file, danh mục và lược đồ
+   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 60 bài cho 20 bộ (cú pháp, mã hoá file, danh mục và lược đồ
    `tool.json`, không commit dữ liệu khách, lan can và kết quả JSON của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
    Tối ưu Windows, Giờ máy và chữ ký số, Bộ ứng dụng văn phòng, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe,
    Đăng xuất GitHub, Ghi âm sang Word, DWG sang PDF, Gói tiếng Việt, Đồng bộ phiên Claude, `.bat` của mdf2sql) và
@@ -344,6 +368,7 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 - [x] Trạm: nút *Cập nhật công cụ* (chỉ fast-forward, Trạm 1.5.0).
 - [x] Bản portable không cần cài (Trạm 1.6.0, `hub\dev\DongGoi.ps1`, `TramTool.exe`). Còn: thử trên máy sạch (máy ảo);
       kèm sẵn bộ cài SQL Server LocalDB, ODBC trong gói để cài không cần mạng; ký số `TramTool.exe` nếu có chứng thư.
+- [x] Trạm: giao diện dễ hiểu hơn (Trạm 1.7.0: việc chính, nhóm theo mức an toàn, khung cần cài, ô tìm ở Tổng quan).
 - [ ] Trạm: xuất/nhập cài đặt.
 - [x] Công cụ mới: Giờ máy và chữ ký số (1.0), Bộ ứng dụng văn phòng bằng winget (1.0), mục 6, 8 của *Công cụ Windows
       nên thêm*.
@@ -500,6 +525,23 @@ PowerToys Command Palette, Raycast, Linear (ô Ctrl+K), UniGetUI (bảng tác v�
   trị thì chọn sẵn mục mới nhất. Máy chủ chỉ trả đường dẫn, tên, nhãn, mô tả. Dùng cho form Hoàn tác của MyExcelFix.
 - Đã thử: `tram/6_TienDoCapNhat` (kho git giả: mới nhất, có bản mới, file đang sửa, nhánh lệch, submodule),
   `tram/7_GoiY`; trạm thử với form Hoàn tác của MyExcelFix (bản sao lưu giả).
+
+**Bản 1.7.0 (24/10/2026): giao diện dễ hiểu hơn**
+
+- Trang công cụ: *Việc chính* đứng riêng ở đầu; các việc khác chia nhóm *Chỉ xem, không đổi gì*, *Có thay đổi*, *Trả
+  lại như cũ*, *Cài đặt môi trường chạy*, *Cách chạy khác* (gấp lại). Trường `group` của action (lược đồ, danh mục báo
+  lỗi giá trị lạ); không khai thì `actionGroup()` trong `state.js` đoán theo `id` rồi `risk`.
+- Thiếu yêu cầu: khung *Cần cài trước khi chạy* gom thứ còn thiếu theo cách cài (`missingFixes()`), nút *Cài* theo dõi
+  việc cài ở thanh *Đang chạy*, xong thì kiểm tra lại; cách cài mở cửa sổ ngoài (winget) thì kiểm lại khi cửa sổ trạm
+  được chọn lại, trong 30 phút. Bấm *Chạy* lúc còn thiếu thì hộp thoại hỏi trước.
+- `tool.json` lỗi cú pháp: `manifestBroken`, trạng thái hỏng, câu báo một dòng (vị trí ký tự), nút vẫn đoán từ script;
+  *Tạo tool.json* từ chối ghi đè.
+- Tổng quan: ô tìm thật lọc tại chỗ (chữ 1, 2 ký tự chỉ khớp đầu từ, cả ở Ctrl+K); dòng công cụ là liên kết; *Cần chú
+  ý* ghi rõ nút làm gì; *Dùng gần đây* có *Chạy lại*. Thanh bên: Cài đặt ở chân, tên máy, bản trạm; bỏ công tắc chế độ
+  đơn giản ở thanh bên. `/api/state` trả `launcher` (`TramTool.exe` hoặc `TramTool.bat`) và `portable` để câu báo ghi
+  đúng tên.
+- Đã thử: `tram/10_GiaoDien`; trạm thử có công cụ giả thiếu yêu cầu, 18 thao tác bằng Edge không giao diện, ảnh chụp
+  trước và sau ở ba độ rộng, sáng và tối.
 
 **Hướng tiếp**: xuất/nhập cài đặt; loại probe `script` chỉ đọc (BitLocker, SMB); thư viện nhật ký hoàn tác chung.
 
