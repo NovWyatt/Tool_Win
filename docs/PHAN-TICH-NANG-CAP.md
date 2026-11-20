@@ -192,7 +192,9 @@ Mức ưu tiên:
   - `DongGoi.ps1`: gói chính có bộ cài của các nút *Cài*; `-KemUngDung`, `-KemOffice`/`-MauOffice`, `-KemGhiAm` làm gói
     thêm giải nén chồng; `-DayDu` làm cả ba, thư mục dựng là bản đầy đủ để chép bằng USB. Bộ cài giữ trong
     `cache\bo-cai` (cảnh báo khi quá 30 ngày, `-LamMoiBoCai`). Mẫu Office chỉ đóng khi không có khoá riêng, khoá đọc
-    trong tiến trình riêng và không bao giờ in ra.
+    trong tiến trình riêng và không bao giờ in ra. Wyatt không dùng KMS, tự kích hoạt thủ công: file cấu hình trong gói
+    bỏ `PIDKEY`, `AUTOACTIVATE`, `KMSSERVICENAME`, `KMSSERVICEPORT` (đọc lại file đã ghi, còn sót thì dừng); mẫu gốc
+    giữ nguyên.
   - Lỗi thật tìm thấy khi tải: UniKey bản mới nhất trên winget (4.6.250531) chỉ có cho máy ARM64, máy 64 bit thường cài
     không được; nay ghim 4.6.230919. EVKey: file trên GitHub khác mã SHA-256 ghi trong winget, winget từ chối (không bỏ
     qua kiểm tra này, ứng dụng không có trong gói). Cốc Cốc trên winget là bộ cài mồi 1 MB, vẫn tải lúc cài.

@@ -50,7 +50,9 @@ Nút gỡ rồi cài và nút chỉ cài kiểm tra mẫu trước. Mẫu hỏng
 phải khoá KMS chung (GVLK) Microsoft công bố không (so bằng mã băm). `tools\office\mau` và các file `.xml` trong
 `tools\office` đã có trong `.gitignore`; gói gửi khách của trạm cũng không kèm mẫu. Gói Office của bản portable
 chỉ đóng mẫu không có khoá riêng (không khoá, hoặc chỉ khoá KMS chung), và chỉ lấy `setup.exe`, file cấu hình, thư mục
-`Office\`; mẫu có khoá MAK hay bán lẻ thì `DongGoi.ps1` từ chối, chép tay sang máy dùng.
+`Office\`; mẫu có khoá MAK hay bán lẻ thì `DongGoi.ps1` từ chối, chép tay sang máy dùng. File cấu hình trong gói bỏ
+`PIDKEY` và thẻ tự kích hoạt (`AUTOACTIVATE`, `KMSSERVICENAME`, `KMSSERVICEPORT`), mẫu gốc giữ nguyên: cài xong Office
+chưa kích hoạt, công cụ hỏi ngay (*N* nhập khoá của bạn, *B* bỏ qua), hoặc chạy *Kích hoạt Office* sau.
 
 **Tạo mẫu mới.** Office 2016, 2019 hết hỗ trợ từ 14/10/2025, Office LTSC 2021 hết hỗ trợ ngày 13/10/2026, Office
 LTSC 2024 được hỗ trợ đến 09/10/2029, Microsoft 365 cập nhật liên tục. Cách tạo:

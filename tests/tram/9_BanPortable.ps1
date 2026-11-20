@@ -181,7 +181,7 @@ function New-FakeMau([string]$Name, [string]$Key) {
     $m = New-TestDir $Name
     New-Item -ItemType Directory -Path (Join-Path $m 'Office\Data') -Force | Out-Null
     foreach ($p in @(@('setup.exe', 'gia'), @('Office\Data\v64.cab', 'gia'), @('ghi-chu.txt', 'ghi chu cua tho'), @('khac.xml', '<GhiChu>x</GhiChu>'))) { [IO.File]::WriteAllText((Join-Path $m $p[0]), $p[1]) }
-    [IO.File]::WriteAllText((Join-Path $m 'Configuration.xml'), "<Configuration><Add OfficeClientEdition=""64"" Channel=""PerpetualVL2019""><Product ID=""ProPlus2019Volume"" PIDKEY=""$Key""><Language ID=""en-us"" /></Product></Add></Configuration>")
+    [IO.File]::WriteAllText((Join-Path $m 'Configuration.xml'), "<Configuration>`r`n  <Add OfficeClientEdition=""64"" Channel=""PerpetualVL2019"">`r`n    <Product ID=""ProPlus2019Volume"" PIDKEY=""$Key""><Language ID=""en-us"" /></Product>`r`n  </Add>`r`n  <Property Name=""AUTOACTIVATE"" Value=""1"" />`r`n  <Property Name=""KMSSERVICENAME"" Value=""kms.thu.local"" />`r`n  <Property Name=""FORCEAPPSHUTDOWN"" Value=""TRUE"" />`r`n</Configuration>")
     return $m
 }
 $mauKms = New-FakeMau 'mau kms' 'NMMKJ-6RK4F-KMJVX-8D9MJ-6MWKP'     # GVLK Microsoft công bố (Office 2019)
@@ -201,6 +201,11 @@ if ($zb -and $zu -and $zo) {
     Check ((@($nu | Sort-Object) -join ',') -eq "${bc}7zip.7zip/7z-x64.exe,${bc}7zip.7zip/goi.json") "gói ứng dụng: chỉ bộ cài đúng mã SHA-256 và đúng bản ghim ($($nu -join ', '))"
     Check ((@($no | Sort-Object) -join ',') -eq 'TramTool/tools/office/mau/Configuration.xml,TramTool/tools/office/mau/Office/Data/v64.cab,TramTool/tools/office/mau/setup.exe') "gói Office: setup.exe, file cấu hình, thư mục Office; không ghi chú, không xml khác ($($no -join ', '))"
     Check (-not @($zb, $zu, $zo | Where-Object { [IO.File]::ReadAllText("$($_.FullName).sha256.txt").Split(' ')[0] -ne (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }).Count) 'mỗi gói có file .sha256.txt khớp'
+    $z = [IO.Compression.ZipFile]::OpenRead($zo.FullName)
+    try { $sr = New-Object IO.StreamReader($z.GetEntry('TramTool/tools/office/mau/Configuration.xml').Open()); $cfg = $sr.ReadToEnd(); $sr.Dispose() } finally { $z.Dispose() }
+    $xc = [xml]$cfg
+    Check ($cfg -notmatch '(?i)PIDKEY|AUTOACTIVATE|KMSSERVICE|6MWKP' -and $xc.Configuration.Add.Product.ID -eq 'ProPlus2019Volume' -and $xc.Configuration.Add.Product.Language.ID -eq 'en-us' -and @($xc.Configuration.Property | Where-Object { $_.Name -eq 'FORCEAPPSHUTDOWN' }).Count -eq 1) 'file cấu hình trong gói: bỏ khoá, AUTOACTIVATE, KMS; giữ sản phẩm, ngôn ngữ, thẻ khác'
+    Check ([IO.File]::ReadAllText((Join-Path $mauKms 'Configuration.xml')) -match 'PIDKEY="NMMKJ' -and [IO.File]::ReadAllText((Join-Path $mauKms 'Configuration.xml')) -match 'AUTOACTIVATE') 'mẫu gốc giữ nguyên'
 }
 $st2 = Join-Path $ra2 'dung\TramTool'
 $pj = [IO.File]::ReadAllText((Join-Path $st2 'portable.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
@@ -210,7 +215,8 @@ Check ($r.Out -match 'Bỏ qua VideoLAN\.VLC' -and $r.Out -match 'Bỏ qua UniKe
 Check (-not (Test-Path -LiteralPath (Join-Path $cb 'SqlLocalDB\SqlLocalDB.msi')) -and -not (Test-Path -LiteralPath (Join-Path $st2 'runtime\bo-cai\SqlLocalDB')) -and $r.Out -match 'SqlLocalDB: bộ cài không có chữ ký hợp lệ của Microsoft') 'bộ cài SQL LocalDB không có chữ ký Microsoft: xoá khỏi cache, không đóng'
 $hd = [IO.File]::ReadAllText((Join-Path $st2 'HUONG-DAN-PORTABLE.txt'), [Text.Encoding]::UTF8)
 Check ($hd -match 'nút Cài của các công cụ \(không cần mạng\): Gia Microsoft\.msodbcsql\.18' -and $hd -match 'Bộ ứng dụng văn phòng: 7-Zip' -and $hd -match 'Bộ cài mẫu Office' -and $hd -match 'SQL Server LocalDB' -and $hd -notmatch 'cài qua winget \(cần mạng\)' -and $hd -notmatch 'Gỡ sạch và cài Office') 'hướng dẫn ghi đúng thứ có sẵn và thứ còn thiếu'
-Check ($r.Out -notmatch '6MWKP|NMMKJ' -and $r.Out -match 'khoá KMS chung') 'kế hoạch ghi loại khoá của mẫu, không in khoá'
+Check ($r.Out -notmatch '6MWKP|NMMKJ|kms\.thu' -and $r.Out -match 'khoá KMS chung' -and $r.Out -match 'bỏ khoá và tự kích hoạt') 'kế hoạch ghi loại khoá của mẫu và việc bỏ khoá, không in khoá'
+Check ($hd -match 'không tự kích hoạt: cài xong kích hoạt thủ công') 'hướng dẫn nhắc kích hoạt thủ công'
 
 $ra3 = New-TestDir 'goi ra khoa rieng'
 $r = Invoke-DongGoi @('-Ra', $ra3, '-PythonGoi', $nupkg, '-KhongCaiCongCu', '-KhongNen', '-MauOffice', $mauRieng)

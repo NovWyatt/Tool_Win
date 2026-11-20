@@ -13,7 +13,8 @@
   Gói thêm (giải nén chồng vào cùng thư mục TramTool; -DayDu làm cả ba):
     - -KemUngDung: bộ cài các ứng dụng của Bộ ứng dụng văn phòng (DanhSach.json), TramTool-UngDung-*.zip.
     - -KemOffice: bộ cài mẫu Office vào tools\office\mau (mẫu tìm như công cụ Office, hoặc -MauOffice), chỉ khi mẫu
-      không có khoá riêng (chỉ khoá KMS chung hoặc không khoá), TramTool-Office-*.zip.
+      không có khoá riêng (chỉ khoá KMS chung hoặc không khoá), TramTool-Office-*.zip. File cấu hình trong gói bỏ khoá
+      và thẻ tự kích hoạt (AUTOACTIVATE, KMS): cài xong kích hoạt thủ công.
     - -KemGhiAm: Ghi âm sang Word, thư viện (khoảng 2 GB) và mô hình (khoảng 3 GB mỗi mô hình), TramTool-GhiAm-*.zip.
   Bộ cài tải bằng 'winget download' (winget đối chiếu mã SHA-256), giữ trong cache\bo-cai; lần sau dùng lại, -LamMoiBoCai
   để tải bản mới. Bộ cài không tải được (vd mã SHA-256 không khớp) thì bỏ qua, báo ở cuối.
@@ -183,6 +184,29 @@ $o | ConvertTo-Json -Depth 4 -Compress
     } catch { return $null } finally { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }
 }
 
+function Save-OfficeConfigNoKey([string]$Src, [string]$Dst) {
+    # File cấu hình ODT cho gói: bỏ khoá (PIDKEY) và thẻ tự kích hoạt (AUTOACTIVATE, KMSSERVICENAME, KMSSERVICEPORT).
+    # Office cài xong chưa kích hoạt, người dùng kích hoạt thủ công (nút Kích hoạt Office, hoặc trong Word). Mẫu gốc giữ
+    # nguyên; không in giá trị nào của file. Đọc lại file đã ghi: còn sót thì xoá file, dừng.
+    $set = New-Object Xml.XmlReaderSettings
+    $set.DtdProcessing = [Xml.DtdProcessing]::Prohibit; $set.XmlResolver = $null
+    $doc = New-Object Xml.XmlDocument
+    $doc.PreserveWhitespace = $true; $doc.XmlResolver = $null
+    $rd = [Xml.XmlReader]::Create($Src, $set)
+    try { $doc.Load($rd) } finally { $rd.Dispose() }
+    foreach ($e in @($doc.SelectNodes('//*'))) {
+        foreach ($a in @($e.Attributes | Where-Object { $_.Name -ieq 'PIDKEY' })) { [void]$e.Attributes.Remove($a) }
+    }
+    foreach ($p in @($doc.SelectNodes('//*[local-name()="Property"]'))) {
+        if ([string]$p.GetAttribute('Name') -in 'AUTOACTIVATE', 'KMSSERVICENAME', 'KMSSERVICEPORT') { [void]$p.ParentNode.RemoveChild($p) }
+    }
+    $doc.Save($Dst)
+    if ([IO.File]::ReadAllText($Dst) -match '(?i)PIDKEY|AUTOACTIVATE|KMSSERVICE') {
+        Remove-Item -LiteralPath $Dst -Force
+        Loi "Không bỏ được khoá hoặc thẻ tự kích hoạt khỏi $(Split-Path $Dst -Leaf): dừng, không đóng mẫu Office."
+    }
+}
+
 Write-Host "Trạm Tool: đóng gói bản portable $Ten" -ForegroundColor Cyan
 Info "Từ: $RepoDir"
 Info "Ra: $Ra"
@@ -230,6 +254,7 @@ if ($KemOffice) {
         $priv = @($mau.configs | Where-Object { $_.keyKind -eq 'key' })
         Info "Mẫu Office: $($mau.dir) ($(Format-MB (Get-DirSize $mau.dir))), file cấu hình: $(($mau.configs | ForEach-Object { "$($_.name) ($(if ($_.keyKind -eq 'gvlk') { 'khoá KMS chung' } elseif ($_.keyKind) { 'KHOÁ RIÊNG' } else { 'không khoá' }))" }) -join ', ')"
         if ($priv.Count) { Canh "Mẫu có khoá riêng (MAK, bán lẻ) trong $(($priv | ForEach-Object { $_.name }) -join ', '): không đóng mẫu vào gói để khoá không đi theo gói. Dùng mẫu chỉ có khoá KMS chung hoặc không khoá, hoặc chép mẫu tay sang máy dùng." }
+        if (-not $priv.Count) { Info 'Trong gói: bỏ khoá và tự kích hoạt (AUTOACTIVATE, KMS) khỏi file cấu hình; cài xong kích hoạt thủ công.' }
         foreach ($p in @($mau.problems)) { Canh "Mẫu Office: $p" }
         if (@($mau.other).Count) { Info "Không đóng vào gói (chỉ lấy setup.exe, file cấu hình, thư mục Office): $(@($mau.other) -join ', ')" }
     }
@@ -423,10 +448,10 @@ if ($KemOffice -and $mau -and $mau.ok -and -not @($mau.configs | Where-Object { 
     New-Item -ItemType Directory -Path $md -Force | Out-Null
     # Chỉ setup.exe, file cấu hình (đã kiểm không có khoá riêng) và bộ cài Office\: file khác trong mẫu có thể là ghi chú.
     Copy-Item -LiteralPath (Join-Path $mau.dir 'setup.exe') -Destination $md
-    foreach ($x in @($mau.configs)) { Copy-Item -LiteralPath (Join-Path $mau.dir $x.name) -Destination $md }
+    foreach ($x in @($mau.configs)) { Save-OfficeConfigNoKey (Join-Path $mau.dir $x.name) (Join-Path $md $x.name) }
     if (Test-Path -LiteralPath (Join-Path $mau.dir 'Office') -PathType Container) { Copy-Item -LiteralPath (Join-Path $mau.dir 'Office') -Destination $md -Recurse }
     $coOffice = $true
-    Ok "Mẫu Office: $(Format-MB (Get-DirSize $md)), file cấu hình $(($mau.configs | ForEach-Object { $_.name }) -join ', ')"
+    Ok "Mẫu Office: $(Format-MB (Get-DirSize $md)), file cấu hình $(($mau.configs | ForEach-Object { $_.name }) -join ', ') (đã bỏ khoá và tự kích hoạt: kích hoạt thủ công sau khi cài)"
 }
 
 # ------------------------------------------------------------------ TramTool.exe và hướng dẫn
@@ -447,7 +472,7 @@ $coSan = @("  - Python $PyVersion (runtime\python) và thư viện của DWG san
 $fixPkgs = @($coBoCai | Where-Object { $appIds -notcontains $_ })
 if ($fixPkgs.Count) { $coSan += "  - Bộ cài cho nút Cài của các công cụ (không cần mạng): $(($fixPkgs | ForEach-Object { (Get-BoCaiPackage $boCaiDir $_).ten }) -join ', ')." }
 if ($coUngDung.Count) { $coSan += "  - Bộ cài ứng dụng cho Bộ ứng dụng văn phòng: $(($coUngDung | ForEach-Object { $_.ten }) -join ', ')." }
-if ($coOffice) { $coSan += '  - Bộ cài mẫu Office (tools\office\mau): công cụ Office tự tìm thấy, không phải chép mẫu.' }
+if ($coOffice) { $coSan += '  - Bộ cài mẫu Office (tools\office\mau): công cụ Office tự tìm thấy, không phải chép mẫu. Mẫu không có khoá,', '    không tự kích hoạt: cài xong kích hoạt thủ công (nút Kích hoạt Office, hoặc trong Word: Tệp > Tài khoản).' }
 if ($coGhiAm) { $coSan += '  - Ghi âm sang Word: thư viện và mô hình nhận dạng tiếng nói.' }
 $conThieu = @()
 if (-not $coGhiAm) { $conThieu += '  - Ghi âm sang Word: thư viện và mô hình nhận dạng tiếng nói (khoảng 5 GB, tải một lần). Có gói', '    TramTool-GhiAm-*.zip thì giải nén chồng vào thư mục TramTool này là xong, không phải tải.' }

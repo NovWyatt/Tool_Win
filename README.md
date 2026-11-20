@@ -24,7 +24,9 @@ Gửi cho máy khác file **`TramTool-Portable-<phiên bản>-<ngày>.zip`**: gi
   - `TramTool-UngDung-*.zip`: bộ cài các ứng dụng của *Bộ ứng dụng văn phòng* (Zalo, UniKey, 7-Zip, Foxit, Chrome...).
     Máy không có winget vẫn cài được; ứng dụng nào không có trong gói thì công cụ cài qua winget.
   - `TramTool-Office-*.zip`: bộ cài mẫu Office vào `tools\office\mau`, công cụ Office tự tìm thấy. Chỉ đóng mẫu không
-    có khoá riêng (không khoá, hoặc khoá KMS chung GVLK); mẫu có khoá MAK hay bán lẻ thì chép tay.
+    có khoá riêng (không khoá, hoặc khoá KMS chung GVLK); mẫu có khoá MAK hay bán lẻ thì chép tay. File cấu hình trong
+    gói bỏ khoá và thẻ tự kích hoạt (`AUTOACTIVATE`, KMS): cài xong kích hoạt thủ công (nút *Kích hoạt Office*, hoặc
+    trong Word: *Tệp > Tài khoản*).
   - `TramTool-GhiAm-*.zip`: thư viện và mô hình của Ghi âm sang Word (vài GB, quá giới hạn 2 GB của GitHub Releases nên
     chép bằng USB). Không có gói này thì nút *Cài* trong trạm tải một lần.
 - **Bản đầy đủ chép bằng USB**: `hub\dev\DongGoi.ps1 -DayDu` dựng cả ba gói thêm; thư mục `dung\TramTool` lúc đó là bản
