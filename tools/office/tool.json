@@ -2,7 +2,7 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "office",
   "name": "Gỡ sạch và cài Office theo mẫu",
-  "version": "1.1",
+  "version": "1.2",
   "category": "van-phong",
   "icon": "apps",
   "audience": "tech",

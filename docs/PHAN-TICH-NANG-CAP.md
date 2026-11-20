@@ -198,6 +198,17 @@ Mức ưu tiên:
   - Lỗi thật tìm thấy khi tải: UniKey bản mới nhất trên winget (4.6.250531) chỉ có cho máy ARM64, máy 64 bit thường cài
     không được; nay ghim 4.6.230919. EVKey: file trên GitHub khác mã SHA-256 ghi trong winget, winget từ chối (không bỏ
     qua kiểm tra này, ứng dụng không có trong gói). Cốc Cốc trên winget là bộ cài mồi 1 MB, vẫn tải lúc cài.
+  - Lỗi thật tìm thấy khi dựng và thử bản đầy đủ: file cấu hình Microsoft 365 của mẫu có chú thích mẫu của ODT nhắc
+    `AUTOACTIVATE`, bước đọc lại chặn đúng; nay bỏ mọi chú thích (người làm mẫu có thể ghi chú khoá trong đó, mà
+    `Read-OfficeTemplate` chỉ xem thuộc tính `PIDKEY`) và từ chối chuỗi có dạng khoá sản phẩm. Công cụ Office 1.2:
+    `expand.exe` không mở được đường dẫn tuyệt đối có dấu, nên mẫu trong thư mục tên có dấu (bản thử giải nén vào
+    `Trạm thử 1.8`), hoặc tài khoản Windows tên có dấu (TEMP), bị báo nhầm *Không đọc được v64.cab, ODT sẽ tải Office từ
+    Internet*; nay chép cab vào thư mục tạm, gọi bằng đường dẫn tương đối (bài thử `T6c2` hỏng trên mã cũ).
+  - Thử bản đầy đủ thật trên máy phát triển (chỉ đọc, chạy thử): giải nén gói chính, gói ứng dụng, gói Office vào
+    thư mục tên có dấu; `TramTool.exe -NoBrowser` (trạm 1.8.0, 19 công cụ, ODBC `bundled`), `Cai-BoCai.ps1 -ChayThu`
+    (nhận Visual C++ Redistributable đã có, chỉ cài ODBC), mã SHA-256 mọi bộ cài khớp, Bộ ứng dụng `cai -ChayThu`
+    (UniKey từ bộ cài có sẵn), Office *Kiểm tra* thấy mẫu trong `tools\office\mau`, không khoá, không tự kích hoạt;
+    bản chép giống từng byte mẫu gốc.
   - Đã thử: `tram/11_BoCai` (40 mục: YAML của winget, lệnh im lặng, dựng gói sai mã, cài phụ thuộc, mã 3010, mã lỗi,
     file bị sửa, zip có msi, zip chạy ngay với registry thử, nút *Cài* của trạm, kế hoạch của `CAI_DAT.bat`),
     `bo-ung-dung` phần 8 (không có winget, winget hỏng, sai mã thì quay về winget, ghim bản), `tram/9_BanPortable` phần 5
@@ -266,6 +277,8 @@ Mức ưu tiên:
 | `537175f` | Trạm 1.6.0 | Bản portable: `hub\dev\DongGoi.ps1` dựng .zip có Python 3.12 mang theo, `.venv` dựng sẵn, LibreDWG, `TramTool.exe`; trạm trỏ lại `.venv` khi đổi thư mục, `PYTHONUTF8=1`. Lối tắt `Trạm Tool.lnk` ghi bằng IShellLinkW (WScript.Shell không lưu được tên có dấu); kiểm `.venv` hỏng không còn gán vào biến chỉ đọc `$home`. |
 | `4f850a8` | Trạm 1.7.0 | Giao diện dễ hiểu hơn: *Việc chính* đứng riêng, việc khác chia nhóm theo mức an toàn (trường `group`), khung *Cần cài trước khi chạy* có nút *Cài* và tự kiểm tra lại, hỏi trước khi chạy lúc còn thiếu; Tổng quan có ô tìm thật, dòng công cụ là liên kết; `tool.json` lỗi cú pháp báo hỏng, không bị *Tạo tool.json* ghi đè. Bài thử `tram/10_GiaoDien`. |
 | `4e7d2ad` | Gói tiếng Việt (bài thử) | `tieng-viet/3_ChayThat` hỏng khi Excel đang mở dù công cụ đúng (cố ý để nguyên tuỳ chọn Excel, trả mã 3); bài thử nay kiểm nhánh đó. |
+| `c0d2c66` | Trạm 1.8.0, Bộ ứng dụng văn phòng 1.1 | Bộ cài có sẵn trong bản portable (`hub\lib\BoCai.ps1`, `runtime\bo-cai`): nút *Cài* loại winget và `CAI_DAT.bat` cài không cần mạng; `Cai-SqlLocalDB.ps1` dùng bộ cài trong gói; Bộ ứng dụng cài từ gói, máy không có winget vẫn cài được, `phienBan` ghim bản (UniKey); `DongGoi.ps1` gói ứng dụng, gói Office, `-DayDu`. Bài thử `tram/11_BoCai`. |
+| `524bac0`, `bff9717` | Bản portable (mẫu Office) | File cấu hình Office trong gói bỏ khoá, `AUTOACTIVATE`, KMS, chú thích; Wyatt kích hoạt thủ công. |
 
 ## Bảng tổng quan
 

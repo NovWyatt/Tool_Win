@@ -24,7 +24,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $script:ToolDir = $PSScriptRoot
 $script:MainScript = $PSCommandPath
-$script:ToolVersion = '1.1'
+$script:ToolVersion = '1.2'
 . (Join-Path $PSScriptRoot 'lib\Chung.ps1')
 . (Join-Path $PSScriptRoot 'lib\DocOffice.ps1')
 . (Join-Path $PSScriptRoot 'lib\SaoLuu.ps1')

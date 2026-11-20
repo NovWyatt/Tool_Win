@@ -25,7 +25,7 @@ if ($f.Count) {
     $j = $txt | ConvertFrom-Json
     $hr = Read-RunResult -Path $f[0].FullName
     $ma = @($j.phatHien | ForEach-Object { $_.ma })
-    Check ($j.cheDo -eq 'kiem-tra' -and $j.phienBan -eq '1.1' -and $j.trangThai -eq 'xong' -and $j.chayThu -eq $false -and $hr) "kiểm tra: đúng chế độ, phiên bản, trạm đọc được ($($ma -join ', '))"
+    Check ($j.cheDo -eq 'kiem-tra' -and $j.phienBan -eq '1.2' -and $j.trangThai -eq 'xong' -and $j.chayThu -eq $false -and $hr) "kiểm tra: đúng chế độ, phiên bản, trạm đọc được ($($ma -join ', '))"
     Check ($ma -contains 'MAU_HONG' -and $ma -notcontains 'KHONG_CO_VAN_DE' -and $j.ma -eq 'CO_LOI') 'mẫu rỗng: báo MAU_HONG, không kết luận ổn'
     $tep = @($j.tep)
     Check ($tep.Count -eq 1 -and $tep[0].duongDan -like "$out\BaoCao_Office_*.txt" -and (Test-Path -LiteralPath $tep[0].duongDan)) 'kèm báo cáo .txt trong thư mục tạm'

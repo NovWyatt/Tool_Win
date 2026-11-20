@@ -529,13 +529,19 @@ function Expand-VersionDescriptor {
     # Lấy VersionDescriptor.xml trong v64.cab/v32.cab của bộ cài: bản dựng, kênh (FFNRoot), sản phẩm có trong bộ cài.
     param([string]$Cab)
     $tmp = Join-Path $env:TEMP ('TramTool_Office_' + [guid]::NewGuid().ToString('N').Substring(0, 8))
-    [void](New-Item -ItemType Directory -Path $tmp -Force)
+    $out = Join-Path $tmp 'ra'
+    [void](New-Item -ItemType Directory -Path (Join-Path $tmp 'cab') -Force)
+    [void](New-Item -ItemType Directory -Path $out -Force)
     try {
-        [void](Invoke-Native 'expand.exe' @($Cab, '-F:VersionDescriptor.xml', $tmp))
-        $f = Join-Path $tmp 'VersionDescriptor.xml'
+        # expand.exe không mở được đường dẫn tuyệt đối có chữ ngoài bảng mã ANSI (mẫu trong thư mục tên có dấu, tài khoản
+        # Windows tên có dấu thì cả TEMP): chép cab vào thư mục tạm, gọi bằng đường dẫn tương đối từ trong thư mục đó.
+        Copy-Item -LiteralPath $Cab -Destination (Join-Path $tmp 'cab\v.cab')
+        Push-Location -LiteralPath $tmp
+        try { [void](Invoke-Native 'expand.exe' @('cab\v.cab', '-F:VersionDescriptor.xml', 'ra')) } finally { Pop-Location }
+        $f = Join-Path $out 'VersionDescriptor.xml'
         if (-not (Test-Path -LiteralPath $f)) {
             # cab chỉ có một file thì expand.exe đặt tên file giải nén theo tên cab
-            $one = @(Get-ChildItem -LiteralPath $tmp -File)
+            $one = @(Get-ChildItem -LiteralPath $out -File)
             if ($one.Count -ne 1) { return $null }
             $f = $one[0].FullName
         }

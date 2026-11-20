@@ -342,6 +342,13 @@ Check 'T6b GVLK' ($t.KeyKind -eq 'gvlk' -and $t.Products[0].Gvlk -and @($t.Warni
 Check 'T6b không lộ GVLK' (($t | ConvertTo-Json -Depth 6).IndexOf('NMMKJ') -lt 0)
 $t = Read-OfficeTemplate (New-Template 'volnokey' (Cfg))
 Check 'T6c Volume không khoá = GVLK' ($t.KeyKind -eq 'gvlk')
+# expand.exe không mở được đường dẫn tuyệt đối có dấu: mẫu trong thư mục tên có dấu, TEMP của tài khoản tên có dấu.
+$vn = "$sp\mau\Mẫu có dấu ạử"
+Copy-Item -LiteralPath (New-Template 'codau-nguon' (Cfg)) -Destination $vn -Recurse
+$tempCu = $env:TEMP; $env:TEMP = "$sp\Tạm của Đức"; [void](New-Item -ItemType Directory -Path $env:TEMP -Force)
+try { $t = Read-OfficeTemplate $vn } finally { $env:TEMP = $tempCu }
+Check 'T6c2 mẫu và TEMP có dấu: đọc được v64.cab' ($t.Source.Complete -and $t.Problems.Count -eq 0) (($t.Source.Missing + $t.Problems) -join '|')
+Check 'T6c2 không để lại thư mục tạm' (-not @(Get-ChildItem -LiteralPath "$sp\Tạm của Đức" -Force).Count)
 $t = Read-OfficeTemplate (New-Template 'o365' (Cfg -Product 'O365ProPlusRetail' -Channel 'Current') -Products @('O365ProPlusRetail') -Ffn '492350f6-3a01-4f97-b9c0-c7c6ddf67d60')
 Check 'T6d 365 không khoá' ($t.KeyKind -eq '' -and $t.Problems.Count -eq 0 -and $t.Source.Complete) ($t.Source.Missing -join '|')
 $t = Read-OfficeTemplate (New-Template 'xmlhong' '<Configuration><Add>')
