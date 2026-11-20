@@ -185,9 +185,10 @@ $o | ConvertTo-Json -Depth 4 -Compress
 }
 
 function Save-OfficeConfigNoKey([string]$Src, [string]$Dst) {
-    # File cấu hình ODT cho gói: bỏ khoá (PIDKEY) và thẻ tự kích hoạt (AUTOACTIVATE, KMSSERVICENAME, KMSSERVICEPORT).
-    # Office cài xong chưa kích hoạt, người dùng kích hoạt thủ công (nút Kích hoạt Office, hoặc trong Word). Mẫu gốc giữ
-    # nguyên; không in giá trị nào của file. Đọc lại file đã ghi: còn sót thì xoá file, dừng.
+    # File cấu hình ODT cho gói: bỏ khoá (PIDKEY), thẻ tự kích hoạt (AUTOACTIVATE, KMSSERVICENAME, KMSSERVICEPORT) và
+    # mọi chú thích (ODT không đọc; người làm mẫu có thể ghi chú khoá trong đó). Office cài xong chưa kích hoạt, người
+    # dùng kích hoạt thủ công (nút Kích hoạt Office, hoặc trong Word). Mẫu gốc giữ nguyên; không in giá trị nào của file.
+    # Đọc lại file đã ghi: còn sót chữ đó hay chuỗi có dạng khoá sản phẩm thì xoá file, dừng.
     $set = New-Object Xml.XmlReaderSettings
     $set.DtdProcessing = [Xml.DtdProcessing]::Prohibit; $set.XmlResolver = $null
     $doc = New-Object Xml.XmlDocument
@@ -200,8 +201,9 @@ function Save-OfficeConfigNoKey([string]$Src, [string]$Dst) {
     foreach ($p in @($doc.SelectNodes('//*[local-name()="Property"]'))) {
         if ([string]$p.GetAttribute('Name') -in 'AUTOACTIVATE', 'KMSSERVICENAME', 'KMSSERVICEPORT') { [void]$p.ParentNode.RemoveChild($p) }
     }
+    foreach ($c in @($doc.SelectNodes('//comment()'))) { [void]$c.ParentNode.RemoveChild($c) }
     $doc.Save($Dst)
-    if ([IO.File]::ReadAllText($Dst) -match '(?i)PIDKEY|AUTOACTIVATE|KMSSERVICE') {
+    if ([IO.File]::ReadAllText($Dst) -match '(?i)PIDKEY|AUTOACTIVATE|KMSSERVICE|[A-Z0-9]{5}(-[A-Z0-9]{5}){4}') {
         Remove-Item -LiteralPath $Dst -Force
         Loi "Không bỏ được khoá hoặc thẻ tự kích hoạt khỏi $(Split-Path $Dst -Leaf): dừng, không đóng mẫu Office."
     }
