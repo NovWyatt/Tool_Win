@@ -17,12 +17,23 @@ Gửi cho máy khác file **`TramTool-Portable-<phiên bản>-<ngày>.zip`**: gi
 - `TramTool.exe` chỉ chạy máy chủ của trạm với cửa sổ ẩn rồi thoát (máy chủ tự mở giao diện, tự tắt sau 10 phút
   không có giao diện). Mở không được thì nó báo lỗi và chỉ `TramTool.bat` để xem chi tiết.
 - Lần đầu Windows có thể hiện *Windows protected your PC* (file chưa có chữ ký số): *More info → Run anyway*.
-- Còn phải cài: Ghi âm sang Word (thư viện và mô hình khoảng 5 GB, nút *Cài* trong trạm tải một lần, hoặc giải nén
-  gói `TramTool-GhiAm-*.zip` chồng vào thư mục), SQL Server LocalDB và ODBC Driver của Khôi phục .mdf (cài vào Windows,
-  cần quyền Admin).
+- **Bộ cài có sẵn** (`runtime\bo-cai`): bộ cài cho mọi nút *Cài* loại winget của các công cụ (ODBC Driver 18 kèm
+  Visual C++ Redistributable mà nó cần) và SQL Server LocalDB. Nút *Cài* trong trạm thấy có gói thì cài từ đó, không cần
+  mạng hay winget (trang công cụ ghi *Có sẵn bộ cài trong bản này*). Trạm kiểm lại mã SHA-256 trước khi chạy bộ cài.
+- **Gói thêm**, giải nén chồng vào cùng thư mục `TramTool`:
+  - `TramTool-UngDung-*.zip`: bộ cài các ứng dụng của *Bộ ứng dụng văn phòng* (Zalo, UniKey, 7-Zip, Foxit, Chrome...).
+    Máy không có winget vẫn cài được; ứng dụng nào không có trong gói thì công cụ cài qua winget.
+  - `TramTool-Office-*.zip`: bộ cài mẫu Office vào `tools\office\mau`, công cụ Office tự tìm thấy. Chỉ đóng mẫu không
+    có khoá riêng (không khoá, hoặc khoá KMS chung GVLK); mẫu có khoá MAK hay bán lẻ thì chép tay.
+  - `TramTool-GhiAm-*.zip`: thư viện và mô hình của Ghi âm sang Word (vài GB, quá giới hạn 2 GB của GitHub Releases nên
+    chép bằng USB). Không có gói này thì nút *Cài* trong trạm tải một lần.
+- **Bản đầy đủ chép bằng USB**: `hub\dev\DongGoi.ps1 -DayDu` dựng cả ba gói thêm; thư mục `dung\TramTool` lúc đó là bản
+  đầy đủ, chép nguyên thư mục sang USB rồi máy dùng bấm `TramTool.exe`.
 - Dựng gói trên máy phát triển: `powershell -ExecutionPolicy Bypass -File hub\dev\DongGoi.ps1` (mặc định ra
-  `D:\Repo\TramTool-Portable`; `-KemGhiAm` làm thêm gói Ghi âm sang Word, `-ChayThu` chỉ in kế hoạch). Cần mạng lần
-  đầu; gói chỉ lấy file git đang theo dõi nên không lẫn dữ liệu khách.
+  `D:\Repo\TramTool-Portable`; `-KemUngDung`, `-KemOffice` (hoặc `-MauOffice <thư mục>`), `-KemGhiAm` làm từng gói
+  thêm, `-ChayThu` chỉ in kế hoạch). Bộ cài tải bằng `winget download` (winget đối chiếu mã SHA-256), giữ trong
+  `cache\bo-cai` để lần sau dùng lại; `-LamMoiBoCai` tải bản mới. Bộ cài không tải được thì bỏ qua và báo ở cuối. Gói
+  chỉ lấy file git đang theo dõi nên không lẫn dữ liệu khách.
 
 ## Cài trên máy mới (bản lấy bằng git)
 
@@ -30,7 +41,8 @@ Chép cả thư mục `Tool_Win` sang máy (hoặc giải nén file .zip của G
 
 - Bộ cài kiểm tra từng công cụ cần gì (giống mục *Yêu cầu để chạy* trong trạm), in danh sách còn thiếu kèm cách cài,
   thời gian, có cần quyền Admin không; gõ `C` để cài tất cả hoặc `T` để chọn từng mục.
-- Cài theo thứ tự: gói winget (Python 3.12, ODBC Driver 18), script cài của từng công cụ (`.venv`, LibreDWG, mô hình
+- Cài theo thứ tự: gói winget (Python 3.12, ODBC Driver 18; bản portable có bộ cài sẵn thì cài từ đó, không cần
+  mạng), script cài của từng công cụ (`.venv`, LibreDWG, mô hình
   ghi âm khoảng 5 GB), script của trạm cần Admin (SQL Server LocalDB). Xong thì kiểm tra lại, tạo lối tắt **Trạm Tool**
   trên Desktop và mở trạm.
 - Tự bỏ dấu "tải từ Internet" của file trong thư mục trạm (Windows hay chặn `.bat`, `.ps1` giải nén từ .zip tải về), tự

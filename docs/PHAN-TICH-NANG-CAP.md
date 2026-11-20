@@ -176,6 +176,31 @@ Mức ưu tiên:
   - Đã thử: `tram/10_GiaoDien` (39 mục, chạy hàm thật của `state.js` bằng Node); hai trạm thử (công cụ thật, công cụ giả
     thiếu yêu cầu) ở sáng, tối, rộng 1440, 1024, 390; 18 thao tác bằng trình duyệt không giao diện (hỏi trước khi chạy,
     Vẫn chạy, Cài rồi khung tự mất, việc báo lỗi, phím tắt ô tìm); không có lỗi console.
+- **Bộ cài có sẵn trong bản portable, Trạm 1.8.0** (Wyatt thấy mỗi máy khách lại phải tải hoặc chép tay bộ cài, muốn
+  đóng gói hết cho mọi công cụ, 20/11/2026; ngay trước đó trên một máy khách *Chỉ cài Office theo mẫu* báo *Chưa làm* vì
+  máy không có mẫu):
+  - Rà mọi chỗ công cụ còn tải lúc chạy: nút *Cài* loại winget (ODBC Driver 18 của Khôi phục .mdf, kéo theo Visual C++
+    Redistributable), SQL Server LocalDB, 14 ứng dụng của Bộ ứng dụng văn phòng, mẫu Office, thư viện và mô hình Ghi âm.
+  - Cách chung `hub\lib\BoCai.ps1`: `runtime\bo-cai\<mã gói>\` có bộ cài và `goi.json`, dựng từ `winget download`
+    (đọc file kê khai YAML đi kèm, đối chiếu SHA-256). Lệnh im lặng theo loại bộ cài như winget (msi, burn, nullsoft,
+    inno, exe có lệnh im lặng, msix, zip có bộ cài bên trong, zip chạy ngay), cài gói phụ thuộc trước, mã thành công
+    theo file kê khai, kiểm lại SHA-256 ngay trước khi chạy. Công cụ mới khai `fix.winget` thì lần dựng sau tự có gói.
+  - Trạm: nút *Cài* thấy có gói thì chạy `hub\fixes\Cai-BoCai.ps1` (UAC khi gói cài cho cả máy), trang công cụ ghi *Có
+    sẵn bộ cài trong bản này*; `CAI_DAT.bat` cũng cài từ gói; `Cai-SqlLocalDB.ps1` dùng bộ cài trong gói, không xoá nó.
+  - Bộ ứng dụng văn phòng 1.1: cài từ gói khi có, máy không có winget vẫn cài được (chỉ cảnh báo), nhận đã cài qua
+    Programs and Features; cập nhật vẫn cần winget; trường `phienBan` ghim bản.
+  - `DongGoi.ps1`: gói chính có bộ cài của các nút *Cài*; `-KemUngDung`, `-KemOffice`/`-MauOffice`, `-KemGhiAm` làm gói
+    thêm giải nén chồng; `-DayDu` làm cả ba, thư mục dựng là bản đầy đủ để chép bằng USB. Bộ cài giữ trong
+    `cache\bo-cai` (cảnh báo khi quá 30 ngày, `-LamMoiBoCai`). Mẫu Office chỉ đóng khi không có khoá riêng, khoá đọc
+    trong tiến trình riêng và không bao giờ in ra.
+  - Lỗi thật tìm thấy khi tải: UniKey bản mới nhất trên winget (4.6.250531) chỉ có cho máy ARM64, máy 64 bit thường cài
+    không được; nay ghim 4.6.230919. EVKey: file trên GitHub khác mã SHA-256 ghi trong winget, winget từ chối (không bỏ
+    qua kiểm tra này, ứng dụng không có trong gói). Cốc Cốc trên winget là bộ cài mồi 1 MB, vẫn tải lúc cài.
+  - Đã thử: `tram/11_BoCai` (40 mục: YAML của winget, lệnh im lặng, dựng gói sai mã, cài phụ thuộc, mã 3010, mã lỗi,
+    file bị sửa, zip có msi, zip chạy ngay với registry thử, nút *Cài* của trạm, kế hoạch của `CAI_DAT.bat`),
+    `bo-ung-dung` phần 8 (không có winget, winget hỏng, sai mã thì quay về winget, ghim bản), `tram/9_BanPortable` phần 5
+    (cache giả, phụ thuộc, sai mã, khác bản ghim, LocalDB không chữ ký Microsoft bị xoá, gói ứng dụng, mẫu Office khoá
+    KMS chung và khoá riêng giả). Bộ cài giả, không chạy bộ cài thật nào trên máy phát triển.
 
 ## Đã sửa trong đợt này
 
@@ -301,7 +326,7 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
    GitHub (kết quả là file đầu ra hoặc thao tác một lần, mã thoát đã đủ cho Lịch sử).
 9. **Bài thử không nằm trong repo.** Các nút đổi máy chủ yếu được thử bằng giả lập, nhưng bài thử chỉ nằm ở thư mục
    tạm của phiên làm việc nên sửa sau không chạy lại được. Đã làm: `tests\` với một trình chạy chung
-   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 60 bài cho 20 bộ (cú pháp, mã hoá file, danh mục và lược đồ
+   (`tests\ChayTatCa.ps1`, `tests\CHAY_KIEM_THU.bat`), 61 bài cho 20 bộ (cú pháp, mã hoá file, danh mục và lược đồ
    `tool.json`, không commit dữ liệu khách, lan can và kết quả JSON của trạm, new-windows, MyExcelFix, Office, BitLocker, Dọn ổ C,
    Tối ưu Windows, Giờ máy và chữ ký số, Bộ ứng dụng văn phòng, sửa lỗi Windows, CheckWinFix, máy in LAN, thẻ xe,
    Đăng xuất GitHub, Ghi âm sang Word, DWG sang PDF, Gói tiếng Việt, Đồng bộ phiên Claude, `.bat` của mdf2sql) và
@@ -367,7 +392,9 @@ Các lỗi lặp lại ở nhiều công cụ, nên sửa một lần bằng quy
 - [ ] Sửa lỗi Windows thành bước *Sửa* trong CheckWinFix, chỉ đề xuất lệnh hợp với bệnh tìm thấy.
 - [x] Trạm: nút *Cập nhật công cụ* (chỉ fast-forward, Trạm 1.5.0).
 - [x] Bản portable không cần cài (Trạm 1.6.0, `hub\dev\DongGoi.ps1`, `TramTool.exe`). Còn: thử trên máy sạch (máy ảo);
-      kèm sẵn bộ cài SQL Server LocalDB, ODBC trong gói để cài không cần mạng; ký số `TramTool.exe` nếu có chứng thư.
+      ký số `TramTool.exe` nếu có chứng thư.
+- [x] Bộ cài có sẵn trong bản portable (Trạm 1.8.0): SQL Server LocalDB, ODBC, ứng dụng văn phòng, mẫu Office, Ghi âm;
+      bản đầy đủ `-DayDu` chép bằng USB. Còn: EVKey chờ winget sửa mã SHA-256; cài thật từ gói trên máy ảo.
 - [x] Trạm: giao diện dễ hiểu hơn (Trạm 1.7.0: việc chính, nhóm theo mức an toàn, khung cần cài, ô tìm ở Tổng quan).
 - [ ] Trạm: xuất/nhập cài đặt.
 - [x] Công cụ mới: Giờ máy và chữ ký số (1.0), Bộ ứng dụng văn phòng bằng winget (1.0), mục 6, 8 của *Công cụ Windows
@@ -542,6 +569,20 @@ PowerToys Command Palette, Raycast, Linear (ô Ctrl+K), UniGetUI (bảng tác v�
   đúng tên.
 - Đã thử: `tram/10_GiaoDien`; trạm thử có công cụ giả thiếu yêu cầu, 18 thao tác bằng Edge không giao diện, ảnh chụp
   trước và sau ở ba độ rộng, sáng và tối.
+
+**Bản 1.8.0 (20/11/2026): bộ cài có sẵn trong bản portable**
+
+- `hub\lib\BoCai.ps1` (không phụ thuộc thư viện khác của trạm, công cụ nạp riêng được): đọc file kê khai YAML mà
+  `winget download` để lại (phần YAML winget dùng: ánh xạ, danh sách cùng lề với khoá cha, chuỗi nháy nhiều dòng, khối
+  `|`), dựng `runtime\bo-cai`, lệnh im lặng, cài phụ thuộc, nhận đã cài (mã sản phẩm, tên trong Programs and Features
+  bỏ số bản và phần trong ngoặc). Mã thành công: 0, 3010, 1641, 1638 và mã file kê khai ghi `alreadyInstalled`,
+  `rebootRequiredToFinish`, `rebootInitiated`, `installSuccess`; không nhận `rebootRequiredForInstall` (chưa cài).
+- `TRAMTOOL_BO_CAI` đổi thư mục bộ cài (bài thử). `Test-ToolRequirement` trả `bundled`; `/api/fix` loại winget có gói
+  thì chạy `Cai-BoCai.ps1 -Id <gói>` qua `Resolve-ActionArguments` (cửa sổ riêng, giữ mở).
+- Gói thêm: `TramTool-UngDung-*.zip`, `TramTool-Office-*.zip`, `TramTool-GhiAm-*.zip`; GitHub Releases không nhận file
+  từ 2 GB nên `DongGoi.ps1` cảnh báo, gói đó chép bằng USB. `portable.json` ghi `boCai`, `ungDung`, `officeMau`;
+  `HUONG-DAN-PORTABLE.txt` liệt kê đúng thứ có sẵn và thứ còn thiếu.
+- Đã thử: `tram/11_BoCai`, `bo-ung-dung/1_BoUngDung` phần 8, `tram/9_BanPortable` phần 5.
 
 **Hướng tiếp**: xuất/nhập cài đặt; loại probe `script` chỉ đọc (BitLocker, SMB); thư viện nhật ký hoàn tác chung.
 

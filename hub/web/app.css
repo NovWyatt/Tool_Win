@@ -370,6 +370,7 @@ button.link:hover, .link-btn:hover { text-decoration: underline; text-underline-
 .need-list li + li { border-top: 1px solid var(--line); }
 .need-list li > span:first-child { display: grid; gap: 2px; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
 .need-list small { font-size: 12.5px; font-weight: 400; color: var(--text-3); }
+small.bundled { display: flex; align-items: center; gap: 4px; color: var(--ok); }
 
 .notice {
   display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; padding: 11px 14px;

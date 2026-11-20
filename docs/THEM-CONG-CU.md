@@ -169,6 +169,9 @@ Trường chung: `id` (cần khi có hai yêu cầu cùng kiểu), `label`, `opt
 `fix` chọn **một** trong ba cách:
 
 - `{ "label": "Cài Python 3.12", "winget": "Python.Python.3.12", "args": "--scope user" }`: mở cửa sổ chạy `winget install`.
+  Bản portable tự đóng bộ cài của mọi mã gói `winget` khai ở đây (trừ Python, bản portable đã mang theo) vào
+  `runtime\bo-cai`, kèm các gói phụ thuộc; nút *Cài* thấy có gói thì chạy `hub\fixes\Cai-BoCai.ps1` cài từ đó, không cần
+  mạng. Không phải khai gì thêm: lần dựng sau `DongGoi.ps1` tải bộ cài cho mã gói mới.
 - `{ "label": "Cài môi trường", "action": "cai-dat" }`: chạy một nút của chính công cụ (thường là script cài đặt).
 - `{ "label": "Cài LocalDB", "hubScript": "Cai-SqlLocalDB.ps1", "admin": true }`: chạy script cài dùng chung trong `hub\fixes\`.
 

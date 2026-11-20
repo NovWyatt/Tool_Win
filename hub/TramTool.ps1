@@ -13,7 +13,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$HubVersion = '1.7.0'
+$HubVersion = '1.8.0'
 $HubDir = $PSScriptRoot
 $RootDir = Split-Path $HubDir -Parent
 if (-not $ToolsDir) { $ToolsDir = Join-Path $RootDir 'tools' }
@@ -33,6 +33,7 @@ $ProgressDir = Join-Path $DataDir 'tien-do'
 . (Join-Path $HubDir 'lib\Catalog.ps1')
 . (Join-Path $HubDir 'lib\AnToan.ps1')
 . (Join-Path $HubDir 'lib\Launcher.ps1')
+. (Join-Path $HubDir 'lib\BoCai.ps1')
 . (Join-Path $HubDir 'lib\Checks.ps1')
 . (Join-Path $HubDir 'lib\KetQua.ps1')
 . (Join-Path $HubDir 'lib\CapNhat.ps1')
@@ -550,6 +551,17 @@ function Invoke-Api {
                 }
                 Write-HubLog "Cài: $($tool.name) > $hubScript$(if ($fixAction.admin) { ' (Admin)' })"
                 return (Start-ToolAction -Tool $fixTool -Action $fixAction -HistoryPath $HistoryFile)
+            }
+            $pkg = Get-RequirementBundle $fix
+            if ($pkg) {
+                # Bản portable có sẵn bộ cài (cả gói phụ thuộc): cài từ đó, không cần mạng hay winget.
+                $fixTool = [ordered]@{ id = $tool.id; name = $tool.name; dir = (Join-Path $HubDir 'fixes') }
+                $fixAction = [ordered]@{
+                    id = "fix-$(Get-Prop $req 'id' 'yeu-cau')"; label = [string](Get-Prop $fix 'label' 'Cài đặt'); type = 'console'; file = 'Cai-BoCai.ps1'
+                    admin = ($pkg.phamVi -ne 'user'); keepOpen = $true; fixedArgs = @('-Id', [string]$pkg.id)
+                }
+                Write-HubLog "Cài: $($tool.name) > bộ cài có sẵn $($pkg.id) $($pkg.phienBan)"
+                return (Start-ToolAction -Tool $fixTool -Action $fixAction -Arguments (Resolve-ActionArguments -Action $fixAction -Values $null) -HistoryPath $HistoryFile)
             }
             Start-RequirementFix -Fix $fix
             return @{ ok = $true; message = 'Đã mở cửa sổ cài đặt. Cài xong bấm "Kiểm tra lại".' }

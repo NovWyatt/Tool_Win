@@ -2,16 +2,16 @@
   "$schema": "../../hub/schema/tool.schema.json",
   "id": "bo-ung-dung",
   "name": "Bộ ứng dụng văn phòng (winget)",
-  "version": "1.0",
+  "version": "1.1",
   "category": "cai-lai-may",
   "icon": "apps",
   "audience": "all",
   "summary": "Cài một lượt Zalo, bộ gõ tiếng Việt, 7-Zip, đọc PDF, UltraViewer, Chrome... từ nguồn winget của Microsoft; xem ứng dụng nào đã có, cập nhật cả bộ.",
-  "description": "Máy mới cài lại Windows: chọn ứng dụng rồi cài một lượt, không phải tìm bộ cài trên mạng (dễ dính bản có mã độc). Cài từ nguồn winget chính thức, im lặng, bỏ qua ứng dụng đã có, đọc lại danh sách đã cài để chắc cài xong. Hai bộ gõ tiếng Việt chỉ cài một. Danh sách nằm trong DanhSach.json, sửa được. Không gỡ ứng dụng: gỡ trong Cài đặt > Ứng dụng như thường.",
+  "description": "Máy mới cài lại Windows: chọn ứng dụng rồi cài một lượt, không phải tìm bộ cài trên mạng (dễ dính bản có mã độc). Cài từ nguồn winget chính thức, im lặng, bỏ qua ứng dụng đã có, đọc lại danh sách đã cài để chắc cài xong. Bản portable đầy đủ của trạm có sẵn bộ cài (tải bằng winget, đúng mã SHA-256): cài từ đó, không cần mạng, máy không có winget vẫn cài được. Hai bộ gõ tiếng Việt chỉ cài một. Danh sách nằm trong DanhSach.json, sửa được. Không gỡ ứng dụng: gỡ trong Cài đặt > Ứng dụng như thường.",
   "tags": ["winget", "cài ứng dụng", "cài phần mềm", "máy mới", "cài lại máy", "Zalo", "UniKey", "EVKey", "7-Zip", "Foxit", "UltraViewer", "Chrome", "Cốc Cốc", "cập nhật"],
   "docs": "HUONG-DAN.md",
   "requires": [
-    { "type": "command", "name": "winget", "label": "winget (App Installer)", "fix": { "label": "Sửa winget", "hubScript": "Sua-Winget.ps1" } }
+    { "type": "command", "name": "winget", "label": "winget (App Installer): cần để cập nhật, và để cài khi không có bộ cài sẵn trong gói", "optional": true, "fix": { "label": "Sửa winget", "hubScript": "Sua-Winget.ps1" } }
   ],
   "actions": [
     {
@@ -23,7 +23,7 @@
       "risk": "read-only",
       "primary": true,
       "duration": "Vài giây",
-      "description": "Chỉ đọc. Winget chạy được không; ứng dụng nào trong danh sách đã cài, chưa cài (nhận cả ứng dụng không cài bằng winget)."
+      "description": "Chỉ đọc. Winget chạy được không; ứng dụng nào trong danh sách đã cài, chưa cài (nhận cả ứng dụng không cài bằng winget); bản này có sẵn bộ cài cho ứng dụng nào."
     },
     {
       "id": "cai",
@@ -33,7 +33,7 @@
       "admin": true,
       "risk": "modifies-system",
       "duration": "Vài phút, tuỳ mạng",
-      "description": "Cài các ứng dụng đánh dấu, im lặng, từ nguồn winget. Ứng dụng đã có thì bỏ qua; không đánh dấu ô nào thì cài các ứng dụng mặc định.",
+      "description": "Cài các ứng dụng đánh dấu, im lặng: từ bộ cài có sẵn trong gói nếu có, không thì từ nguồn winget. Ứng dụng đã có thì bỏ qua; không đánh dấu ô nào thì cài các ứng dụng mặc định.",
       "changes": [
         "Cài ứng dụng đã chọn (winget install --silent)",
         "Đồng ý điều khoản của từng gói và của nguồn winget thay bạn"
@@ -64,7 +64,7 @@
       "admin": true,
       "risk": "modifies-system",
       "duration": "Vài phút, tuỳ mạng",
-      "description": "Cập nhật các ứng dụng trong danh sách đã cài lên bản mới nhất trên winget. Ứng dụng đang mở thì nên đóng trước.",
+      "description": "Cập nhật các ứng dụng trong danh sách đã cài lên bản mới nhất trên winget (cần mạng; ứng dụng ghim bản như UniKey thì giữ nguyên). Ứng dụng đang mở thì nên đóng trước.",
       "changes": [
         "Cập nhật ứng dụng trong danh sách đã cài (winget upgrade --silent)"
       ],

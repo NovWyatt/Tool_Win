@@ -166,7 +166,17 @@ function Test-ToolRequirement {
             default { $r.detail = "Không biết kiểu kiểm tra '$type'." }
         }
     } catch { $r.detail = "Lỗi khi kiểm tra: $($_.Exception.Message)" }
+    # Bản portable có sẵn bộ cài cho nút Cài loại winget: cài từ đó, không cần mạng (xem /api/fix).
+    $r.bundled = [bool](Get-RequirementBundle $r.fix)
     return $r
+}
+
+function Get-RequirementBundle {
+    # Gói có sẵn trong runtime\bo-cai cho nút Cài loại winget; $null khi không có (hoặc trạm không nạp BoCai.ps1).
+    param($Fix)
+    $wg = [string](Get-Prop $Fix 'winget' '')
+    if (-not $wg -or -not (Get-Command Get-BoCaiPackage -ErrorAction SilentlyContinue)) { return $null }
+    return (Get-BoCaiPackage (Get-HubBoCaiRoot) $wg)
 }
 
 function Get-ToolRequirements {

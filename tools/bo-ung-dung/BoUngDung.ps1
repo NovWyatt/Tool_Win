@@ -1,7 +1,10 @@
 ﻿<#
   Bộ ứng dụng văn phòng bằng winget: cài một lượt các ứng dụng hay dùng (Zalo, bộ gõ tiếng Việt, 7-Zip, đọc PDF, hỗ trợ
   từ xa, trình duyệt...) từ nguồn winget chính thức của Microsoft, không tải bộ cài trôi nổi trên mạng.
-  Danh sách nằm trong DanhSach.json (mã gói winget, tên, có cài mặc định không, nhóm chỉ chọn một).
+  Danh sách nằm trong DanhSach.json (mã gói winget, tên, có cài mặc định không, nhóm chỉ chọn một, bản ghim).
+  Bản portable đầy đủ của Trạm Tool có sẵn bộ cài (runtime\bo-cai, tải bằng 'winget download', đúng mã SHA-256 của
+  winget): ứng dụng có bộ cài sẵn thì cài từ đó, không cần mạng, không cần winget; máy không có winget thì xem đã cài
+  hay chưa trong Programs and Features.
 
   Chế độ (-Mode):
     kiem-tra   chỉ đọc, không cần Admin: winget chạy được không; ứng dụng nào trong danh sách đã cài, chưa cài
@@ -26,8 +29,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
-$script:Version = '1.0'
+$script:Version = '1.1'
 $script:ListFile = Join-Path $PSScriptRoot 'DanhSach.json'
+# Bộ cài có sẵn của bản portable (hub\lib\BoCai.ps1 nằm cùng trạm; công cụ chép đi riêng thì chỉ dùng winget).
+$script:TramDir = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+$script:BoCaiRoot = ''
+$bcLib = Join-Path $script:TramDir 'hub\lib\BoCai.ps1'
+if (Test-Path -LiteralPath $bcLib) { . $bcLib; $script:BoCaiRoot = Get-BoCaiRoot $script:TramDir }
 $script:ResultDir = if ($env:BUD_KET_QUA) { $env:BUD_KET_QUA } else { Join-Path $PSScriptRoot 'ket_qua' }
 $script:WingetCommon = @('--source', 'winget', '--accept-source-agreements', '--disable-interactivity')
 $script:CodeNoUpdate = -1978335189   # 0x8A15002B: không có bản mới hơn
@@ -139,9 +147,33 @@ function Get-InstalledIds {
     finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
 }
 
+function Get-AppPackage {
+    # Bộ cài có sẵn trong bản portable cho ứng dụng này ($null khi không có).
+    param($App)
+    if (-not $script:BoCaiRoot) { return $null }
+    return (Get-BoCaiPackage $script:BoCaiRoot $App.id)
+}
+
+function Get-InstalledState {
+    # Ứng dụng đã cài: mã gói từ winget export (khi winget dùng được) và Programs and Features (cho ứng dụng có bộ cài
+    # sẵn: nhận cả bản cài từ gói mà winget không khớp được, và máy không có winget).
+    $w = if (Get-WingetCommand) { Get-InstalledIds } else { $null }
+    $pkgs = @($script:AllApps | Where-Object { Get-AppPackage $_ })
+    return [pscustomobject]@{
+        HasWinget = [bool]$w; WingetOk = [bool]($w -and $w.Ok)
+        Ids = @($(if ($w -and $w.Ok) { $w.Ids }))
+        Programs = $(if ($pkgs.Count) { Get-InstalledPrograms } else { @() })
+        Packaged = $pkgs.Count
+        Error = $(if ($w) { $w.Error } else { '' })
+    }
+}
+
 function Test-Installed {
-    param($App, [string[]]$Ids)
-    return [bool]@($Ids | Where-Object { $_ -eq $App.id }).Count   # mã gói không phân biệt hoa thường
+    param($App, $State)
+    if (@($State.Ids | Where-Object { $_ -eq $App.id }).Count) { return $true }   # mã gói không phân biệt hoa thường
+    if (-not @($State.Programs).Count) { return $false }
+    $p = Get-AppPackage $App
+    return [bool]($p -and (Test-BoCaiInstalled $p $State.Programs))
 }
 
 # ---------------------------------------------------------------- phát hiện, kết quả
@@ -156,17 +188,32 @@ function Add-Finding {
 }
 
 function Test-WingetReady {
-    # Winget có và đọc được danh sách đã cài. Ghi phát hiện khi hỏng. Trả kết quả Get-InstalledIds hoặc $null.
-    if (-not (Get-WingetCommand)) {
-        Add-Finding 'WINGET_KHONG_CO' 'loi' 'Máy chưa có winget (App Installer)' 'Windows 10 bản cũ, Windows LTSC hoặc máy chưa đăng nhập Microsoft Store lần nào thường thiếu.' 'Cài App Installer từ Microsoft Store, hoặc trong Trạm Tool mở Máy này > Sửa winget.'
-        return $null
+    # Đọc danh sách đã cài. winget hỏng mà có bộ cài sẵn thì chỉ cảnh báo (cài từ gói, xem đã cài trong Programs and
+    # Features); không có bộ cài thì ghi lỗi, trả $null. -CanWinget: việc này cần winget (cập nhật).
+    param([switch]$CanWinget)
+    $s = Get-InstalledState
+    if ($s.WingetOk) { return $s }
+    $soft = $s.Packaged -and -not $CanWinget
+    $t1 = 'Máy chưa có winget (App Installer)'
+    $d1 = 'Windows 10 bản cũ, Windows LTSC hoặc máy chưa đăng nhập Microsoft Store lần nào thường thiếu.'
+    $f1 = 'Cài App Installer từ Microsoft Store, hoặc trong Trạm Tool mở Máy này > Sửa winget.'
+    $t2 = 'winget không đọc được danh sách ứng dụng'
+    $f2 = 'Trong Trạm Tool mở Máy này > Sửa winget (đăng ký lại App Installer, cập nhật nguồn).'
+    $vi = "Có bộ cài sẵn cho $($s.Packaged) ứng dụng trong bản này: cài từ đó, xem đã cài trong Programs and Features."
+    if ($soft) {
+        if (-not $s.HasWinget) { Add-Finding 'WINGET_KHONG_CO' 'canh-bao' $t1 "$d1 $vi" $f1 } else { Add-Finding 'WINGET_LOI' 'canh-bao' $t2 "$($s.Error) $vi".Trim() $f2 }
+        return $s
     }
-    $r = Get-InstalledIds
-    if (-not $r.Ok) {
-        Add-Finding 'WINGET_LOI' 'loi' 'winget không đọc được danh sách ứng dụng' $r.Error 'Trong Trạm Tool mở Máy này > Sửa winget (đăng ký lại App Installer, cập nhật nguồn).'
-        return $null
-    }
-    return $r
+    if (-not $s.HasWinget) { Add-Finding 'WINGET_KHONG_CO' 'loi' $t1 $d1 $f1 } else { Add-Finding 'WINGET_LOI' 'loi' $t2 $s.Error $f2 }
+    return $null
+}
+
+function Get-WingetInstallArgs {
+    # Lệnh winget cài một ứng dụng (ghim bản khi DanhSach.json có phienBan).
+    param($App)
+    $a = @('install', '--id', $App.id, '-e')
+    if ($App.phienBan) { $a += @('--version', [string]$App.phienBan) }
+    return , ($a + @('--silent', '--accept-package-agreements') + $script:WingetCommon)
 }
 
 function Invoke-Check {
@@ -174,9 +221,13 @@ function Invoke-Check {
     $apps = Read-AppList
     $r = Test-WingetReady
     if (-not $r) { return 2 }
-    $have = @($apps | Where-Object { Test-Installed $_ $r.Ids })
-    $missDefault = @($apps | Where-Object { $_.macDinh -and -not (Test-Installed $_ $r.Ids) })
-    $missOther = @($apps | Where-Object { -not $_.macDinh -and -not (Test-Installed $_ $r.Ids) })
+    $have = @($apps | Where-Object { Test-Installed $_ $r })
+    $missDefault = @($apps | Where-Object { $_.macDinh -and -not (Test-Installed $_ $r) })
+    $missOther = @($apps | Where-Object { -not $_.macDinh -and -not (Test-Installed $_ $r) })
+    if ($r.Packaged) {
+        $noPkg = @($apps | Where-Object { -not (Get-AppPackage $_) })
+        Add-Finding 'BO_CAI_CO_SAN' 'thong-tin' ('Có bộ cài sẵn trong bản này cho {0}/{1} ứng dụng: cài không cần mạng' -f $r.Packaged, $apps.Count) $(if ($noPkg.Count) { 'Cài qua winget (cần mạng): ' + (($noPkg | ForEach-Object { $_.ten }) -join ', ') + '.' } else { '' })
+    }
     if ($have.Count) { Add-Finding 'UNG_DUNG_DA_CAI' 'ok' ('Đã cài {0}/{1}: {2}' -f $have.Count, $apps.Count, (($have | ForEach-Object { $_.ten }) -join ', ')) }
     if ($missDefault.Count) {
         Add-Finding 'UNG_DUNG_MAC_DINH_CHUA_CAI' 'thong-tin' ('Ứng dụng mặc định chưa cài: {0}' -f (($missDefault | ForEach-Object { $_.ten }) -join ', ')) '' 'Chạy "Cài ứng dụng" (các ô mặc định đã đánh dấu sẵn).' 'bo-ung-dung/cai'
@@ -228,9 +279,9 @@ function Invoke-Cai {
     if (-not $r) { return 2 }
     $todo = @(); $seen = @{}
     foreach ($a in $Chosen) {
-        if (Test-Installed $a $r.Ids) { Write-Ok "Đã có: $($a.ten)"; continue }
+        if (Test-Installed $a $r) { Write-Ok "Đã có: $($a.ten)"; continue }
         if ($a.nhom) {
-            $other = @($script:AllApps | Where-Object { $_.nhom -eq $a.nhom -and $_.khoa -ne $a.khoa -and (Test-Installed $_ $r.Ids) })
+            $other = @($script:AllApps | Where-Object { $_.nhom -eq $a.nhom -and $_.khoa -ne $a.khoa -and (Test-Installed $_ $r) })
             if ($seen.ContainsKey($a.nhom) -or $other.Count) {
                 $why = if ($other.Count) { "máy đã có $($other[0].ten)" } else { "đã chọn $($seen[$a.nhom])" }
                 Add-Finding 'BO_QUA_CUNG_NHOM' 'canh-bao' "Bỏ qua $($a.ten): $why" 'Hai ứng dụng cùng loại (bộ gõ tiếng Việt) chạy cùng lúc hay xung đột; chỉ cài một.'
@@ -242,30 +293,55 @@ function Invoke-Cai {
     }
     if (-not $todo.Count) { Write-Info 'Không có ứng dụng nào cần cài.'; return 0 }
     Write-Line ''
-    Write-Line 'Sẽ cài (nguồn winget của Microsoft):'
-    foreach ($a in $todo) { Write-Plan ('{0}   winget install --id {1} -e --silent' -f $a.ten, $a.id); if ($a.ghiChu) { Write-Sub $a.ghiChu } }
+    Write-Line 'Sẽ cài:'
+    $how = @{}
+    foreach ($a in $todo) {
+        $p = Get-AppPackage $a
+        if ($p) { $how[$a.khoa] = 'goi'; Write-Plan ('{0}   bộ cài có sẵn trong bản này (bản {1}, không cần mạng)' -f $a.ten, $p.phienBan) }
+        elseif ($r.WingetOk) { $how[$a.khoa] = 'winget'; Write-Plan ('{0}   winget {1}' -f $a.ten, ((Get-WingetInstallArgs $a | Select-Object -First 6) -join ' ')) }
+        else { $how[$a.khoa] = ''; Write-Plan ('{0}   không có bộ cài sẵn, winget không dùng được: bỏ qua' -f $a.ten) }
+        if ($a.ghiChu) { Write-Sub $a.ghiChu }
+    }
     if ($DryRun) { Write-Info 'Chạy thử: không cài gì.'; return 0 }
     if ($Ask -and -not (Read-YesNo 'Cài các ứng dụng trên?' $false)) { Write-Info 'Đã huỷ, chưa cài gì.'; return 2 }
 
-    $codes = @{}
+    $codes = @{}; $msgs = @{}
     foreach ($a in $todo) {
+        if (-not $how[$a.khoa]) { continue }
         Write-Line ''
         Write-Line "Đang cài $($a.ten)..."
-        $codes[$a.khoa] = Invoke-Winget (@('install', '--id', $a.id, '-e', '--silent', '--accept-package-agreements') + $script:WingetCommon)
+        if ($how[$a.khoa] -eq 'goi') {
+            $b = Install-BoCaiPackage -Root $script:BoCaiRoot -Id $a.id
+            if ($b.Ok) { $codes[$a.khoa] = $(if ($b.Reboot) { $script:CodeReboot } else { 0 }); continue }
+            $msgs[$a.khoa] = $b.Message
+            Write-Warn "Bộ cài có sẵn: $($b.Message)"
+            if (-not $r.WingetOk) { $codes[$a.khoa] = $b.Code; continue }
+            Write-Info 'Thử cài bằng winget.'
+        }
+        $codes[$a.khoa] = Invoke-Winget (Get-WingetInstallArgs $a)
+        $how[$a.khoa] = 'winget'
     }
     # Đọc lại danh sách đã cài thay vì tin mã thoát (bộ cài có thể báo 0 mà chưa cài, hoặc báo lỗi phụ mà đã cài).
-    $after = Get-InstalledIds
+    # Không xác nhận được (winget hỏng, ứng dụng không có trong Programs and Features) thì tin mã thoát.
+    $after = Get-InstalledState
     Write-Line ''
     $ok = 0; $fail = 0; $reboot = $false
     foreach ($a in $todo) {
+        if (-not $how[$a.khoa]) {
+            Add-Finding 'CAI_KHONG_CO_NGUON' 'loi' "Chưa cài được $($a.ten)" 'Bản này không có bộ cài sẵn của ứng dụng này và winget không dùng được.' 'Sửa winget (Máy này > Sửa winget) rồi chạy lại, hoặc dùng bản portable đầy đủ.'
+            $fail++; continue
+        }
         $c = $codes[$a.khoa]
-        $now = $after.Ok -and (Test-Installed $a $after.Ids)
+        $now = Test-Installed $a $after
+        $canSee = $after.WingetOk -or [bool]((Get-AppPackage $a) -and @($after.Programs).Count)
         if ($c -eq $script:CodeReboot) { $reboot = $true }
-        if ($now -or (-not $after.Ok -and $c -in 0, $script:CodeReboot)) {
-            Add-Finding 'DA_CAI' 'ok' "Đã cài $($a.ten)" $(if ($c -ne 0) { "winget báo mã $c nhưng ứng dụng đã có trong danh sách đã cài." } else { '' })
+        $src = if ($how[$a.khoa] -eq 'goi') { 'bộ cài có sẵn' } else { 'winget' }
+        if ($now -or (-not $canSee -and $c -in 0, $script:CodeReboot)) {
+            Add-Finding 'DA_CAI' 'ok' "Đã cài $($a.ten)" $(if ($c -ne 0) { "$src báo mã $c nhưng ứng dụng đã có trong danh sách đã cài." } elseif ($how[$a.khoa] -eq 'goi') { 'Từ bộ cài có sẵn trong bản này.' } else { '' })
             $ok++
         } else {
-            Add-Finding 'CAI_LOI' 'loi' "Chưa cài được $($a.ten)" ('winget install mã {0}{1}.' -f $c, $(if ($c -eq 0) { ' nhưng không thấy trong danh sách đã cài' } else { '' })) 'Chạy lại; vẫn lỗi thì xem dòng báo lỗi của winget trong cửa sổ công cụ, hoặc kiểm tra mạng.'
+            $why = if ($msgs[$a.khoa] -and $how[$a.khoa] -eq 'goi') { $msgs[$a.khoa] } else { '{0} mã {1}{2}.' -f $src, $c, $(if ($c -eq 0) { ' nhưng không thấy trong danh sách đã cài' } else { '' }) }
+            Add-Finding 'CAI_LOI' 'loi' "Chưa cài được $($a.ten)" $why 'Chạy lại; vẫn lỗi thì xem dòng báo lỗi trong cửa sổ công cụ, hoặc kiểm tra mạng.'
             $fail++
         }
     }
@@ -278,9 +354,10 @@ function Invoke-Cai {
 function Invoke-CapNhat {
     param([switch]$DryRun, [switch]$Ask)
     Write-Head 'Cập nhật ứng dụng trong danh sách'
-    $r = Test-WingetReady
+    $r = Test-WingetReady -CanWinget
     if (-not $r) { return 2 }
-    $todo = @($script:AllApps | Where-Object { Test-Installed $_ $r.Ids })
+    # Ứng dụng ghim bản (DanhSach.json phienBan) không cập nhật: bản mới hơn không cài được trên máy này.
+    $todo = @($script:AllApps | Where-Object { -not $_.phienBan -and (Test-Installed $_ $r) })
     if (-not $todo.Count) { Write-Info 'Chưa cài ứng dụng nào trong danh sách.'; return 0 }
     Write-Line 'Sẽ kiểm tra bản mới và cập nhật:'
     foreach ($a in $todo) { Write-Plan ('{0}   winget upgrade --id {1} -e --silent' -f $a.ten, $a.id) }
@@ -338,11 +415,12 @@ function Invoke-Mode {
 function Read-MenuChoice {
     # Hỏi chọn ứng dụng bằng số. Enter: các ứng dụng mặc định. Trả danh sách ứng dụng ($null khi không chọn gì).
     $apps = Read-AppList
-    $r = Get-InstalledIds
+    $script:AllApps = $apps
+    $r = Get-InstalledState
     Write-Host ''
     for ($i = 0; $i -lt $apps.Count; $i++) {
         $a = $apps[$i]
-        $mark = if ($r.Ok -and (Test-Installed $a $r.Ids)) { '[đã cài]' } elseif ($a.macDinh) { '*' } else { '' }
+        $mark = if (Test-Installed $a $r) { '[đã cài]' } elseif ($a.macDinh) { '*' } else { '' }
         Write-Host ('   {0,2}. {1} {2}' -f ($i + 1), $a.ten, $mark)
     }
     Write-Host ''

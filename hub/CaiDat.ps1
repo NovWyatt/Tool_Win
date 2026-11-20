@@ -2,6 +2,7 @@
   Trạm Tool - cài một lần cho máy mới. Chạy bằng CAI_DAT.bat ở thư mục gốc (bấm đúp).
   Kiểm tra từng công cụ cần gì (giống mục "Yêu cầu để chạy" của trạm), liệt kê phần còn thiếu, hỏi rồi cài theo thứ tự:
   gói winget, script cài đặt của từng công cụ (CAI_DAT.ps1), script cài đặt của trạm (hub\fixes, có thể cần Admin).
+  Bản portable có bộ cài sẵn (runtime\bo-cai) thì gói winget cài từ đó (hub\fixes\Cai-BoCai.ps1), không cần mạng.
   Xong thì kiểm tra lại, tạo lối tắt trên Desktop và mở trạm. Chạy lại bao nhiêu lần cũng được: thứ đã có thì bỏ qua.
     -ChayThu  : chỉ kiểm tra và in kế hoạch, không cài, không đổi gì trên máy.
     -TatCa    : không hỏi; cài mọi thứ còn thiếu (kể cả mô hình ghi âm khoảng 5 GB), tạo lối tắt, mở trạm.
@@ -29,6 +30,7 @@ if (-not $ToolsDir) { $ToolsDir = Join-Path $RootDir 'tools' }
 . (Join-Path $HubDir 'lib\Common.ps1')
 . (Join-Path $HubDir 'lib\Catalog.ps1')
 . (Join-Path $HubDir 'lib\AnToan.ps1')
+. (Join-Path $HubDir 'lib\BoCai.ps1')
 . (Join-Path $HubDir 'lib\Checks.ps1')
 
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
@@ -109,8 +111,16 @@ function Get-InstallPlan($Catalog) {
                 }
             } elseif ($wg) {
                 $extra = [string](Get-Prop $fix 'args' '')
-                $item = [ordered]@{ key = "w:$wg"; order = $(if ($wg -like 'Python.*') { 0 } else { 0.5 }); kind = 'winget'; id = $wg; args = $extra; label = [string](Get-Prop $fix 'label' $r.label)
-                    how = "winget ($wg)$(if ($extra -match '--scope\s+user') { ', không cần Admin' } else { ', Windows có thể hỏi quyền Admin' })"; note = ''; heavy = $false }
+                $pkg = Get-RequirementBundle $fix
+                if ($pkg) {
+                    # Bản portable có bộ cài sẵn: cài từ đó, không cần mạng hay winget.
+                    $adm = $pkg.phamVi -ne 'user'
+                    $item = [ordered]@{ key = "w:$wg"; order = 0.5; kind = 'bocai'; id = $wg; admin = $adm; label = [string](Get-Prop $fix 'label' $r.label)
+                        how = "bộ cài có sẵn trong bản này ($($pkg.ten) bản $($pkg.phienBan), không cần mạng)$(if ($adm) { ', cần quyền Admin' })"; note = ''; heavy = $false }
+                } else {
+                    $item = [ordered]@{ key = "w:$wg"; order = $(if ($wg -like 'Python.*') { 0 } else { 0.5 }); kind = 'winget'; id = $wg; args = $extra; label = [string](Get-Prop $fix 'label' $r.label)
+                        how = "winget ($wg)$(if ($extra -match '--scope\s+user') { ', không cần Admin' } else { ', Windows có thể hỏi quyền Admin' })"; note = ''; heavy = $false }
+                }
             } elseif ($hs -match '^[A-Za-z0-9._-]+\.ps1$') {
                 $adm = [bool](Get-Prop $fix 'admin' $false)
                 $item = [ordered]@{ key = "h:$hs"; order = 2; kind = 'hub'; file = $hs; admin = $adm; label = [string](Get-Prop $fix 'label' $r.label)
@@ -137,6 +147,21 @@ function Invoke-PlanItem($It) {
             $code = $LASTEXITCODE
             Update-EnvPath
             if ($code -ne 0) { Write-AtWarn "winget trả mã $(Format-ExitCode $code) (có thể gói đã có sẵn); kiểm tra lại ở cuối." }
+            return $true
+        }
+        'bocai' {
+            $file = Join-Path $HubDir 'fixes\Cai-BoCai.ps1'
+            if ($It.admin -and -not (Test-IsAdmin)) {
+                Write-AtInfo 'Windows sẽ hỏi quyền Admin, bấm "Có" để tiếp tục. Cửa sổ cài mở riêng, xong tự đóng.'
+                try { $p = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$file`"", '-Id', $It.id) -Verb RunAs -Wait -PassThru }
+                catch { Write-AtWarn 'Đã huỷ ở hộp thoại quyền Admin.'; return $false }
+                $code = $p.ExitCode
+            } else {
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $file -Id $It.id
+                $code = $LASTEXITCODE
+            }
+            Update-EnvPath
+            if ($code -ne 0) { Write-AtBad "Cài từ bộ cài có sẵn báo lỗi (mã $(Format-ExitCode $code))."; return $false }
             return $true
         }
         'action' {

@@ -1,11 +1,13 @@
 ﻿# Bài thử BoUngDung.ps1 bằng giả lập winget: danh sách đã cài (winget export), cài, cập nhật, mã thoát (lỗi, không có
 # bản mới, cần khởi động lại), bộ cài báo 0 mà chưa cài; danh sách DanhSach.json khớp ô chọn trong tool.json.
+# Phần 8: bản portable có bộ cài sẵn (runtime\bo-cai giả, bộ cài giả, Programs and Features giả), máy không có winget.
 . "$PSScriptRoot\..\lib\KiemThu.ps1"
 $ErrorActionPreference = 'Stop'
 . "$HubDir\lib\Common.ps1"; . "$HubDir\lib\Catalog.ps1"; . "$HubDir\lib\KetQua.ps1"
 $toolDir = Join-Path $ToolsDir 'bo-ung-dung'
 $env:TRAMTOOL_BOUNGDUNG_TEST = '1'
 . "$toolDir\BoUngDung.ps1"
+$script:BoCaiRoot = ''   # phần 1-7: không có bộ cài sẵn, chỉ winget
 $ChayThu = $false; $KhongDung = $true; $ConLai = $null
 $script:ResultDir = New-TestDir 'bud_ketqua'
 $manifest = [IO.File]::ReadAllText((Join-Path $toolDir 'tool.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
@@ -93,7 +95,7 @@ Write-KT '4. Cài' Cyan
 Reset-Case
 $c = Last (Invoke-Cai @((App 'Zalo'), (App 'UniKey'), (App 'EVKey'), (App 'SevenZip')) 6>$null)
 Check ($c -eq 0) "cài: mã 0 ($c)"
-Check ($script:Calls.Count -eq 2 -and $script:Calls[0] -eq 'install --id UniKey.UniKey -e --silent --accept-package-agreements --source winget --accept-source-agreements --disable-interactivity' -and $script:Calls[1] -match '^install --id 7zip\.7zip ') "chỉ cài UniKey, 7-Zip, đúng tham số ($($script:Calls -join ' | '))"
+Check ($script:Calls.Count -eq 2 -and $script:Calls[0] -eq "install --id UniKey.UniKey -e --version $((App 'UniKey').phienBan) --silent --accept-package-agreements --source winget --accept-source-agreements --disable-interactivity" -and $script:Calls[1] -match '^install --id 7zip\.7zip -e --silent ') "chỉ cài UniKey (bản ghim), 7-Zip, đúng tham số ($($script:Calls -join ' | '))"
 Check ((Find 'DA_CAI').Count -eq 2 -and (Find 'BO_QUA_CUNG_NHOM')[0].tieuDe -match 'EVKey') 'đã có Zalo thì bỏ qua; EVKey cùng nhóm với UniKey thì bỏ qua'
 Reset-Case; $script:Installed += 'UniKey.UniKey'
 [void](Invoke-Cai @((App 'EVKey')) 6>$null)
@@ -168,5 +170,71 @@ Check ($next.Count -gt 0 -and -not @($next | Where-Object { $ids -notcontains $_
 $cat = Get-HubCatalog -ToolsDir $ToolsDir -RootDir $RepoRoot
 $t = @($cat | Where-Object { $_.id -eq 'bo-ung-dung' })[0]
 Check ($t -and @($t.problems).Count -eq 0) "trạm đọc được tool.json, không lỗi khai báo ($(@($t.problems) -join ' | '))"
+
+Write-KT '8. Bộ cài có sẵn trong bản portable (không cần mạng)' Cyan
+$bcRoot = Join-Path (New-TestDir 'bud_bocai') 'bo-cai'
+$bcSrc = New-TestDir 'bud_bocai_nguon'
+$seven = App 'SevenZip'; $vlc = App 'VLC'; $chrome = App 'Chrome'
+function New-FakePackage($App, [string]$File, [string]$Loai, [string]$TenCaiDat) {
+    $f = Join-Path $bcSrc $File; [IO.File]::WriteAllText($f, "bo cai gia $($App.id)")
+    [void](New-BoCaiFilePackage -File $f -DestRoot $bcRoot -Info @{ id = $App.id; ten = $App.ten; phienBan = '9.9'; nhaPhatHanh = 'Thu'; loai = $Loai; lenhIm = ''; phamVi = 'machine'; tenCaiDat = $TenCaiDat })
+}
+New-FakePackage $seven '7zip-gia.msi' 'msi' '7-Zip'
+New-FakePackage $vlc 'vlc-gia.exe' 'nullsoft' 'VLC media player'
+# Bộ cài giả: chạy "xong" thì thêm một mục vào Programs and Features giả.
+$script:BcRuns = New-Object System.Collections.ArrayList
+$script:BcProg = @{ '7zip-gia.msi' = '7-Zip 9.9 (x64 edition)'; 'vlc-gia.exe' = 'VLC media player' }
+function Invoke-BoCaiProcess {
+    param([string]$Exe, [string]$Arguments)
+    [void]$script:BcRuns.Add("$Exe $Arguments")
+    foreach ($k in $script:BcProg.Keys) {
+        if ("$Exe $Arguments" -like "*$k*" -and $script:BcCode -in 0, 3010) { $script:Progs += [pscustomobject]@{ Name = $script:BcProg[$k]; Code = $k; Version = '9.9' } }
+    }
+    return [int64]$script:BcCode
+}
+function Get-InstalledPrograms { return , @($script:Progs) }
+function Reset-Offline {
+    Reset-Case
+    $script:BoCaiRoot = $bcRoot; $script:BcRuns.Clear(); $script:BcCode = 0; $script:Progs = @()
+}
+function Text($Out) { return (@($Out | Where-Object { $_ -isnot [int] }) | Out-String) }
+
+Reset-Offline; $script:HasWinget = $false; $script:Progs = @([pscustomobject]@{ Name = 'VLC media player'; Code = 'VLC'; Version = '3.0' })
+$c = Last (Invoke-Check 6>$null)
+Check ($c -eq 0 -and (Find 'WINGET_KHONG_CO')[0].mucDo -eq 'canh-bao' -and (Find 'BO_CAI_CO_SAN')[0].tieuDe -match "2/$($apps.Count)" -and (Find 'BO_CAI_CO_SAN')[0].chiTiet -match [regex]::Escape($chrome.ten)) "không có winget mà có bộ cài sẵn: chỉ cảnh báo, đếm ứng dụng có gói ($c)"
+Check ((Find 'UNG_DUNG_DA_CAI')[0].tieuDe -match 'VLC' -and (Find 'UNG_DUNG_MAC_DINH_CHUA_CAI')[0].tieuDe -match '7-Zip') 'nhận ứng dụng đã cài qua Programs and Features (không có winget)'
+Reset-Offline; $script:ExportFailFrom = 1
+$c = Last (Invoke-Check 6>$null)
+Check ($c -eq 0 -and (Find 'WINGET_LOI')[0].mucDo -eq 'canh-bao' -and (Find 'WINGET_LOI')[0].chiTiet -match 'hỏng') 'winget export lỗi mà có bộ cài sẵn: cảnh báo kèm chữ lỗi'
+
+Reset-Offline; $script:HasWinget = $false
+$o = Invoke-Cai @($seven, $chrome) -DryRun 6>&1
+Check ((Last $o) -eq 0 -and $script:BcRuns.Count -eq 0 -and (Text $o) -match "$([regex]::Escape($seven.ten))\s+bộ cài có sẵn trong bản này \(bản 9\.9" -and (Text $o) -match "$([regex]::Escape($chrome.ten))\s+không có bộ cài sẵn, winget không dùng được: bỏ qua") 'chạy thử: kế hoạch ghi rõ nguồn cài từng ứng dụng, không chạy gì'
+Reset-Offline
+$c = Last (Invoke-Cai @($seven, $chrome) 6>$null)
+Check ($c -eq 0 -and $script:BcRuns.Count -eq 1 -and $script:BcRuns[0] -like 'msiexec.exe /i "*7zip-gia.msi" /quiet /norestart' -and $script:Calls.Count -eq 1 -and $script:Calls[0] -match '^install --id Google\.Chrome ') "có winget: ứng dụng có gói cài từ gói, còn lại qua winget ($($script:BcRuns -join ' | '); $($script:Calls -join ' | '))"
+Check ((Find 'DA_CAI').Count -eq 2 -and (@(Find 'DA_CAI') | Where-Object { $_.tieuDe -match '7-Zip' }).chiTiet -match 'bộ cài có sẵn') 'xác nhận đã cài: 7-Zip qua Programs and Features, Chrome qua winget'
+Reset-Offline; $script:HasWinget = $false
+$c = Last (Invoke-Cai @($seven, $chrome) 6>$null)
+Check ($c -eq 3 -and $script:Calls.Count -eq 0 -and (Find 'DA_CAI')[0].tieuDe -match '7-Zip' -and (Find 'CAI_KHONG_CO_NGUON')[0].tieuDe -match [regex]::Escape($chrome.ten)) "không có winget: cài được ứng dụng có gói, ứng dụng không có gói báo CAI_KHONG_CO_NGUON, mã 3 ($c)"
+Reset-Offline; $script:HasWinget = $false; $script:BcCode = 3010
+$c = Last (Invoke-Cai @($seven) 6>$null)
+Check ($c -eq 0 -and (Codes) -contains 'DA_CAI' -and (Codes) -contains 'CAN_KHOI_DONG_LAI') 'bộ cài có sẵn báo 3010: đã cài, nhắc khởi động lại'
+[IO.File]::AppendAllText((Join-Path $bcRoot "$($seven.id)\7zip-gia.msi"), 'bi sua')
+Reset-Offline
+$c = Last (Invoke-Cai @($seven) 6>$null)
+Check ($c -eq 0 -and $script:BcRuns.Count -eq 0 -and $script:Calls.Count -eq 1 -and $script:Calls[0] -match '^install --id 7zip\.7zip ' -and (Find 'DA_CAI').Count -eq 1) 'bộ cài có sẵn sai mã SHA-256: không chạy, cài lại bằng winget'
+Reset-Offline; $script:HasWinget = $false
+$c = Last (Invoke-Cai @($seven) 6>$null)
+Check ($c -eq 1 -and $script:BcRuns.Count -eq 0 -and (Find 'CAI_LOI')[0].chiTiet -match 'SHA-256') 'sai mã SHA-256 và không có winget: lỗi, ghi lý do'
+New-FakePackage $seven '7zip-gia.msi' 'msi' '7-Zip'
+
+Reset-Offline; $script:HasWinget = $false
+$c = Last (Invoke-CapNhat 6>$null)
+Check ($c -eq 2 -and (Find 'WINGET_KHONG_CO')[0].mucDo -eq 'loi') 'cập nhật cần winget: có bộ cài sẵn vẫn là thiếu điều kiện (mã 2)'
+Reset-Offline; $script:Installed = @('UniKey.UniKey', '7zip.7zip')
+$c = Last (Invoke-CapNhat 6>$null)
+Check ($c -eq 0 -and $script:Calls.Count -eq 1 -and $script:Calls[0] -match '^upgrade --id 7zip\.7zip ') "ứng dụng ghim bản (UniKey) không cập nhật ($($script:Calls -join ' | '))"
+$script:BoCaiRoot = ''
 
 Complete-Test

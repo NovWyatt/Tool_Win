@@ -1,8 +1,10 @@
 ﻿# Bản portable (hub\dev\DongGoi.ps1): hàm của trạm trỏ lại .venv khi thư mục đổi chỗ (pyvenv.cfg UTF-8, đường dẫn có
 # dấu), giữ Python mang theo đứng đầu PATH, bật UTF-8 cho Python, bỏ dấu tải từ Internet một lần; lối tắt
 # "Trạm Tool.lnk" (WScript.Shell không lưu được tên có dấu); TramTool.exe dịch từ hub\dev\TramToolExe.cs chạy
-# powershell.exe giả (tham số, lỗi khi mở, nhận máy chủ đã chạy); DongGoi.ps1 chạy thử và dựng gói với gói Python giả
-# (không tải, không dựng .venv thật). Không đụng Desktop, PATH hay registry thật.
+# powershell.exe giả (tham số, lỗi khi mở, nhận máy chủ đã chạy); DongGoi.ps1 chạy thử và dựng gói với gói Python giả;
+# bộ cài có sẵn (cache giả, gói phụ thuộc, sai mã SHA-256, khác bản ghim, LocalDB không chữ ký), gói ứng dụng, mẫu Office
+# (khoá KMS chung thì đóng, khoá riêng giả thì không, khoá không bao giờ in ra); không tải, không dựng .venv thật.
+# Không đụng Desktop, PATH hay registry thật.
 . "$PSScriptRoot\..\lib\KiemThu.ps1"
 $ErrorActionPreference = 'Stop'
 . (Join-Path $HubDir 'lib\Common.ps1')
@@ -153,4 +155,68 @@ if ($zip) {
     Check ($sha -eq (Get-FileHash -LiteralPath $zip.FullName -Algorithm SHA256).Hash) 'file .sha256.txt khớp gói'
     Check ((Get-Item -LiteralPath (Join-Path $st 'TramTool.exe')).VersionInfo.ProductName -eq 'Trạm Tool (bản portable)') 'TramTool.exe có tên sản phẩm tiếng Việt'
 }
+
+Write-KT '5. DongGoi.ps1: bộ cài có sẵn, gói ứng dụng, mẫu Office' Cyan
+# cache\bo-cai giả như 'winget download' để lại (file kê khai + bộ cài là file chữ); không tải gì (-KhongCaiCongCu).
+$ra2 = New-TestDir 'goi ra bo cai'
+$cb = Join-Path $ra2 'cache\bo-cai'
+function New-CachedDownload([string]$Id, [string]$File, [string]$Extra = '', [switch]$BadSha) {
+    $d = Join-Path $cb $Id
+    New-Item -ItemType Directory -Path $d -Force | Out-Null
+    $f = Join-Path $d $File
+    [IO.File]::WriteAllText($f, "bo cai gia $Id")
+    $h = if ($BadSha) { '0' * 64 } else { (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash }
+    $y = "PackageIdentifier: $Id`nPackageVersion: 1.0`nPackageName: Gia $Id`nPublisher: Thu`nInstallers:`n- Architecture: x64`n  InstallerType: burn`n  InstallerSha256: $h`n$Extra" + "ManifestType: merged`n"
+    [IO.File]::WriteAllText((Join-Path $d "$Id.yaml"), $y, (New-Object Text.UTF8Encoding $false))
+}
+$vc = 'Microsoft.VCRedist.2015+.x64'
+New-CachedDownload 'Microsoft.msodbcsql.18' 'msodbcsql.msi' "  Dependencies:`n    PackageDependencies:`n    - PackageIdentifier: $vc`n"
+New-CachedDownload $vc 'vc_redist.x64.exe'
+New-CachedDownload '7zip.7zip' '7z-x64.exe'
+New-CachedDownload 'VideoLAN.VLC' 'vlc.exe' -BadSha
+New-CachedDownload 'UniKey.UniKey' 'unikey.zip'   # bản 1.0, không phải bản ghim trong DanhSach.json
+New-Item -ItemType Directory -Path (Join-Path $cb 'SqlLocalDB') -Force | Out-Null
+[IO.File]::WriteAllText((Join-Path $cb 'SqlLocalDB\SqlLocalDB.msi'), 'khong co chu ky')
+function New-FakeMau([string]$Name, [string]$Key) {
+    $m = New-TestDir $Name
+    New-Item -ItemType Directory -Path (Join-Path $m 'Office\Data') -Force | Out-Null
+    foreach ($p in @(@('setup.exe', 'gia'), @('Office\Data\v64.cab', 'gia'), @('ghi-chu.txt', 'ghi chu cua tho'), @('khac.xml', '<GhiChu>x</GhiChu>'))) { [IO.File]::WriteAllText((Join-Path $m $p[0]), $p[1]) }
+    [IO.File]::WriteAllText((Join-Path $m 'Configuration.xml'), "<Configuration><Add OfficeClientEdition=""64"" Channel=""PerpetualVL2019""><Product ID=""ProPlus2019Volume"" PIDKEY=""$Key""><Language ID=""en-us"" /></Product></Add></Configuration>")
+    return $m
+}
+$mauKms = New-FakeMau 'mau kms' 'NMMKJ-6RK4F-KMJVX-8D9MJ-6MWKP'     # GVLK Microsoft công bố (Office 2019)
+$mauRieng = New-FakeMau 'mau rieng' 'TESTA-BBBBB-CCCCC-DDDDD-QWXYZ'  # khoá giả
+function Get-ZipNames($F) { $z = [IO.Compression.ZipFile]::OpenRead($F.FullName); try { return , @($z.Entries | ForEach-Object { $_.FullName }) } finally { $z.Dispose() } }
+
+$r = Invoke-DongGoi @('-Ra', $ra2, '-PythonGoi', $nupkg, '-KhongCaiCongCu', '-KemUngDung', '-MauOffice', $mauKms)
+$zb = @(Get-ChildItem -LiteralPath $ra2 -Filter 'TramTool-Portable-*.zip')[0]
+$zu = @(Get-ChildItem -LiteralPath $ra2 -Filter 'TramTool-UngDung-*.zip')[0]
+$zo = @(Get-ChildItem -LiteralPath $ra2 -Filter 'TramTool-Office-*.zip')[0]
+Check ($r.Code -eq 0 -and $zb -and $zu -and $zo -and -not @(Get-ChildItem -LiteralPath $ra2 -Filter 'TramTool-GhiAm-*.zip').Count) "kèm ứng dụng và mẫu Office: gói chính, gói ứng dụng, gói Office ($($r.Code))"
+if ($zb -and $zu -and $zo) {
+    $nb = Get-ZipNames $zb; $nu = Get-ZipNames $zu; $no = Get-ZipNames $zo
+    $bc = 'TramTool/runtime/bo-cai/'
+    Check ($nb -contains "${bc}Microsoft.msodbcsql.18/msodbcsql.msi" -and $nb -contains "${bc}Microsoft.msodbcsql.18/goi.json" -and $nb -contains "$bc$vc/vc_redist.x64.exe") 'gói chính có bộ cài của nút Cài (ODBC 18) và gói nó cần (Visual C++ Redistributable)'
+    Check (-not @($nb | Where-Object { $_ -match '^TramTool/runtime/bo-cai/(7zip|VideoLAN|UniKey|SqlLocalDB)' -or $_ -match '^TramTool/tools/office/mau/' -or $_ -match '\.yaml$' }).Count) 'gói chính không có bộ cài ứng dụng, mẫu Office, file kê khai'
+    Check ((@($nu | Sort-Object) -join ',') -eq "${bc}7zip.7zip/7z-x64.exe,${bc}7zip.7zip/goi.json") "gói ứng dụng: chỉ bộ cài đúng mã SHA-256 và đúng bản ghim ($($nu -join ', '))"
+    Check ((@($no | Sort-Object) -join ',') -eq 'TramTool/tools/office/mau/Configuration.xml,TramTool/tools/office/mau/Office/Data/v64.cab,TramTool/tools/office/mau/setup.exe') "gói Office: setup.exe, file cấu hình, thư mục Office; không ghi chú, không xml khác ($($no -join ', '))"
+    Check (-not @($zb, $zu, $zo | Where-Object { [IO.File]::ReadAllText("$($_.FullName).sha256.txt").Split(' ')[0] -ne (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }).Count) 'mỗi gói có file .sha256.txt khớp'
+}
+$st2 = Join-Path $ra2 'dung\TramTool'
+$pj = [IO.File]::ReadAllText((Join-Path $st2 'portable.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
+$want = (@('7zip.7zip', 'Microsoft.msodbcsql.18', $vc) | Sort-Object) -join ','
+Check (((@($pj.boCai) | Sort-Object) -join ',') -eq $want -and (@($pj.ungDung) -join ',') -eq 'SevenZip' -and $pj.officeMau -eq $true -and $pj.ghiAm -eq $false) "portable.json: bộ cài, ứng dụng, mẫu Office ($(@($pj.boCai) -join ', '))"
+Check ($r.Out -match 'Bỏ qua VideoLAN\.VLC' -and $r.Out -match 'Bỏ qua UniKey\.UniKey' -and -not (Test-Path -LiteralPath (Join-Path $st2 'runtime\bo-cai\UniKey.UniKey'))) 'cache sai mã SHA-256 hoặc khác bản ghim: không dùng'
+Check (-not (Test-Path -LiteralPath (Join-Path $cb 'SqlLocalDB\SqlLocalDB.msi')) -and -not (Test-Path -LiteralPath (Join-Path $st2 'runtime\bo-cai\SqlLocalDB')) -and $r.Out -match 'SqlLocalDB: bộ cài không có chữ ký hợp lệ của Microsoft') 'bộ cài SQL LocalDB không có chữ ký Microsoft: xoá khỏi cache, không đóng'
+$hd = [IO.File]::ReadAllText((Join-Path $st2 'HUONG-DAN-PORTABLE.txt'), [Text.Encoding]::UTF8)
+Check ($hd -match 'nút Cài của các công cụ \(không cần mạng\): Gia Microsoft\.msodbcsql\.18' -and $hd -match 'Bộ ứng dụng văn phòng: 7-Zip' -and $hd -match 'Bộ cài mẫu Office' -and $hd -match 'SQL Server LocalDB' -and $hd -notmatch 'cài qua winget \(cần mạng\)' -and $hd -notmatch 'Gỡ sạch và cài Office') 'hướng dẫn ghi đúng thứ có sẵn và thứ còn thiếu'
+Check ($r.Out -notmatch '6MWKP|NMMKJ' -and $r.Out -match 'khoá KMS chung') 'kế hoạch ghi loại khoá của mẫu, không in khoá'
+
+$ra3 = New-TestDir 'goi ra khoa rieng'
+$r = Invoke-DongGoi @('-Ra', $ra3, '-PythonGoi', $nupkg, '-KhongCaiCongCu', '-KhongNen', '-MauOffice', $mauRieng)
+$st3 = Join-Path $ra3 'dung\TramTool'
+$pj3 = [IO.File]::ReadAllText((Join-Path $st3 'portable.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
+Check ($r.Code -eq 0 -and $r.Out -match 'KHOÁ RIÊNG' -and $r.Out -match 'không đóng mẫu vào gói' -and -not (Test-Path -LiteralPath (Join-Path $st3 'tools\office\mau')) -and $pj3.officeMau -eq $false -and -not @(Get-ChildItem -LiteralPath $ra3 -Filter '*.zip').Count) "mẫu có khoá riêng: không đóng vào gói ($($r.Code))"
+$leak = @(Get-ChildItem -LiteralPath $st3 -File | Where-Object { $_.Extension -in '.json', '.txt' } | Where-Object { [IO.File]::ReadAllText($_.FullName) -match 'QWXYZ|TESTA' })
+Check ($r.Out -notmatch 'QWXYZ|TESTA' -and -not $leak.Count) 'khoá riêng không hiện trong lời in, portable.json, hướng dẫn'
 Complete-Test

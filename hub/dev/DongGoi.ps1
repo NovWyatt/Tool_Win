@@ -8,23 +8,35 @@
       ghim dưới đây) kèm tkinter lấy từ Python 3.12.10 đã cài trên máy dựng (hộp thoại chọn file của mdf2sql);
     - .venv dựng sẵn của DWG sang PDF (ezdxf, PyMuPDF) và Khôi phục .mdf (pyodbc), LibreDWG 0.14;
     - TramTool.exe (dịch từ hub\dev\TramToolExe.cs bằng csc.exe của Windows), HUONG-DAN-PORTABLE.txt, portable.json.
-  Không có trong gói chính:
-    - Ghi âm sang Word: thư viện (khoảng 2 GB) và mô hình (khoảng 3 GB). Nút Cài trong trạm tải về lần đầu (đã dùng
-      Python mang theo, không cần winget); -KemGhiAm làm thêm gói riêng TramTool-GhiAm-*.zip để giải nén chồng lên.
-    - SQL Server và ODBC Driver của Khôi phục .mdf: phải cài vào Windows (cần quyền Admin), trạm có nút Cài.
+    - runtime\bo-cai: bộ cài cho mọi nút Cài loại winget của các công cụ (vd ODBC Driver 18 và Visual C++ Redistributable
+      mà nó cần) và SQL Server LocalDB, để máy dùng cài không cần mạng (hub\lib\BoCai.ps1).
+  Gói thêm (giải nén chồng vào cùng thư mục TramTool; -DayDu làm cả ba):
+    - -KemUngDung: bộ cài các ứng dụng của Bộ ứng dụng văn phòng (DanhSach.json), TramTool-UngDung-*.zip.
+    - -KemOffice: bộ cài mẫu Office vào tools\office\mau (mẫu tìm như công cụ Office, hoặc -MauOffice), chỉ khi mẫu
+      không có khoá riêng (chỉ khoá KMS chung hoặc không khoá), TramTool-Office-*.zip.
+    - -KemGhiAm: Ghi âm sang Word, thư viện (khoảng 2 GB) và mô hình (khoảng 3 GB mỗi mô hình), TramTool-GhiAm-*.zip.
+  Bộ cài tải bằng 'winget download' (winget đối chiếu mã SHA-256), giữ trong cache\bo-cai; lần sau dùng lại, -LamMoiBoCai
+  để tải bản mới. Bộ cài không tải được (vd mã SHA-256 không khớp) thì bỏ qua, báo ở cuối.
   Tham số:
     -Ra <thư mục>  nơi để gói, thư mục dựng (dung\) và bộ nhớ tải về (cache\). Mặc định D:\Repo\TramTool-Portable.
-    -KemGhiAm      làm thêm gói Ghi âm sang Word (thư viện + mô hình faster-whisper-large-v3).
+    -DayDu         đủ mọi thứ: -KemUngDung -KemOffice -KemGhiAm. Thư mục dung\TramTool lúc đó là bản đầy đủ: chép cả
+                   thư mục sang USB, máy dùng bấm TramTool.exe.
+    -KemUngDung, -KemOffice, -MauOffice <thư mục>, -KemGhiAm, -LamMoiBoCai: như trên.
     -KhongNen      chỉ dựng thư mục dung\TramTool, không nén .zip.
     -ChayThu       chỉ in kế hoạch, không tải, không ghi gì.
     -PythonGoi <file .nupkg>  dùng gói Python có sẵn (bài thử: gói giả, bỏ kiểm SHA-256).
-    -KhongCaiCongCu  không dựng .venv, không tải LibreDWG (bài thử).
-  Cần mạng lần đầu (Python, thư viện, LibreDWG); các lần sau dùng lại cache\. Mã thoát: 0 xong, 1 lỗi.
+    -KhongCaiCongCu  không dựng .venv, không tải LibreDWG, không tải bộ cài (chỉ dùng cache\bo-cai) (bài thử).
+  Cần mạng lần đầu (Python, thư viện, LibreDWG, bộ cài); các lần sau dùng lại cache\. Mã thoát: 0 xong, 1 lỗi.
 #>
 [CmdletBinding()]
 param(
     [string]$Ra = 'D:\Repo\TramTool-Portable',
+    [switch]$DayDu,
+    [switch]$KemUngDung,
+    [switch]$KemOffice,
+    [string]$MauOffice = '',
     [switch]$KemGhiAm,
+    [switch]$LamMoiBoCai,
     [switch]$KhongNen,
     [switch]$ChayThu,
     [string]$PythonGoi = '',
@@ -73,6 +85,103 @@ $Stage = Join-Path $Dung 'TramTool'
 $Cache = Join-Path $Ra 'cache'
 $Zip = Join-Path $Ra "$Ten.zip"
 $ZipGhiAm = Join-Path $Ra "TramTool-GhiAm-$hubVer-$(Get-Date -Format 'yyyyMMdd').zip"
+$ZipUngDung = Join-Path $Ra "TramTool-UngDung-$hubVer-$(Get-Date -Format 'yyyyMMdd').zip"
+$ZipOffice = Join-Path $Ra "TramTool-Office-$hubVer-$(Get-Date -Format 'yyyyMMdd').zip"
+if ($DayDu) { $KemUngDung = $true; $KemOffice = $true; $KemGhiAm = $true }
+if ($MauOffice) { $KemOffice = $true }
+$CacheBoCai = Join-Path $Cache 'bo-cai'
+. (Join-Path $RepoDir 'hub\lib\BoCai.ps1')
+
+# ------------------------------------------------------------------ bộ cài có sẵn (runtime\bo-cai)
+# Mã gói winget mà các nút Cài của công cụ dùng (trừ Python: bản portable đã có Python mang theo).
+$fixIds = @(foreach ($tj in @(Get-ChildItem -LiteralPath (Join-Path $RepoDir 'tools') -Filter 'tool.json' -Recurse -Depth 1 -File)) {
+        try { $tm = [IO.File]::ReadAllText($tj.FullName, [Text.Encoding]::UTF8) | ConvertFrom-Json } catch { continue }
+        foreach ($q in @($tm.requires)) { $w = [string]$q.fix.winget; if ($w -and $w -notmatch '^Python\.') { $w } }
+    }) | Select-Object -Unique
+$apps = @()
+if ($KemUngDung) { $apps = @(([IO.File]::ReadAllText((Join-Path $RepoDir 'tools\bo-ung-dung\DanhSach.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json).ungDung) }
+$appIds = @($apps | ForEach-Object { [string]$_.id })
+$LocalDbUrl = if ([IO.File]::ReadAllText((Join-Path $RepoDir 'hub\fixes\Cai-SqlLocalDB.ps1'), [Text.Encoding]::UTF8) -match "\`$url = '(https://[^']+\.msi)'") { $Matches[1] } else { '' }
+
+function Get-CachedDownload([string]$Id, [string]$Pin) {
+    # Thư mục 'winget download' trong cache còn dùng được: một file kê khai, một bộ cài đúng mã SHA-256, đúng bản ghim.
+    $d = Join-Path $CacheBoCai $Id
+    if (-not (Test-Path -LiteralPath $d -PathType Container)) { return $null }
+    $y = @(Get-ChildItem -LiteralPath $d -Filter '*.yaml' -File)
+    $f = @(Get-ChildItem -LiteralPath $d -File | Where-Object { $_.Extension -ne '.yaml' })
+    if ($y.Count -ne 1 -or $f.Count -ne 1) { return $null }
+    try { $i = ConvertFrom-WingetManifest $y[0].FullName } catch { return $null }
+    if ($i.id -ne $Id -or ($Pin -and $i.phienBan -ne $Pin)) { return $null }
+    if ((Get-FileHash -LiteralPath $f[0].FullName -Algorithm SHA256).Hash -ne $i.sha256) { return $null }
+    $i | Add-Member -NotePropertyName Dir -NotePropertyValue $d -Force
+    $i | Add-Member -NotePropertyName Ngay -NotePropertyValue $f[0].LastWriteTime -Force
+    return $i
+}
+
+function Save-WingetDownload([string]$Id, [string]$Pin) {
+    # winget download vào thư mục tạm rồi mới thay thư mục trong cache (lỗi giữa chừng không làm hỏng bản cũ). Ưu tiên
+    # bộ cài cho cả máy (--scope machine), gói không có thì lấy bộ cài mặc định. Trả '' khi xong, không thì câu báo lỗi.
+    $wg = Get-Command winget.exe -ErrorAction SilentlyContinue
+    if (-not $wg) { return 'máy dựng không có winget' }
+    $tmp = Join-Path $CacheBoCai "$Id.tai"
+    $base = @('download', '--id', $Id, '-e', '--source', 'winget', '--accept-source-agreements', '--accept-package-agreements', '--disable-interactivity')
+    if ($Pin) { $base += @('--version', $Pin) }
+    $out = @(); $code = 1
+    foreach ($scope in @(@('--scope', 'machine'), @())) {
+        if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force }
+        New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+        $out = @(& $wg.Source @($base + @('-d', $tmp) + $scope) 2>&1 | ForEach-Object { [string]$_ })
+        $code = $LASTEXITCODE
+        if ($code -eq 0) { break }
+    }
+    if ($code -ne 0) {
+        Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+        $why = @($out | Where-Object { $_.Trim() -and $_ -notmatch 'not responsible|█|▒|^\s*[-\\|/]\s*$' } | Select-Object -Last 1)
+        return ('winget download mã {0}: {1}' -f $code, ($why -join ' ').Trim())
+    }
+    $d = Join-Path $CacheBoCai $Id
+    if (Test-Path -LiteralPath $d) { Remove-Item -LiteralPath $d -Recurse -Force }
+    Move-Item -LiteralPath $tmp -Destination $d
+    return ''
+}
+
+function Get-OfficeMauInfo([string]$Given) {
+    # Đọc mẫu Office bằng chính thư viện của công cụ Office, trong tiến trình riêng (thư viện đó có hàm trùng tên với
+    # script này). Trả thư mục mẫu, từng file cấu hình (loại khoá: '' không khoá, gvlk khoá KMS chung, key khoá riêng;
+    # khoá không bao giờ ra khỏi tiến trình đó), lỗi của mẫu, file khác trong thư mục gốc của mẫu.
+    $code = @'
+param([string]$ToolDir, [string]$Given)
+$ErrorActionPreference = 'Stop'
+. (Join-Path $ToolDir 'lib\Chung.ps1'); . (Join-Path $ToolDir 'lib\DocOffice.ps1')
+$script:ToolDir = $ToolDir
+$dir = Find-TemplateDir $Given
+$o = [ordered]@{ dir = $dir; ok = $false; problems = @(); configs = @(); other = @() }
+if ($dir -and (Test-Path -LiteralPath (Join-Path $dir 'setup.exe') -PathType Leaf)) {
+    $o.ok = $true
+    $main = Read-OfficeTemplate $dir ''
+    $o.problems = @($main.Problems)
+    foreach ($x in @(Get-ChildItem -LiteralPath $dir -Filter '*.xml' -File)) {
+        $isCfg = $false
+        try { $isCfg = (Read-OdtXml $x.FullName).DocumentElement.Name -eq 'Configuration' } catch { }
+        if (-not $isCfg) { $o.other += $x.Name; continue }
+        $t = Read-OfficeTemplate $dir $x.Name
+        $o.configs += [ordered]@{ name = $x.Name; keyKind = [string]$t.KeyKind; products = @($t.Products | ForEach-Object { $_.Id }) }
+    }
+    $o.other += @(Get-ChildItem -LiteralPath $dir -Force | Where-Object { $_.Name -ne 'setup.exe' -and $_.Name -ne 'Office' -and $_.Extension -ne '.xml' } | ForEach-Object { $_.Name })
+}
+$o | ConvertTo-Json -Depth 4 -Compress
+'@
+    $f = Join-Path ([IO.Path]::GetTempPath()) ("TramTool_MauOffice_{0}.ps1" -f [guid]::NewGuid().ToString('N'))
+    [IO.File]::WriteAllText($f, $code, $Utf8Bom)
+    try {
+        # PowerShell 5.1 bỏ tham số chuỗi rỗng khi gọi chương trình ngoài: chỉ truyền -Given khi có.
+        $pa = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $f, '-ToolDir', (Join-Path $RepoDir 'tools\office'))
+        if ($Given) { $pa += @('-Given', $Given) }
+        $j = & powershell.exe @pa 2>$null
+        if ($LASTEXITCODE -ne 0) { return $null }
+        return (($j -join '') | ConvertFrom-Json)
+    } catch { return $null } finally { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }
+}
 
 Write-Host "Trạm Tool: đóng gói bản portable $Ten" -ForegroundColor Cyan
 Info "Từ: $RepoDir"
@@ -104,6 +213,29 @@ Info "Python $PyVersion từ $(if ($PythonGoi) { $PythonGoi } else { $PyUrl })"
 if ($tkSrc) { Info "tkinter từ $tkSrc" } else { Canh "Không có Python $PyVersion cài sẵn có tkinter: hộp thoại chọn file của mdf2sql sẽ không mở được (vẫn gõ đường dẫn được)." }
 if ($KhongCaiCongCu) { Info 'Không dựng .venv, không tải LibreDWG (-KhongCaiCongCu).' }
 else { Info '.venv: DWG sang PDF, Khôi phục .mdf; LibreDWG 0.14' }
+$needIds = @($fixIds) + @($apps | ForEach-Object { $_.id })
+foreach ($id in $needIds) {
+    $pin = [string](@($apps | Where-Object { $_.id -eq $id } | ForEach-Object { $_.phienBan }) | Select-Object -First 1)
+    $c = if ($LamMoiBoCai) { $null } else { Get-CachedDownload $id $pin }
+    $what = if ($c) { 'có trong cache: bản {0}, tải ngày {1:dd/MM/yyyy}' -f $c.phienBan, $c.Ngay } elseif ($KhongCaiCongCu) { 'không có trong cache, bỏ qua (-KhongCaiCongCu)' } else { 'tải bằng winget download' + $(if ($pin) { " (bản ghim $pin)" }) }
+    Info "Bộ cài $id`: $what"
+    if ($c -and ((Get-Date) - $c.Ngay).TotalDays -gt 30) { Canh "Bộ cài $id tải từ hơn 30 ngày trước: thêm -LamMoiBoCai để lấy bản mới." }
+}
+Info "Bộ cài SQL Server LocalDB: $(if (Test-Path -LiteralPath (Join-Path $CacheBoCai 'SqlLocalDB\SqlLocalDB.msi')) { 'có trong cache' } elseif ($KhongCaiCongCu) { 'bỏ qua (-KhongCaiCongCu)' } else { "tải từ $LocalDbUrl" })"
+$mau = $null
+if ($KemOffice) {
+    $mau = Get-OfficeMauInfo $MauOffice
+    if (-not $mau -or -not $mau.ok) { Canh "Không thấy bộ cài mẫu Office$(if ($MauOffice) { " ở $MauOffice" } else { ' (tools\office\mau hoặc <ổ>:\Program Files\Microsoft Office)' }): gói không có mẫu Office." }
+    else {
+        $priv = @($mau.configs | Where-Object { $_.keyKind -eq 'key' })
+        Info "Mẫu Office: $($mau.dir) ($(Format-MB (Get-DirSize $mau.dir))), file cấu hình: $(($mau.configs | ForEach-Object { "$($_.name) ($(if ($_.keyKind -eq 'gvlk') { 'khoá KMS chung' } elseif ($_.keyKind) { 'KHOÁ RIÊNG' } else { 'không khoá' }))" }) -join ', ')"
+        if ($priv.Count) { Canh "Mẫu có khoá riêng (MAK, bán lẻ) trong $(($priv | ForEach-Object { $_.name }) -join ', '): không đóng mẫu vào gói để khoá không đi theo gói. Dùng mẫu chỉ có khoá KMS chung hoặc không khoá, hoặc chép mẫu tay sang máy dùng." }
+        foreach ($p in @($mau.problems)) { Canh "Mẫu Office: $p" }
+        if (@($mau.other).Count) { Info "Không đóng vào gói (chỉ lấy setup.exe, file cấu hình, thư mục Office): $(@($mau.other) -join ', ')" }
+    }
+}
+if ($KemUngDung) { Info "Gói thêm ứng dụng: $ZipUngDung" }
+if ($KemOffice) { Info "Gói thêm mẫu Office: $ZipOffice" }
 if ($KemGhiAm) { Info "Gói thêm Ghi âm sang Word: $ZipGhiAm" }
 Info $(if ($KhongNen) { "Thư mục: $Stage (không nén)" } else { "Gói: $Zip" })
 if ($ChayThu) { Write-Host ''; Info 'Chạy thử: dừng ở đây, chưa tải, chưa ghi gì.'; exit 0 }
@@ -216,11 +348,85 @@ if (-not $KhongCaiCongCu) {
                 Get-ChildItem -LiteralPath (Join-Path $ga 'models') -Recurse -Directory -Force -Filter '.cache' | Remove-Item -Recurse -Force
                 Info 'Mô hình chép từ repo trên máy này (không tải lại).'
             }
+            # PhoWhisper (không bắt buộc, chỉ có khi máy dựng đã tạo): đi kèm để chọn được ngay trên máy dùng.
+            $pSrc = Join-Path $RepoDir 'tools\ghi-am-sang-word\models\phowhisper-large-ct2'
+            if (Test-Path -LiteralPath (Join-Path $pSrc 'model.bin')) {
+                New-Item -ItemType Directory -Path (Join-Path $ga 'models') -Force | Out-Null
+                Copy-Item -LiteralPath $pSrc -Destination (Join-Path $ga 'models') -Recurse -Force
+                Get-ChildItem -LiteralPath (Join-Path $ga 'models') -Recurse -Directory -Force -Filter '.cache' | Remove-Item -Recurse -Force
+                Info 'Mô hình PhoWhisper chép từ repo trên máy này.'
+            }
             Invoke-Native 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $ga 'CAI_DAT.ps1')) 'Cài Ghi âm sang Word'
             if (-not (Test-Venv $ga @('faster_whisper', 'ctranslate2', 'docx'))) { Loi '.venv của Ghi âm sang Word không nạp được thư viện.' }
             Ok "Ghi âm sang Word: $(Format-MB ((Get-DirSize (Join-Path $ga '.venv')) + (Get-DirSize (Join-Path $ga 'models'))))"
         }
     } finally { Restore-Env }
+}
+
+# ------------------------------------------------------------------ bộ cài có sẵn (runtime\bo-cai)
+Buoc 'Bộ cài có sẵn (runtime\bo-cai)'
+$boCaiDir = Join-Path $Stage 'runtime\bo-cai'
+New-Item -ItemType Directory -Path $CacheBoCai -Force | Out-Null
+$queue = New-Object System.Collections.Queue
+foreach ($id in $needIds) { $queue.Enqueue($id) }
+$done = @{}; $loiBoCai = @(); $coBoCai = @()
+while ($queue.Count) {
+    $id = [string]$queue.Dequeue()
+    if ($done.ContainsKey($id)) { continue }
+    $done[$id] = $true
+    $pin = [string](@($apps | Where-Object { $_.id -eq $id } | ForEach-Object { $_.phienBan }) | Select-Object -First 1)
+    $c = if ($LamMoiBoCai) { $null } else { Get-CachedDownload $id $pin }
+    if (-not $c -and -not $KhongCaiCongCu) {
+        Info "Tải $id$(if ($pin) { " bản $pin" })..."
+        $err = Save-WingetDownload $id $pin
+        if (-not $err) { $c = Get-CachedDownload $id $pin; if (-not $c) { $err = 'bộ cài tải về không khớp file kê khai' } }
+        if ($err) { $loiBoCai += "$id`: $err"; Canh "Không tải được $id`: $err"; continue }
+    }
+    if (-not $c) { Info "Bỏ qua $id (không có trong cache)."; continue }
+    try { $g = New-BoCaiPackage -SourceDir $c.Dir -DestRoot $boCaiDir -Id $id }
+    catch { $loiBoCai += "$id`: $($_.Exception.Message)"; Canh "Không đóng được $id`: $($_.Exception.Message)"; continue }
+    $coBoCai += $id
+    Ok ('{0} bản {1} ({2}{3}, {4})' -f $g.ten, $g.phienBan, $g.loai, $(if ($g.loaiTrong) { "/$($g.loaiTrong)" }), (Format-MB $g.kichThuoc))
+    foreach ($d in @($g.phuThuoc)) { if (-not $done.ContainsKey($d)) { $queue.Enqueue($d) } }
+}
+# SQL Server LocalDB: .msi của Microsoft (không có trên winget), cùng địa chỉ với hub\fixes\Cai-SqlLocalDB.ps1.
+$ldb = Join-Path $CacheBoCai 'SqlLocalDB\SqlLocalDB.msi'
+if (-not (Test-Path -LiteralPath $ldb) -and -not $KhongCaiCongCu -and $LocalDbUrl) {
+    Info "Tải SQL Server LocalDB: $LocalDbUrl"
+    New-Item -ItemType Directory -Path (Split-Path $ldb -Parent) -Force | Out-Null
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $LocalDbUrl -OutFile "$ldb.tai" -UseBasicParsing
+        Move-Item -LiteralPath "$ldb.tai" -Destination $ldb -Force
+    } catch { Remove-Item -LiteralPath "$ldb.tai" -Force -ErrorAction SilentlyContinue; $loiBoCai += "SqlLocalDB: $($_.Exception.Message)" }
+}
+if (Test-Path -LiteralPath $ldb) {
+    $sig = Get-AuthenticodeSignature -LiteralPath $ldb
+    if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+        Remove-Item -LiteralPath $ldb -Force
+        $loiBoCai += 'SqlLocalDB: bộ cài không có chữ ký hợp lệ của Microsoft, đã xoá khỏi cache'
+    } else {
+        $g = New-BoCaiFilePackage -File $ldb -DestRoot $boCaiDir -Info @{ id = 'SqlLocalDB'; ten = 'SQL Server Express LocalDB'; phienBan = '2022'; nhaPhatHanh = 'Microsoft Corporation'; loai = 'msi'; lenhIm = '/qb IACCEPTSQLLOCALDBLICENSETERMS=YES'; phamVi = 'machine'; tenCaiDat = @('Microsoft SQL Server 2022 Express LocalDB') }
+        $coBoCai += 'SqlLocalDB'
+        Ok "$($g.ten) ($(Format-MB $g.kichThuoc))"
+    }
+}
+if ($coBoCai.Count) { Ok "runtime\bo-cai: $($coBoCai.Count) bộ cài, $(Format-MB (Get-DirSize $boCaiDir))" } else { Info 'Không có bộ cài nào.' }
+$coUngDung = @($apps | Where-Object { $coBoCai -contains $_.id })
+$coGhiAm = $KemGhiAm -and -not $KhongCaiCongCu
+
+# ------------------------------------------------------------------ mẫu Office
+$coOffice = $false
+if ($KemOffice -and $mau -and $mau.ok -and -not @($mau.configs | Where-Object { $_.keyKind -eq 'key' }).Count) {
+    Buoc 'Mẫu Office (tools\office\mau)'
+    $md = Join-Path $Stage 'tools\office\mau'
+    New-Item -ItemType Directory -Path $md -Force | Out-Null
+    # Chỉ setup.exe, file cấu hình (đã kiểm không có khoá riêng) và bộ cài Office\: file khác trong mẫu có thể là ghi chú.
+    Copy-Item -LiteralPath (Join-Path $mau.dir 'setup.exe') -Destination $md
+    foreach ($x in @($mau.configs)) { Copy-Item -LiteralPath (Join-Path $mau.dir $x.name) -Destination $md }
+    if (Test-Path -LiteralPath (Join-Path $mau.dir 'Office') -PathType Container) { Copy-Item -LiteralPath (Join-Path $mau.dir 'Office') -Destination $md -Recurse }
+    $coOffice = $true
+    Ok "Mẫu Office: $(Format-MB (Get-DirSize $md)), file cấu hình $(($mau.configs | ForEach-Object { $_.name }) -join ', ')"
 }
 
 # ------------------------------------------------------------------ TramTool.exe và hướng dẫn
@@ -233,9 +439,21 @@ $gitRev = (& $git.Source -C $RepoDir rev-parse --short HEAD).Trim()
 $info = [ordered]@{
     ten = $Ten; phienBanTram = $hubVer; git = $gitRev; dungLuc = (Get-Date).ToString('yyyy-MM-ddTHH:mm:sszzz')
     python = $PyVersion; tkinter = [bool]$tkSrc; venv = @(Get-ChildItem -LiteralPath (Join-Path $Stage 'tools') -Directory | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName '.venv') } | ForEach-Object { $_.Name })
-    ghiAm = [bool]$KemGhiAm
+    ghiAm = [bool]$coGhiAm; boCai = @($coBoCai); ungDung = @($coUngDung | ForEach-Object { $_.khoa }); officeMau = $coOffice
 }
 [IO.File]::WriteAllText((Join-Path $Stage 'portable.json'), ($info | ConvertTo-Json -Depth 4), $Utf8)
+# Hướng dẫn theo đúng thứ có trong bản này.
+$coSan = @("  - Python $PyVersion (runtime\python) và thư viện của DWG sang PDF, Khôi phục .mdf.", '  - LibreDWG để đọc bản vẽ .dwg.')
+$fixPkgs = @($coBoCai | Where-Object { $appIds -notcontains $_ })
+if ($fixPkgs.Count) { $coSan += "  - Bộ cài cho nút Cài của các công cụ (không cần mạng): $(($fixPkgs | ForEach-Object { (Get-BoCaiPackage $boCaiDir $_).ten }) -join ', ')." }
+if ($coUngDung.Count) { $coSan += "  - Bộ cài ứng dụng cho Bộ ứng dụng văn phòng: $(($coUngDung | ForEach-Object { $_.ten }) -join ', ')." }
+if ($coOffice) { $coSan += '  - Bộ cài mẫu Office (tools\office\mau): công cụ Office tự tìm thấy, không phải chép mẫu.' }
+if ($coGhiAm) { $coSan += '  - Ghi âm sang Word: thư viện và mô hình nhận dạng tiếng nói.' }
+$conThieu = @()
+if (-not $coGhiAm) { $conThieu += '  - Ghi âm sang Word: thư viện và mô hình nhận dạng tiếng nói (khoảng 5 GB, tải một lần). Có gói', '    TramTool-GhiAm-*.zip thì giải nén chồng vào thư mục TramTool này là xong, không phải tải.' }
+if (-not ($coBoCai -contains 'SqlLocalDB' -and $coBoCai -contains 'Microsoft.msodbcsql.18')) { $conThieu +='  - Khôi phục .mdf sang .sql: SQL Server LocalDB và ODBC Driver for SQL Server (cài vào Windows, cần quyền Admin).' }
+if (-not $coUngDung.Count) { $conThieu += '  - Bộ ứng dụng văn phòng: cài qua winget (cần mạng). Có gói TramTool-UngDung-*.zip thì giải nén chồng vào đây.' }
+if (-not $coOffice) { $conThieu += '  - Gỡ sạch và cài Office: chép bộ cài mẫu vào tools\office\mau (hoặc chọn ở ô Thư mục bộ cài mẫu). Có gói', '    TramTool-Office-*.zip thì giải nén chồng vào đây.' }
 $huongDan = @"
 TRẠM TOOL - BẢN PORTABLE ($Ten)
 ==============================================================================
@@ -248,15 +466,9 @@ Lần đầu bấm TramTool.exe, Windows có thể hiện "Windows protected you
 "More info" (Thông tin thêm) rồi "Run anyway" (Vẫn chạy).
 
 Đã có sẵn trong gói:
-  - Python $PyVersion (runtime\python) và thư viện của DWG sang PDF, Khôi phục .mdf.
-  - LibreDWG để đọc bản vẽ .dwg.
+$($coSan -join "`n")
   Chuyển thư mục đi chỗ khác thì bấm TramTool.exe một lần để trạm tự trỏ lại đường dẫn.
-
-Còn phải cài thêm (trạm có nút Cài ở trang của công cụ):
-  - Ghi âm sang Word: thư viện và mô hình nhận dạng tiếng nói (khoảng 5 GB, tải một lần). Có gói
-    TramTool-GhiAm-*.zip thì giải nén chồng vào thư mục TramTool này là xong, không phải tải.
-  - Khôi phục .mdf sang .sql: SQL Server LocalDB và ODBC Driver for SQL Server (cài vào Windows, cần quyền Admin).
-
+$(if ($conThieu.Count) { "`nCòn phải cài thêm (trạm có nút Cài ở trang của công cụ):`n" + ($conThieu -join "`n") + "`n" })
 Có lỗi khi mở: bấm đúp TramTool.bat để xem cửa sổ máy chủ của trạm.
 "@
 [IO.File]::WriteAllText((Join-Path $Stage 'HUONG-DAN-PORTABLE.txt'), ($huongDan -replace "`r?`n", "`r`n"), $Utf8Bom)
@@ -293,17 +505,32 @@ function New-Zip([string]$Path, [string]$Base, [scriptblock]$Chon) {
     return $n
 }
 
-if ($KhongNen) { Write-Host ''; Ok "Xong (không nén): $Stage"; exit 0 }
-Buoc 'Nén'
-$ghiAmRe = '^tools\\ghi-am-sang-word\\(\.venv|models)\\'
-$n = New-Zip $Zip $Stage { param($r) $r -notmatch $ghiAmRe }
-$hash = (Get-FileHash -LiteralPath $Zip -Algorithm SHA256).Hash
-[IO.File]::WriteAllText("$Zip.sha256.txt", "$hash  $(Split-Path $Zip -Leaf)`r`n", $Utf8)
-Ok "$(Split-Path $Zip -Leaf): $n file, $(Format-MB (Get-Item -LiteralPath $Zip).Length), SHA-256 $hash"
-if ($KemGhiAm) {
-    $n2 = New-Zip $ZipGhiAm $Stage { param($r) $r -match $ghiAmRe }
-    Ok "$(Split-Path $ZipGhiAm -Leaf): $n2 file, $(Format-MB (Get-Item -LiteralPath $ZipGhiAm).Length)"
+function Show-Done {
+    foreach ($l in $loiBoCai) { Canh "Thiếu bộ cài $l" }
+    if ($loiBoCai.Count) { Info 'Công cụ vẫn cài các ứng dụng này qua winget khi máy dùng có mạng.' }
+    if ($DayDu) { Ok "Bản đầy đủ: thư mục $Stage ($(Format-MB (Get-DirSize $Stage))). Chép cả thư mục TramTool sang USB, máy dùng bấm TramTool.exe." }
 }
+if ($KhongNen) { Write-Host ''; Show-Done; Ok "Xong (không nén): $Stage"; exit 0 }
+Buoc 'Nén'
+function Save-Zip([string]$Path, [scriptblock]$Chon) {
+    # Gói và file .sha256.txt; GitHub Releases không nhận file từ 2 GB trở lên.
+    $n = New-Zip $Path $Stage $Chon
+    $len = (Get-Item -LiteralPath $Path).Length
+    $hash = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
+    [IO.File]::WriteAllText("$Path.sha256.txt", "$hash  $(Split-Path $Path -Leaf)`r`n", $Utf8)
+    Ok "$(Split-Path $Path -Leaf): $n file, $(Format-MB $len), SHA-256 $hash"
+    if ($len -ge 2GB) { Canh "$(Split-Path $Path -Leaf) từ 2 GB trở lên: GitHub Releases không nhận, chép bằng USB." }
+}
+$ghiAmRe = '^tools\\ghi-am-sang-word\\(\.venv|models)\\'
+$officeRe = '^tools\\office\\mau\\'
+# Bộ cài của ứng dụng vào gói ứng dụng, trừ gói mà nút Cài của công cụ cũng dùng (gói đó ở lại gói chính).
+$appOnly = @($appIds | Where-Object { $fixIds -notcontains $_ })
+$appRe = if ($appOnly.Count) { '^runtime\\bo-cai\\(' + (($appOnly | ForEach-Object { [regex]::Escape($_) }) -join '|') + ')\\' } else { '(?!)' }
+Save-Zip $Zip { param($r) $r -notmatch $ghiAmRe -and $r -notmatch $officeRe -and $r -notmatch $appRe }
+if (@($coUngDung | Where-Object { $appOnly -contains $_.id }).Count) { Save-Zip $ZipUngDung { param($r) $r -match $appRe } }
+if ($coOffice) { Save-Zip $ZipOffice { param($r) $r -match $officeRe } }
+if ($coGhiAm) { Save-Zip $ZipGhiAm { param($r) $r -match $ghiAmRe } }
 Write-Host ''
-Ok "Xong. Gửi file $(Split-Path $Zip -Leaf): giải nén, bấm TramTool.exe."
+Show-Done
+Ok "Xong. Gửi file $(Split-Path $Zip -Leaf): giải nén, bấm TramTool.exe.$(if ($coUngDung.Count -or $coOffice -or $coGhiAm) { ' Gói thêm giải nén chồng vào cùng thư mục TramTool.' })"
 exit 0

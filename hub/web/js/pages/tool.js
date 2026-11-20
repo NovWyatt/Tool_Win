@@ -70,6 +70,8 @@ async function fix(t, q) {
 }
 
 const fixLabel = (f) => f.label || (f.winget ? 'Cài' : 'Sửa');
+// Bản portable có sẵn bộ cài cho yêu cầu này: nút Cài không cần mạng.
+const bundledNote = (q) => (q.bundled ? html`<small class="bundled">${icon('check-circle', 'ic-16')}Có sẵn bộ cài trong bản này, cài không cần mạng.</small>` : nothing);
 const recheck = (t) => loadReqs(t, true).then(() => toast('success', 'Đã kiểm tra lại.', { ms: 2500 }));
 
 // Dòng "sẵn sàng" dưới tên công cụ: đủ yêu cầu chưa, lần chạy gần nhất.
@@ -104,7 +106,7 @@ function needPanel(t, d) {
       ${btn('Kiểm tra lại', () => recheck(t), { kind: 'ghost', sm: true, ic: 'refresh' })}
     </div>
     <ul class="need-list">${fixes.map((f) => html`<li>
-      <span>${f.labels.join(', ')}${f.req.detail ? html`<small>${f.req.detail}</small>` : nothing}</span>
+      <span>${f.labels.join(', ')}${f.req.detail ? html`<small>${f.req.detail}</small>` : nothing}${bundledNote(f.req)}</span>
       ${f.fix ? btn(fixLabel(f.fix), () => act(() => fix(t, f.req)), { kind: 'primary', sm: true, ic: f.fix.admin ? 'shield' : 'download' })
         : html`<span class="muted small">Cài tay theo Hướng dẫn</span>`}
     </li>`)}</ul>
@@ -180,7 +182,7 @@ function reqRow(t, q) {
   const ic = q.ok ? 'check-circle' : q.optional ? 'warning' : 'dismiss-circle';
   return html`<div class="kv req-${state}">
     <span class="k">${q.label}${q.optional ? html`<small>Không bắt buộc</small>` : nothing}</span>
-    <span class="v"><span class="req-state">${icon(ic, 'ic-16')}${q.ok ? 'Đã có' : q.optional ? 'Chưa có' : 'Thiếu'}</span>${q.detail ? html`<small>${q.detail}</small>` : nothing}</span>
+    <span class="v"><span class="req-state">${icon(ic, 'ic-16')}${q.ok ? 'Đã có' : q.optional ? 'Chưa có' : 'Thiếu'}</span>${q.detail ? html`<small>${q.detail}</small>` : nothing}${!q.ok ? bundledNote(q) : nothing}</span>
     <span>${!q.ok && q.fix ? btn(fixLabel(q.fix), () => act(() => fix(t, q)), { kind: q.optional ? 'secondary' : 'primary', sm: true, ic: 'download' }) : nothing}</span>
   </div>`;
 }
